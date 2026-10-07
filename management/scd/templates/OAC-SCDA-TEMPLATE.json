@@ -1,0 +1,19 @@
+{
+  "$comment": "OAC SCD Assignment (SCDA) authoring template, schema v0.9. Composed BY THE UPSTREAM MANAGEMENT CONTROLLER against the Definition the OAC published, and written to the OAC over PLDM for File Transfer (DSP0242) while the OAC is in Operational State O3, before OAC_PWR_EN is asserted. Replace every <placeholder>, delete every $comment key, delete every assignment the platform does not need to set, and minify before transfer. See OAC-SCD-Specification-v0.9.md Sections 8 and 9.",
+  "oac_scda": {
+    "metadata": {
+      "$comment": "definition_revision MUST be echoed verbatim from the Definition this Assignment was composed against. The OAC rejects (code 0x0D) if it does not match the Definition it is currently publishing -- that rejection means the controller is holding a stale Definition and must re-read and recompose. Do not cache a Definition across OAC firmware updates.",
+      "schema_version": "0.9",
+      "definition_revision": 1,
+      "description": "<free text -- human-readable summary; never affects OAC behavior>"
+    },
+    "assignments": {
+      "$comment": "THE ASSIGNMENT IS SPARSE. Include a key ONLY for a field the platform actually wants to set. An omitted field is not an error and is not a partial assignment -- it selects the declared default. An empty assignments object is valid and means every declared default is accepted. Keys must exactly match an id declared in the Definition; an unknown key is a rejection (code 0x04). Values must match the declared type with no coercion, fall within declared min/max or max_length, and match an enumeration value exactly and case-sensitively. Never assign a value flagged sentinel_default (code 0x0A), and never use JSON null (code 0x0B). OMIT any field you do not recognize -- that is the mechanism by which vendor fields coexist with generic controllers, and it is always safe. Do NOT attempt to reconcile ocp.initial_power_level_set_w against ocp.max_power_w; the OAC clamps. The values shown below are illustrative and are not defaults -- each must fall inside the min/max the target Definition declares for that field, and note that the power fields' min is the OAC's OPL-EMG floor, so 0 is never a legal wattage even though it is a legal slot_id.",
+      "ocp.slot_id": 0,
+      "ocp.max_power_w": 2000,
+      "ocp.initial_power_level_set_w": 1200,
+      "ocp.link_subdivision.<connector lowercased>.<CID group name>": "<mode string declared by that field in the Definition>",
+      "pen.<IANA PEN>.<field_name>": "<value declared by that field in the Definition>"
+    }
+  }
+}

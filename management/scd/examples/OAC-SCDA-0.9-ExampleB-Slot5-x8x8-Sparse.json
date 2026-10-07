@@ -1,0 +1,14 @@
+{
+  "oac_scda": {
+    "metadata": {
+      "schema_version": "0.9",
+      "definition_revision": 1,
+      "description": "Example B SCD Assignment: sets slot, budget, and subdivision. Omits ocp.initial_power_level_set_w because the declared 1200 W default suits this platform, and omits pen.32473.boot_source because this controller does not recognize PEN 32473 -- the OAC applies local_flash regardless."
+    },
+    "assignments": {
+      "ocp.slot_id": 5,
+      "ocp.max_power_w": 2000,
+      "ocp.link_subdivision.conn0.pcie_primary": "x8x8"
+    }
+  }
+}

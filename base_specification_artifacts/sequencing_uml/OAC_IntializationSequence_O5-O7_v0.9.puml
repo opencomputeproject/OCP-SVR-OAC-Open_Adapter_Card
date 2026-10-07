@@ -1,0 +1,31 @@
+@startuml OAC power up to S5
+
+participant Baseboard
+participant OAC 
+
+== OAC Power throttling from O5 to O7 ==
+note left of Baseboard
+O5
+end note
+alt baseboard initialized
+Baseboard -> OAC: Write Operational Power Limit
+OAC -> OAC: Reduce Power to new limit
+else adapter initialized
+OAC -> OAC: Reduce Power to a new limit
+end
+OAC -> Baseboard: OPL PLDM Transition Event
+note left of Baseboard
+O6
+end note
+== OAC Power throttling from O5/O6 to O7 ==
+note left of Baseboard
+O5/O6
+end note
+Baseboard -> OAC: Assert PWRBRK#
+OAC -> OAC: Reduce Power to OPL-EMG
+OAC -> Baseboard: OPL PLDM Transition Event
+note left of Baseboard
+O7
+end note
+
+@enduml

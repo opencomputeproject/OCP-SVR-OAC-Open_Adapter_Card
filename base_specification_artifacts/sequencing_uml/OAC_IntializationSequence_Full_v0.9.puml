@@ -1,0 +1,99 @@
+@startuml OAC power up to S5
+
+participant Baseboard
+participant OAC 
+
+== OAC Power on O0 to O3 ==
+note left of Baseboard
+O0
+end note
+Baseboard <- OAC: Assert OAC_PRSNT[0:6]#
+note right of Baseboard
+OAC_PRSNT[0:6]# assertion is initiated by physical insertion
+and seating of the OAC. Presence is indicated by
+grounding OAC_PRSNT[0:6]# or MPESTI-based discovery.
+end note
+Baseboard -> Baseboard: Check OAC Adapter Presence
+note left of Baseboard
+O1
+end note
+Baseboard -> OAC: Provide +12V Auxliary Power
+OAC -> OAC: Enable standby VRs, clocks, USB-Hubs...
+OAC -> OAC: Validate standby power environment
+OAC -> Baseboard: Assert OAC_AUX_PWR_GD
+note left of Baseboard
+O2
+end note
+Baseboard -> OAC: Deassert OAC_MC_RST#
+OAC -> OAC: Initialize MC subsystem
+OAC -> OAC: Boot MC
+OAC -> OAC: Enable MCTP/PLDM services
+OAC -> Baseboard: OAC_MC_RDY
+note left of Baseboard
+O3
+end note
+Baseboard -> OAC: Enumerate management interface
+Baseboard -> OAC: Establish MCTP/PLDM communication
+Baseboard -> OAC: Query OAC connector interface definition (CID)
+Baseboard -> OAC: Query OAC slot configuration data definitions (SCDD)
+Baseboard -> Baseboard: Check platform compatibility against CID
+Baseboard -> Baseboard: Derive slot configuration data assignments (SCDA)
+Baseboard -> OAC: Write slot configuration data assignments (SCDA) to OAC
+OAC -> OAC: Validate SCDA against operational requirements
+OAC -> Baseboard: Accept the configuration
+
+== OAC Power on from O3 to O5 ==
+note left of Baseboard
+O3
+end note
+Baseboard -> Baseboard: Energize primary power bus bar
+Baseboard -> OAC: Assert OAC_PWR_EN
+OAC -> OAC: Enable VRs, Clocks...
+OAC -> Baseboard: Assert OAC_PWR_GD
+note right of Baseboard
+When multiple OACs are installed within a platform, 
+primary power may be applied sequentially. 
+As a result, the time between OAC_PWR_GD assertion 
+and the next primary power-up event may vary and 
+is platform-dependent.
+end note
+note left of Baseboard
+O4
+end note
+
+Baseboard -> OAC: Deassert OAC_PLT_RST#
+OAC -> OAC: Intialize devices in primary power domain
+Baseboard -> OAC: Enumerate Devices
+note left of Baseboard
+O5
+end note
+
+== OAC Power throttling from O5 to O6 ==
+note left of Baseboard
+O5
+end note
+alt baseboard initialized
+Baseboard -> OAC: Write Operational Power Limit
+OAC -> OAC: Reduce Power to new limit
+else adapter initialized
+OAC -> OAC: Reduce Power to a new limit
+end
+OAC -> Baseboard: OPL PLDM Transition Event
+note left of Baseboard
+O6
+end note
+== OAC Power throttling from O5/O6 to O7 ==
+note left of Baseboard
+O5/O6
+end note
+Baseboard -> OAC: Assert PWRBRK#
+OAC -> OAC: Reduce Power to OPL-EMG
+OAC -> Baseboard: OPL PLDM Transition Event
+note left of Baseboard
+O7
+end note
+
+
+
+
+@enduml

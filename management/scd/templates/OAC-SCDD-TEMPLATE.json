@@ -1,0 +1,103 @@
+{
+  "$comment": "OAC SCD Definition (SCDD) authoring template, schema v0.9. Published BY THE OAC as a non-resident, dynamically generated FRU file and read by the upstream management controller via PLDM for FRU Data (DSP0257). This is the template of settable fields -- it declares what the OAC will accept, not what it is currently set to. Replace every <placeholder>, delete every $comment key, delete every field descriptor that does not apply, and minify before publication. See OAC-SCD-Specification-v0.9.md Sections 6 and 7.",
+  "oac_scdd": {
+    "metadata": {
+      "$comment": "schema_version, oac_spec_revision and definition_revision are required. definition_revision is a monotonically increasing integer that MUST be incremented whenever the content of this Definition changes, including across firmware updates -- it is the sole mechanism by which a controller holding a stale Definition is detected. iana_pen is provenance only and is never an authorization mechanism; it must be a positive integer, and the 32473 shown here is the PEN reserved for documentation -- substitute your own.",
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "definition_revision": 1,
+      "description": "<free text -- human-readable summary of this OAC's configurable surface; never used for any configuration decision>",
+      "iana_pen": 32473
+    },
+    "fields": [
+      {
+        "$comment": "INTEGER FIELD WITH A SENTINEL DEFAULT. Use this shape when there is no value the OAC could correctly choose. The default sits deliberately OUTSIDE [min, max] and means 'not assigned'; sentinel_default: true marks it so a validator can tell a deliberate out-of-range default from a typo. A controller must never assign the sentinel value, and an OAC holding it must report the property as unknown rather than substituting a plausible value. ocp.slot_id is the canonical case -- see Specification Section 10.1.",
+        "id": "ocp.slot_id",
+        "display_name": "Slot Identifier",
+        "description": "Logical slot identifier of the position this OAC occupies.",
+        "type": "integer",
+        "response": "required",
+        "default": 255,
+        "sentinel_default": true,
+        "min": 0,
+        "max": 15
+      },
+      {
+        "$comment": "PLATFORM POWER BUDGET. This field runs opposite to every other field in the Definition: it is the platform describing ITSELF to the OAC. min MUST equal the CID power.primary.opl_emg_w and max MUST equal opl_max_w, and the default MUST be opl_emg_w so that a controller which omits the field leaves the OAC throttled rather than assuming a budget the platform may not have. Substitute this OAC's real CID wattages for the values shown. See Specification Section 10.2.",
+        "id": "ocp.max_power_w",
+        "display_name": "Platform Power Budget",
+        "description": "Sustained power the platform can supply to this slot.",
+        "type": "integer",
+        "response": "required",
+        "default": 625,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "$comment": "INITIAL OPL-SET WATTAGE. min and max MUST equal the CID power.primary.opl_set_min_w and opl_set_max_w; the default MUST lie inside that range. Do NOT add a cross-field constraint against ocp.max_power_w -- the OAC clamps to min(this, ocp.max_power_w, opl_max_w), so no assignable combination is unsafe. Delete this whole descriptor if the OAC does not support OPL-SET. See Specification Section 10.3.",
+        "id": "ocp.initial_power_level_set_w",
+        "display_name": "Initial OPL-SET Wattage",
+        "description": "Power cap applied when the OAC enters Operational State O5.",
+        "type": "integer",
+        "response": "optional",
+        "default": 1200,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "$comment": "LINK SUBDIVISION. Declare ONE descriptor per subdividable PCIe or CXL protocol group, and none for groups that cannot be subdivided. The id embeds the CID connector identifier LOWERCASED followed by the group name; the cid_binding carries the connector in canonical CID casing. Both segments are required -- a two-segment id collides as soon as two connectors reuse a group name, which per-connector scoping explicitly permits. Every mode's segments must sum to the bound CID group's total_lanes, in positional order over ascending lane indices. See Specification Section 10.4.",
+        "id": "ocp.link_subdivision.<connector lowercased, e.g. conn0>.<CID group name, e.g. pcie_primary>",
+        "display_name": "<short human label, 1-64 chars>",
+        "description": "<human-facing explanation; must not restate min/max/values>",
+        "type": "enumeration",
+        "response": "required",
+        "default": "<one of the value strings below>",
+        "cid_binding": {
+          "cid_object": "protocol_group",
+          "cid_connector": "<CONN0|CONN1|CONN2|CONN3|CONN4|CONN5|CONN6|CABLE>",
+          "cid_group_name": "<name of the target group WITHIN that connector>"
+        },
+        "values": [
+          { "value": "x16", "description": "Single x16 link, lanes 0-15" },
+          { "value": "x8x8", "description": "Two x8 links, lanes 0-7 and 8-15" },
+          { "value": "x4x4x4x4", "description": "Four x4 links, lanes 0-3, 4-7, 8-11, 12-15" }
+        ]
+      },
+      {
+        "$comment": "VENDOR-DEFINED FIELD. Any field outside the ocp. registry uses the pen.<IANA PEN>. prefix, where <IANA PEN> is the vendor's decimal Private Enterprise Number. No OCP registration is required. A vendor field is as much a first-class SCD field as an OCP one; a controller that does not recognize it simply omits it from the Assignment and the OAC applies this declared default. Copy this descriptor once per vendor field, or delete it if the OAC defines none.",
+        "id": "pen.<IANA PEN>.<field_name in snake_case>",
+        "display_name": "<short human label, 1-64 chars>",
+        "description": "<human-facing explanation; must not restate machine-readable constraints>",
+        "type": "<integer|string|boolean|enumeration>",
+        "response": "<required|optional>",
+        "default": "<value satisfying this descriptor's own type and constraints>",
+        "values": [
+          { "value": "<literal that may appear in an Assignment>", "description": "<what selecting it does>" }
+        ]
+      },
+      {
+        "$comment": "OPTIONAL GATING. Add applies_when to any descriptor above to declare that it is relevant only when another declared field holds a particular value. It is deliberately a single-field equality test and not an expression language; if a real case cannot be expressed with it, raise it with the OCP OAC workstream rather than generalizing. OAC-side validation remains the backstop for anything the Definition cannot express. This stub descriptor is illustrative -- DELETE it. See Specification Sections 7.9 and 11.3.3.",
+        "id": "pen.<IANA PEN>.<dependent_field>",
+        "display_name": "<short human label>",
+        "description": "<human-facing explanation>",
+        "type": "boolean",
+        "response": "optional",
+        "default": false,
+        "applies_when": {
+          "field": "<id of the governing field, declared in this same Definition>",
+          "equals": "<value the governing field must hold>"
+        }
+      }
+    ]
+  }
+}

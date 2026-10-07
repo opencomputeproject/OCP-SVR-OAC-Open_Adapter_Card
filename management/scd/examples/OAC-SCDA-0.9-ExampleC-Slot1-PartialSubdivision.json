@@ -1,0 +1,14 @@
+{
+  "oac_scda": {
+    "metadata": {
+      "schema_version": "0.9",
+      "definition_revision": 3,
+      "description": "Example C SCD Assignment: slot 1, 1600 W budget, CONN0 split x4x4. Deliberately omits ocp.link_subdivision.conn2.pcie_primary even though it is marked required -- the declared x16 default is what this platform wants. Also omits both vendor fields, so pen.32473.stream_image_slot is not applicable and would have been ignored had it been supplied."
+    },
+    "assignments": {
+      "ocp.slot_id": 1,
+      "ocp.max_power_w": 1600,
+      "ocp.link_subdivision.conn0.pcie_primary": "x4x4"
+    }
+  }
+}

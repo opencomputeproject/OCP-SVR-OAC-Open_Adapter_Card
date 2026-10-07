@@ -1,0 +1,39 @@
+{
+  "head": {
+    "text": "OAC_PWRBRK# - Timing"
+  },
+  "signal": [
+    {
+      "name": "OAC_PWRBRK#",
+      "wave": "1.0.......1....",
+      "node": "..A.......C...."
+    },
+    {
+    },
+    {
+    },
+    {
+      "name": "OAC Power Level",
+      "wave": "2..3.4.....5.2.",
+      "data": ["Normal", "Reducing", "PCAP0", "Recovering","Normal"],
+      "node": "...B.......D..."
+    },
+    {
+      "node": "...E.F.....G.H." 
+    },
+  ],
+  "edge": [
+    "A~>B Tdet <= 10 us",
+    "E+F Tred <= 10 ms",
+    "C~>D Tdet <= 10 us",
+    "G+H Trec <= 10 ms",
+  ],
+  "foot": {
+    "text":
+       "Timing not drawn to scale"
+  },
+  "config": {
+    "hscale": 2
+    
+  }
+}

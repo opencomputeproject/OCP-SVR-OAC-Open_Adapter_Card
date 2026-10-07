@@ -1,0 +1,2895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OAC CID Editor</title>
+  <style>
+    :root {
+      --ocp-white:   #FFFFFF;
+      --ocp-bg:      #f7f7f7;
+      --ocp-navy:    #1f2020;
+      --ocp-blue:    #8dc63f;
+      --ocp-mid:     #f7f7f7;
+      --ocp-border:  #dfdfe0;
+      --ocp-text:    #303031;
+      --ocp-muted:   #5f6062;
+      --ocp-input:   #FFFFFF;
+      --green:       #72a230;
+      --green-bg:    #eef7df;
+      --yellow:      #b98c2e;
+      --yellow-bg:   #fdf6e3;
+      --red:         #de3b3b;
+      --red-bg:      #fef0f0;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--ocp-bg);
+      color: var(--ocp-text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--ocp-navy);
+      border-bottom: 3px solid var(--ocp-blue);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 20px;
+      height: 54px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .ocp-logo {
+      background: var(--ocp-blue);
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      padding: 4px 9px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .header-titles { flex: 1; display: flex; flex-direction: column; }
+    .header-title { color: #fff; font-size: 0.95rem; font-weight: 600; line-height: 1.2; }
+    .header-subtitle { color: var(--ocp-border); font-size: 0.72rem; margin-top: 1px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .export-dropdown { position: relative; }
+    .export-menu {
+      position: absolute; top: calc(100% + 4px); right: 0;
+      background: var(--ocp-white); border: 1px solid var(--ocp-border);
+      border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      min-width: 160px; z-index: 200; overflow: hidden;
+    }
+    .export-menu button {
+      display: block; width: 100%; text-align: left;
+      padding: 9px 14px; font-size: 0.82rem; font-weight: 600;
+      border: none; background: transparent; color: var(--ocp-text);
+      cursor: pointer; transition: background 0.1s;
+    }
+    .export-menu button:hover { background: var(--ocp-mid); }
+    .btn {
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 5px;
+      padding: 6px 13px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--ocp-blue); color: #fff; }
+    .btn-secondary { background: var(--ocp-mid); color: var(--ocp-text); }
+    .btn-danger { background: var(--red-bg); color: var(--red); }
+    .btn-sm { font-size: 0.72rem; padding: 4px 9px; }
+
+    /* ── Body layout: left nav | center form | right preview ── */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Left nav ── */
+    nav {
+      width: 210px;
+      flex-shrink: 0;
+      background: var(--ocp-white);
+      border-right: 1px solid var(--ocp-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 16px 0 24px;
+    }
+    .nav-section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ocp-muted);
+      padding: 0 16px;
+      margin-bottom: 6px;
+      margin-top: 14px;
+    }
+    .nav-section-label:first-child { margin-top: 0; }
+    .mode-toggle {
+      display: flex;
+      margin: 0 12px 8px;
+      border: 1px solid var(--ocp-border);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .mode-btn {
+      flex: 1;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 0;
+      border: none;
+      cursor: pointer;
+      background: var(--ocp-mid);
+      color: var(--ocp-muted);
+      transition: all 0.15s;
+    }
+    .mode-btn.active {
+      background: var(--ocp-navy);
+      color: #fff;
+    }
+    .nav-link {
+      display: block;
+      padding: 7px 16px;
+      font-size: 0.8rem;
+      color: var(--ocp-text);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.12s;
+      user-select: none;
+    }
+    .nav-link:hover { background: var(--ocp-mid); }
+    .nav-link.active {
+      border-left-color: var(--ocp-blue);
+      background: #eef7df;
+      color: var(--ocp-navy);
+      font-weight: 700;
+    }
+    .nav-conn-list { display: flex; flex-direction: column; }
+
+    /* ── Center form ── */
+    .form-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px 48px;
+      min-width: 0;
+    }
+    .form-card {
+      background: var(--ocp-white);
+      border: 1px solid var(--ocp-border);
+      border-radius: 8px;
+      padding: 20px 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 1px 3px rgba(0,43,73,0.05);
+    }
+    .form-card-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ocp-muted);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ocp-mid);
+    }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--ocp-text);
+      margin-bottom: 4px;
+    }
+    label .req { color: var(--red); margin-left: 2px; }
+    label .opt-tag {
+      font-size: 0.68rem;
+      font-weight: 400;
+      color: var(--ocp-muted);
+      margin-left: 4px;
+    }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      color: var(--ocp-text);
+      background: var(--ocp-input);
+      border: 1px solid var(--ocp-border);
+      border-radius: 5px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--ocp-blue);
+    }
+    textarea { resize: vertical; min-height: 64px; }
+    .hint {
+      font-size: 0.7rem;
+      color: var(--ocp-muted);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+    .field-row { display: flex; gap: 12px; }
+    .field-row .field { flex: 1; min-width: 0; }
+
+    /* ── Toggle section ── */
+    .toggle-section { border: 1px solid var(--ocp-border); border-radius: 6px; margin-bottom: 14px; }
+    .toggle-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      background: var(--ocp-mid);
+      border-radius: 5px;
+      user-select: none;
+    }
+    .toggle-header:hover { background: var(--ocp-border); }
+    .toggle-header.open { border-radius: 5px 5px 0 0; }
+    .toggle-label { font-size: 0.8rem; font-weight: 600; color: var(--ocp-text); flex: 1; }
+    .toggle-caret { font-size: 0.7rem; color: var(--ocp-muted); transition: transform 0.15s; }
+    .toggle-header.open .toggle-caret { transform: rotate(90deg); }
+    .toggle-body { padding: 14px; display: none; }
+    .toggle-body.open { display: block; }
+
+    /* ── Connector tabs ── */
+    .conn-tabs {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .conn-tab {
+      padding: 5px 12px;
+      font-size: 0.77rem;
+      font-weight: 600;
+      border: 1px solid var(--ocp-border);
+      border-radius: 5px;
+      cursor: pointer;
+      background: var(--ocp-mid);
+      color: var(--ocp-muted);
+      transition: all 0.12s;
+    }
+    .conn-tab.active {
+      background: var(--ocp-navy);
+      color: #fff;
+      border-color: var(--ocp-navy);
+    }
+    .conn-tab.populated {
+      color: var(--ocp-text);
+      background: var(--ocp-white);
+    }
+    .conn-tab.active { background: var(--ocp-navy); color: #fff; }
+
+    /* ── Lane / clock / signal tables ── */
+    .items-table { width: 100%; border-collapse: collapse; font-size: 0.77rem; margin-bottom: 8px; }
+    .items-table th {
+      text-align: left;
+      padding: 4px 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--ocp-muted);
+      border-bottom: 1px solid var(--ocp-border);
+    }
+    .items-table td { padding: 4px 4px; vertical-align: middle; }
+    .items-table td input, .items-table td select {
+      padding: 4px 6px;
+      font-size: 0.75rem;
+    }
+    .items-table td .btn-sm { padding: 3px 7px; font-size: 0.7rem; }
+
+    /* ── Visual pin map ── */
+    .pin-map-wrap { margin-top: 14px; }
+    .pin-map-toggle {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--ocp-muted);
+      margin-bottom: 8px;
+    }
+    .pin-map-toggle:hover { color: var(--ocp-text); }
+    .pin-map-caret { transition: transform 0.15s; }
+    .pin-map-caret.open { transform: rotate(90deg); }
+    .pin-map-grid-wrap { overflow-x: auto; }
+    .pin-map-table {
+      border-collapse: collapse;
+      font-size: 0.62rem;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      white-space: nowrap;
+    }
+    .pin-map-table th {
+      padding: 3px 6px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--ocp-muted);
+      border: 1px solid var(--ocp-border);
+      background: var(--ocp-mid);
+      min-width: 72px;
+    }
+    .pin-map-table td {
+      border: 1px solid var(--ocp-border);
+      text-align: center;
+      padding: 0;
+      min-width: 72px;
+      height: 34px;
+      position: relative;
+    }
+    .pin-cell {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; height: 100%; cursor: pointer;
+      font-size: 0.68rem; font-weight: 600;
+      transition: background 0.1s;
+    }
+    .pin-cell.blocked {
+      background: #ececec;
+      color: #bfbfc0;
+      cursor: default;
+      font-size: 0.55rem;
+    }
+    .pin-cell.empty:hover { background: #eef7df; }
+    .pin-cell.assigned-rx-pos  { background: #d0eaff; color: #1a4d8a; }
+    .pin-cell.assigned-rx-neg  { background: #e8f4ff; color: #1a4d8a; }
+    .pin-cell.assigned-tx-pos  { background: #d8f5e0; color: #1a6030; }
+    .pin-cell.assigned-tx-neg  { background: #edfaf2; color: #1a6030; }
+    .pin-cell.assigned-clk     { background: #fff3cd; color: #7a5500; }
+    .pin-cell.assigned-discrete{ background: #ede7f6; color: #5c2d91; }
+    .pin-cell.hs-blocked { background: #fafafa; }
+    .pin-cell.hs-blocked:hover { background: #f0f0f0; }
+    .pin-cell[class*="assigned"]:hover { opacity: 0.8; }
+    .pin-row-label {
+      font-weight: 700; color: var(--ocp-muted);
+      padding: 2px 6px; background: var(--ocp-mid);
+      border: 1px solid var(--ocp-border); text-align: center;
+    }
+    /* pin picker popup */
+    .pin-picker {
+      position: absolute; z-index: 100;
+      background: var(--ocp-white);
+      border: 1px solid var(--ocp-border);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      padding: 10px 12px;
+      width: 340px;
+      max-width: 340px;
+      font-size: 0.75rem;
+      top: calc(100% + 4px);
+      left: 0;
+      white-space: normal;
+      line-height: 1.45;
+    }
+    .pin-picker-title { font-weight: 700; margin-bottom: 8px; color: var(--ocp-text); }
+    .pin-picker select { width: 100%; margin-bottom: 6px; }
+    .pin-picker-btns { display: flex; gap: 6px; }
+    .pin-picker-btns button { flex: 1; }
+
+    /* ── Manual mode ── */
+    #manual-area { display: none; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; padding: 20px 24px; }
+    #manual-area.visible { display: flex; }
+    .json-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-left: 12px;
+    }
+    .json-status.valid { background: var(--green-bg); color: var(--green); }
+    .json-status.invalid { background: var(--red-bg); color: var(--red); }
+    #manual-textarea {
+      flex: 1; width: 100%; min-height: 100%;
+      font-family: "Consolas", "Fira Code", "SF Mono", monospace;
+      font-size: 0.78rem;
+      background: transparent;
+      border: none; outline: none;
+      padding: 14px;
+      resize: none;
+      color: transparent;
+      caret-color: var(--ocp-text);
+      line-height: 1.55;
+      overflow: auto;
+    }
+    .manual-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .manual-header-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ocp-text);
+    }
+
+    /* ── Right JSON preview ── */
+    .json-preview {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--ocp-navy);
+      border-left: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .json-output-wrap { flex: 1; overflow-y: auto; min-height: 0; }
+    .json-preview-header {
+      padding: 9px 14px;
+      background: rgba(0,0,0,0.25);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: rgba(255,255,255,0.5);
+      flex-shrink: 0;
+    }
+    #json-output {
+      padding: 12px 14px;
+      font-family: "Consolas", "Fira Code", "SF Mono", monospace;
+      font-size: 0.68rem;
+      line-height: 1.6;
+      color: #7CFC8C;
+      white-space: pre;
+      word-break: break-all;
+      min-height: 100%;
+    }
+
+    /* ── Connector populated row ── */
+    .conn-populated-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--ocp-text);
+    }
+    input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--ocp-blue); }
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--ocp-mid);
+      margin: 14px 0;
+    }
+    .pullx-group { display: none; padding-left: 16px; margin-top: 6px; }
+    .pullx-group.visible { display: block; }
+    .note-box {
+      background: var(--yellow-bg);
+      border: 1px solid #F0C070;
+      border-radius: 5px;
+      padding: 8px 12px;
+      font-size: 0.76rem;
+      color: var(--yellow);
+      margin-bottom: 10px;
+    }
+    .section-heading {
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ocp-blue);
+      margin: 14px 0 8px;
+    }
+
+    /* ── App-mode toggle (CID / Profile) ── */
+    .app-mode-toggle {
+      display: flex;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 5px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .app-mode-btn {
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      color: rgba(255,255,255,0.55);
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+    }
+    .app-mode-btn.active {
+      background: var(--ocp-blue);
+      color: var(--ocp-navy);
+    }
+
+    /* ── Profile panel ── */
+    #profile-area { display: none; }
+    #profile-area.visible { display: block; }
+    .profile-id-hint {
+      font-size: 0.68rem;
+      color: var(--ocp-muted);
+      margin-top: 3px;
+      line-height: 1.45;
+    }
+    .profile-panel-wrap { padding: 0; }
+
+    /* ── Toast notification ── */
+    #oac-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--ocp-navy); color: #fff;
+      padding: 10px 20px; border-radius: 6px; font-size: 0.8rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 9999; white-space: nowrap;
+    }
+    #oac-toast.show { opacity: 1; }
+    /* validation badge */
+    #val-badge.valid   { background:#dff0d8; color:#3a7d44; }
+    #val-badge.warning { background:#fff3cd; color:#7a5500; }
+    #val-badge.error   { background:#fdecea; color:#c0392b; }
+    /* validation panel */
+    .val-pane-wrap { flex-shrink:0; max-height:35%; overflow-y:auto; background:rgba(0,0,0,0.3); border-top:1px solid rgba(255,255,255,0.12); display:none; }
+    .val-pane-wrap.show { display:block; }
+    .val-pane-header { padding:6px 14px; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:rgba(255,255,255,0.4); }
+    #val-panel { padding:4px 14px 10px; font-size:0.72rem; line-height:1.7; }
+    .val-error   { color:#f08080; }
+    .val-warning { color:#f5c518; }
+    /* ── Syntax highlight overlay for manual mode ── */
+    .manual-wrap { position: relative; }
+    #manual-highlight {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      padding: 14px; margin: 0;
+      font-family: "Consolas", "Fira Code", "SF Mono", monospace;
+      font-size: 0.78rem; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word;
+      pointer-events: none; overflow: hidden;
+      border: 1px solid transparent; border-radius: 6px;
+      background: transparent; color: transparent;
+    }
+    #manual-textarea {
+      position: relative; z-index: 1;
+      background: transparent !important;
+      color: transparent !important;
+      caret-color: var(--ocp-text);
+    }
+    .hl-wrap {
+      position: relative;
+      flex: 1; display: flex; flex-direction: column;
+      background: var(--ocp-white);
+      border: 1px solid var(--ocp-border); border-radius: 6px;
+      overflow: visible;
+    }
+    .json-key     { color: #1f6fba; font-weight:600; }
+    .json-string  { color: #1a7a3c; }
+    .json-number  { color: #c87729; }
+    .json-bool    { color: #8e44ad; font-weight:600; }
+    .json-null    { color: #c0392b; font-weight:600; }
+    .json-punct   { color: #5f6062; }
+
+    /* ── Tooltips ── */
+    .tip-wrap { display:inline-flex; align-items:center; gap:4px; }
+    .tip-icon {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:15px; height:15px; border-radius:50%;
+      background:var(--ocp-mid); color:var(--ocp-muted);
+      font-size:0.65rem; font-weight:700; cursor:default;
+      flex-shrink:0; position:relative; user-select:none;
+      border:1px solid var(--ocp-border);
+      transition:background 0.1s, color 0.1s, border-color 0.1s;
+    }
+    .tip-icon:hover { background:#e8f4ff; color:var(--ocp-accent); border-color:var(--ocp-accent); }
+    .tip-icon .tip-bubble {
+      display:none; position:absolute; left:18px; top:50%; transform:translateY(-50%);
+      background:#1e293b; color:#f1f5f9; font-size:0.69rem; font-weight:400;
+      line-height:1.45; padding:7px 10px; border-radius:6px;
+      width:240px; z-index:9999; pointer-events:none; white-space:normal;
+      box-shadow:0 4px 14px rgba(0,0,0,0.22);
+    }
+    .tip-icon .tip-bubble::before {
+      content:''; position:absolute; right:100%; top:50%; transform:translateY(-50%);
+      border:5px solid transparent; border-right-color:#1e293b;
+    }
+    .tip-icon:hover .tip-bubble { display:block; }
+
+    /* ── Help modal ── */
+    .help-overlay {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
+      z-index:2000; align-items:center; justify-content:center;
+    }
+    .help-overlay.open { display:flex; }
+    .help-modal {
+      background:var(--ocp-white); border-radius:10px;
+      box-shadow:0 8px 40px rgba(0,0,0,0.22);
+      width:min(760px,94vw); max-height:82vh;
+      display:flex; flex-direction:column; overflow:hidden;
+    }
+    .help-modal-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 20px 0; border-bottom:1px solid var(--ocp-border);
+      flex-shrink:0;
+    }
+    .help-modal-title { font-size:1rem; font-weight:700; color:var(--ocp-text); }
+    .help-close {
+      background:none; border:none; font-size:1.3rem; cursor:pointer;
+      color:var(--ocp-muted); line-height:1; padding:2px 6px; border-radius:4px;
+    }
+    .help-close:hover { background:var(--ocp-mid); color:var(--ocp-text); }
+    .help-tabs {
+      display:flex; gap:0; padding:0 20px; border-bottom:1px solid var(--ocp-border);
+      flex-shrink:0;
+    }
+    .help-tab {
+      padding:9px 14px; font-size:0.78rem; font-weight:600; cursor:pointer;
+      border:none; background:none; color:var(--ocp-muted);
+      border-bottom:2px solid transparent; margin-bottom:-1px;
+    }
+    .help-tab.active { color:var(--ocp-accent); border-bottom-color:var(--ocp-accent); }
+    .help-tab:hover:not(.active) { color:var(--ocp-text); }
+    .help-body { flex:1; overflow-y:auto; padding:20px; }
+    .help-panel { display:none; }
+    .help-panel.active { display:block; }
+    .help-search {
+      width:100%; padding:7px 10px; font-size:0.78rem;
+      border:1px solid var(--ocp-border); border-radius:6px;
+      margin-bottom:12px; box-sizing:border-box;
+    }
+    .help-ref-table { width:100%; border-collapse:collapse; font-size:0.74rem; }
+    .help-ref-table th { background:var(--ocp-mid); padding:6px 8px; text-align:left; font-size:0.71rem; color:var(--ocp-muted); position:sticky; top:0; }
+    .help-ref-table td { padding:6px 8px; border-bottom:1px solid var(--ocp-border); vertical-align:top; }
+    .help-ref-table tr:hover td { background:var(--ocp-mid); }
+    .help-ref-table .field-name { font-family:monospace; font-weight:600; color:#1f6fba; white-space:nowrap; }
+    .help-ref-table .field-req  { font-size:0.67rem; font-weight:700; padding:1px 5px; border-radius:3px; white-space:nowrap; }
+    .help-ref-table .req  { background:#dff0d8; color:#3a7d44; }
+    .help-ref-table .opt  { background:#f7f7f7; color:#9fa0a1; }
+    .help-step { display:flex; gap:12px; margin-bottom:16px; }
+    .help-step-num {
+      width:26px; height:26px; border-radius:50%; background:var(--ocp-accent);
+      color:#fff; font-weight:700; font-size:0.78rem; display:flex;
+      align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;
+    }
+    .help-step-body h4 { margin:0 0 4px; font-size:0.82rem; color:var(--ocp-text); }
+    .help-step-body p  { margin:0; font-size:0.76rem; color:#5f6062; line-height:1.5; }
+    .help-kbd-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--ocp-border); font-size:0.78rem; }
+    .help-kbd { background:var(--ocp-mid); border:1px solid var(--ocp-border); border-radius:4px; padding:2px 8px; font-family:monospace; font-size:0.72rem; }
+    .help-about-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--ocp-border); font-size:0.78rem; }
+    .help-about-val { font-weight:600; color:var(--ocp-accent); }
+  </style>
+</head>
+<body>
+
+  <div id="oac-toast"></div>
+  <header>
+    <div class="ocp-logo">OCP</div>
+    <div class="header-titles">
+      <span class="header-title">OAC CID Editor</span>
+      <span class="header-subtitle">Connector Interface Definition &mdash; JSON Schema v0.9</span>
+    </div>
+    <div class="app-mode-toggle" style="margin-right:12px;">
+      <button class="app-mode-btn active" id="appmode-cid-btn" onclick="setAppMode('cid')">CID</button>
+      <button class="app-mode-btn" id="appmode-profile-btn" onclick="setAppMode('profile')">Connector Profile</button>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="importJSON()">Import JSON</button>
+      <div class="export-dropdown" id="export-dropdown">
+        <button class="btn btn-primary" onclick="toggleExportMenu(event)">Export JSON ▾</button>
+        <div class="export-menu" id="export-menu" style="display:none;">
+          <button onclick="exportJSON(); closeExportMenu()">Formatted JSON</button>
+          <button onclick="exportMinifiedJSON(); closeExportMenu()">Minified JSON</button>
+        </div>
+      </div>
+      <button class="btn btn-secondary" onclick="openHelp()" style="padding:6px 10px;" title="Help">?</button>
+      <button class="btn btn-danger" onclick="clearAll()">Clear</button>
+    </div>
+  </header>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)" />
+
+  <div class="app-body">
+
+    <!-- Left nav -->
+    <nav id="left-nav">
+      <div class="nav-section-label">Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-guided-btn" onclick="setMode('guided')">Guided</button>
+        <button class="mode-btn" id="mode-manual-btn" onclick="setMode('manual')">Manual</button>
+      </div>
+      <div id="guided-nav">
+        <div class="nav-section-label">Sections</div>
+        <a class="nav-link active" id="navlink-sec-meta"       onclick="navScrollTo('sec-meta')">Metadata</a>
+        <a class="nav-link"        id="navlink-sec-power"      onclick="navScrollTo('sec-power')">Power</a>
+        <a class="nav-link"        id="navlink-sec-connectors" onclick="navScrollTo('sec-connectors')">Connectors</a>
+      </div>
+    </nav>
+
+    <!-- Center guided form -->
+    <div class="form-area" id="guided-area">
+
+      <!-- Metadata -->
+      <div class="form-card" id="sec-meta">
+        <div class="form-card-title">Metadata</div>
+        <div class="field-row">
+          <div class="field">
+            <label>schema_version <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">JSON schema version this CID conforms to (e.g. &quot;0.9&quot;). Must match the published CID specification version.</span></span> <span class="req">*</span></label>
+            <input type="text" id="f-schema-version" placeholder="0.9" oninput="updatePreview()" />
+          </div>
+          <div class="field">
+            <label>oac_spec_revision <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">OCP OAC Base Specification revision this adapter targets (e.g. &quot;0.7&quot;). Used by the BMC to verify compatibility.</span></span> <span class="req">*</span></label>
+            <input type="text" id="f-oac-spec" placeholder="0.9" oninput="updatePreview()" />
+          </div>
+        </div>
+        <div class="field">
+          <label>description <span class="opt-tag">(optional)</span></label>
+          <textarea id="f-desc" placeholder="Human-readable description of this OAC CID instance" rows="3" oninput="updatePreview()"></textarea>
+        </div>
+        <div class="field">
+          <label>iana_pen <span class="opt-tag">(optional)</span></label>
+          <input type="number" id="f-iana-pen" placeholder="e.g. 12345" min="1" step="1" oninput="updatePreview()" />
+          <div class="hint">IANA Private Enterprise Number of the organization responsible for this CID. Required when platform_token is used — platform_token will not be included in the JSON output unless iana_pen is set. See spec §7.2.1.</div>
+        </div>
+        <div class="field">
+          <label>platform_token <span class="opt-tag">(optional)</span></label>
+          <input type="text" id="f-pct" placeholder="e.g. VENDOR-PLATFORM-XYZ-v1 (closed deployments only)" oninput="updatePreview()" />
+          <div class="hint">Vendor-defined token for simplified interoperability validation in co-designed / co-validated closed platform deployments only. Requires iana_pen to be set — platform_token will not appear in the JSON output without a valid iana_pen. See spec §7.2.2.</div>
+        </div>
+      </div>
+
+      <!-- Power -->
+      <div class="form-card" id="sec-power">
+        <div class="form-card-title">Power &mdash; primary</div>
+        <div class="field-row">
+          <div class="field">
+            <label>input_voltage <span class="req">*</span></label>
+            <select id="f-voltage" onchange="updatePreview()">
+              <option value="">-- select --</option>
+              <option value="+12V">+12V</option>
+              <option value="+50V">+50V</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>connector_type <span class="req">*</span></label>
+            <select id="f-conn-type" onchange="updatePreview()">
+              <option value="">-- select --</option>
+              <option value="100A">100A</option>
+              <option value="125A">125A</option>
+            </select>
+            <div class="hint">100A = BK100, 80A derated, all form factors &nbsp;|&nbsp; 125A = BK125, 100A derated, double-wide only</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>opl_max_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Maximum adapter power draw at full performance (OPL-MAX). Required. Must be &ge; all other OPL values.</span></span> <span class="req">*</span></label>
+            <input type="number" id="f-opl-max" placeholder="e.g. 3000.0" step="0.1" oninput="updatePreview()" />
+          </div>
+          <div class="field">
+            <label>opl_emg_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Power in emergency/safe mode (OPL-EMG). Required. The BMC may command this level during a platform power emergency.</span></span> <span class="req">*</span></label>
+            <input type="number" id="f-opl-emg" placeholder="e.g. 300.0" step="0.1" oninput="updatePreview()" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>opl_eff_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Efficient operating power level (OPL-EFF). Optional. Ordering: opl_max_w &ge; opl_eff_w &ge; opl_red_w &ge; opl_emg_w.</span></span> <span class="opt-tag">(optional)</span></label>
+            <input type="number" id="f-opl-eff" placeholder="" step="0.1" oninput="updatePreview()" />
+          </div>
+          <div class="field">
+            <label>opl_red_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Reduced operating power level (OPL-RED). Optional. Must satisfy: opl_eff_w &ge; opl_red_w &ge; opl_emg_w.</span></span> <span class="opt-tag">(optional)</span></label>
+            <input type="number" id="f-opl-red" placeholder="" step="0.1" oninput="updatePreview()" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>opl_set_min_w <span class="opt-tag">(optional)</span></label>
+            <input type="number" id="f-opl-set-min" placeholder="" step="0.1" oninput="onSetMinChange()" />
+          </div>
+          <div class="field" id="opl-set-max-field" style="display:none">
+            <label>opl_set_max_w <span class="opt-tag">(optional)</span></label>
+            <input type="number" id="f-opl-set-max" placeholder="" step="0.1" oninput="updatePreview()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Connectors -->
+      <div class="form-card" id="sec-connectors">
+        <div class="form-card-title">Connectors</div>
+        <div class="conn-tabs" id="conn-tabs"></div>
+        <div id="conn-panel"></div>
+      </div>
+
+    </div>
+
+    <!-- Profile area -->
+    <div id="profile-area" class="form-area">
+      <div class="form-card">
+        <div class="form-card-title">Profile Identity</div>
+        <div class="field">
+          <label>profile_id <span class="req">*</span></label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="pf-profile-id" placeholder="OAC-PROF-CONN0-PCIeGen6-x16-IN-v1 or OAC-PROF-CONN-Eth200G-x16-OUT-v1" oninput="updatePreview()" style="flex:1;" />
+            <button class="btn btn-secondary btn-sm" onclick="suggestProfileId()" title="Auto-generate profile_id from current configuration" style="white-space:nowrap;flex-shrink:0;">✦ Suggest ID</button>
+          </div>
+          <div class="profile-id-hint">
+            OCP-ratified profiles only: <code>OAC-PROF-&lt;CONN0|CONN&gt;-&lt;proto1&gt;-x&lt;lanes1&gt;-&lt;dir1&gt;[-&lt;proto2&gt;-x&lt;lanes2&gt;-&lt;dir2&gt;]-v&lt;n&gt;</code><br/><code>CONN0</code> = is_conn0:true (9 cols) &nbsp;|&nbsp; <code>CONN</code> = is_conn0:false (8 cols, any CONN1–6)<br/>Direction: IN=INBOUND, OUT=OUTBOUND. Protocol abbreviations: PCIeGen6, Eth200G, UALink2, CXL3, etc.<br/>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>is_conn0 <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">true if this profile targets CONN0 (9 assignable columns, col 1&ndash;9). false for CONN1&ndash;CONN6 (8 assignable columns, col 1&ndash;8). Determines the pin map layout.</span></span> <span class="req">*</span></label>
+            <label class="checkbox-label" style="margin-top:6px;">
+              <input type="checkbox" id="pf-is-conn0" checked onchange="onIsConn0Change(this)" />
+              CONN0 profile (9 columns, col 1–9)
+            </label>
+            <div class="hint">Checked = CONN0 (9 columns). Unchecked = CONN1–CONN6 (8 columns).</div>
+          </div>
+          <div class="field">
+            <label>schema_version <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">CID schema version this profile conforms to. Must match the schema_version of any CID that references this profile.</span></span> <span class="req">*</span></label>
+            <input type="text" id="pf-schema-version" value="0.9" oninput="updatePreview()" />
+          </div>
+          <div class="field">
+            <label>profile_version <span class="req">*</span></label>
+            <input type="text" id="pf-profile-version" value="1.0" placeholder="e.g. 1.0" oninput="updatePreview()" />
+            <div class="hint">Revision of this profile definition. Increment when signal assignments change (distinct from schema_version).</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>description <span class="opt-tag">(optional)</span></label>
+          <textarea id="pf-desc" rows="3" placeholder="Human-readable description of this connector profile" oninput="updatePreview()"></textarea>
+        </div>
+      </div>
+      <div id="profile-signals-panel"></div>
+    </div>
+
+    <!-- Manual area -->
+    <div id="manual-area">
+      <div class="manual-header">
+        <span class="manual-header-title">Manual JSON Editor</span>
+        <span class="json-status valid" id="manual-status">&#10004; Valid JSON</span>
+      </div>
+      <div class="hl-wrap">
+        <pre id="manual-highlight" aria-hidden="true"></pre>
+        <textarea id="manual-textarea" spellcheck="false" oninput="onManualEdit(); updateHighlight()" onscroll="updateHighlight()"></textarea>
+      </div>
+    </div>
+
+    <!-- Right preview -->
+    <div class="json-preview">
+      <div class="json-preview-header" style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">JSON Preview<span id="val-badge" style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:#dfdfe0;color:#5f6062;">—</span></div>
+      <div class="json-output-wrap"><pre id="json-output">{
+  "oac_cid": {}
+}</pre></div>
+      <div class="val-pane-wrap" id="val-pane-wrap">
+        <div class="val-pane-header" id="val-pane-title">Issues</div>
+        <div id="val-panel"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── App state ──────────────────────────────────────────────────────────────
+    const CONN_IDS = ['CONN0','CONN1','CONN2','CONN3','CONN4','CONN5','CONN6','CABLE'];
+    const PROTOCOLS = ['PCIe Gen4','PCIe Gen5','PCIe Gen6','PCIe Gen7','UALink 1.0','UALink 2.0','UALink 3.0','UALoE 200G','CXL 1.1/2.0/3.0','CXL 4.0','NVLINK 6.0','NVLink 4.0','NVLink 5.0','Ethernet 200G','Ethernet 400G','Ethernet 800G','USB 2.0','USB 3.2 Gen1','USB 3.2 Gen2','USB4 Gen2','USB4 Gen3'];
+    const LINK_DIRS = ['INBOUND','OUTBOUND'];
+    const CLOCK_TYPES = ['REFCLK_DIFF','REFCLK_SINGLE'];
+    const CLOCK_DIRS = ['INPUT','OUTPUT'];
+    const DRIVER_TYPES = ['PUSH_PULL','OPEN_DRAIN'];
+    const DEFAULT_STATES = ['HIGH','LOW','HIZ'];
+    const ACTIVE_LEVELS = ['ACTIVE_LOW','ACTIVE_HIGH'];
+    const LANE_DIRS = ['RX','TX','BI'];
+    const IMPEDANCES = [85,92];
+
+    // Per-connector state
+    let connState = {};
+    CONN_IDS.forEach(id => {
+      connState[id] = {
+        populated: id === 'CONN0',
+        impedance_ohm: '',
+        connector_profile: '',
+        mpesti_capable: false,
+        hs: { enabled: false, groups: [{ name:'', protocol:'', link_direction:'', total_lanes:'', minimum_lanes:'', lanes:[] }] },
+        clocking: { enabled: false, clocks: [] },
+        discrete: { enabled: false, signals: [] }
+      };
+    });
+
+    let activeConn = 'CONN0';
+    let currentMode = 'guided';
+    let appMode = 'cid'; // 'cid' | 'profile'
+
+    // Profile state — reuses connState['PROFILE'] so existing render fns work
+    function freshProfileState() {
+      return {
+        populated: true, impedance_ohm: '', connector_profile: '', mpesti_capable: false,
+        hs:       { enabled: false, groups: [{ name:'', protocol:'', link_direction:'', total_lanes:'', minimum_lanes:'', lanes:[] }] },
+        clocking: { enabled: false, clocks:[] },
+        discrete: { enabled: false, signals:[] }
+      };
+    }
+    connState['PROFILE'] = freshProfileState();
+    let suppressPreview = false;
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    function init() {
+      buildConnTabs();
+      renderConnPanel(activeConn);
+      updatePreview();
+    }
+
+    function buildConnTabs() {
+      const tabs = document.getElementById('conn-tabs');
+      tabs.innerHTML = '';
+      CONN_IDS.forEach(id => {
+        const s = connState[id];
+        const tab = document.createElement('div');
+        tab.className = 'conn-tab' + (s.populated ? ' populated':'') + (id===activeConn?' active':'');
+        tab.textContent = id;
+        tab.onclick = () => { activeConn = id; buildConnTabs(); renderConnPanel(id); };
+        tabs.appendChild(tab);
+      });
+    }
+
+    // ── Mode toggle ────────────────────────────────────────────────────────────
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('mode-guided-btn').classList.toggle('active', mode==='guided');
+      document.getElementById('mode-manual-btn').classList.toggle('active', mode==='manual');
+
+      const guidedArea  = document.getElementById('guided-area');
+      const profileArea = document.getElementById('profile-area');
+      const manualArea  = document.getElementById('manual-area');
+
+      if (appMode === 'cid') {
+        guidedArea.style.display = mode==='guided' ? '' : 'none';
+        profileArea.classList.remove('visible');
+        manualArea.classList.toggle('visible', mode==='manual');
+        if (mode==='manual') {
+          manualArea.querySelector('textarea').value = buildJsonString();
+          validateManual(); updateHighlight();
+        }
+      } else {
+        // Profile mode: Guided shows profile-area, Manual shows shared manual-area with profile JSON
+        guidedArea.style.display = 'none';
+        profileArea.classList.toggle('visible', mode==='guided');
+        manualArea.classList.toggle('visible', mode==='manual');
+        if (mode==='manual') {
+          manualArea.querySelector('textarea').value = buildProfileJSON();
+          validateManual(); updateHighlight();
+        }
+      }
+    }
+
+    function navScrollTo(sectionId) {
+      // Scroll the form-area container (not the window) to the target card
+      const container = document.getElementById('guided-area');
+      const target    = document.getElementById(sectionId);
+      if (container && target) {
+        container.scrollTo({ top: target.offsetTop - 12, behavior: 'smooth' });
+      }
+      // Update active highlight
+      ['sec-meta','sec-power','sec-connectors'].forEach(id => {
+        const link = document.getElementById('navlink-' + id);
+        if (link) link.classList.toggle('active', id === sectionId);
+      });
+    }
+
+    // Update nav highlight as user scrolls through sections
+    document.addEventListener('DOMContentLoaded', () => {
+      const fa = document.getElementById('guided-area');
+      if (!fa) return;
+      fa.addEventListener('scroll', () => {
+        const sections = ['sec-meta','sec-power','sec-connectors'];
+        const faTop = fa.getBoundingClientRect().top;
+        let active = sections[0];
+        sections.forEach(id => {
+          const el_ = document.getElementById(id);
+          if (!el_) return;
+          // Section is "active" once its top edge has scrolled within 80px of the container top
+          if (el_.getBoundingClientRect().top - faTop <= 80) active = id;
+        });
+        sections.forEach(id => {
+          const link = document.getElementById('navlink-' + id);
+          if (link) link.classList.toggle('active', id === active);
+        });
+      });
+    });
+
+    // ── opl_set_max visibility ─────────────────────────────────────────────────
+    function onSetMinChange() {
+      const v = document.getElementById('f-opl-set-min').value.trim();
+      document.getElementById('opl-set-max-field').style.display = v ? '' : 'none';
+      updatePreview();
+    }
+
+    // ── Connector panel renderer ──────────────────────────────────────────────
+    function renderConnPanel(id) {
+      if (id === 'PROFILE') { renderProfilePanel(); return; }
+      const s = connState[id];
+      const panel = document.getElementById('conn-panel');
+      panel.innerHTML = '';
+
+      // Populated row
+      const popRow = el('div', 'conn-populated-row');
+      if (id === 'CONN0') {
+        popRow.innerHTML = `<label class="checkbox-label"><input type="checkbox" checked disabled /> populated (always required for CONN0)</label>`;
+      } else {
+        const chk = elInput('checkbox', s.populated, () => { s.populated = !s.populated; buildConnTabs(); renderConnPanel(id); updatePreview(); });
+        const lbl = document.createElement('label');
+        lbl.className = 'checkbox-label';
+        lbl.appendChild(chk);
+        lbl.appendChild(document.createTextNode(' populated'));
+        popRow.appendChild(lbl);
+      }
+      panel.appendChild(popRow);
+
+      if (!s.populated) { updatePreview(); return; }
+
+      // impedance_ohm
+      panel.appendChild(fieldSelect('impedance_ohm', withTip('impedance_ohm','High-speed signal trace impedance in ohms. 85&Omega; = Black connector (standard). 92&Omega; = White connector (alternative).'), s.impedance_ohm, ['','85','92'],
+        ['-- select --','85 Ω (Black)','92 Ω (White)'], true, v => { s.impedance_ohm = v; updatePreview(); }));
+
+      // connector_profile
+      panel.appendChild(fieldText('connector_profile', withTip('connector_profile','OCP-ratified pinout profile reference. When set, high_speed_lanes, clocking, and discrete_signals shall NOT be present on this connector &mdash; they are defined entirely by the profile.')+'&thinsp;(optional)', s.connector_profile,
+        'OAC-PROF-...-v1  (omit to define signals explicitly)', false, v => { s.connector_profile = v; updatePreview(); renderConnPanel(id); }));
+
+      // CONN0: presence_detect / mpesti_capable
+      if (id === 'CONN0') {
+        const sec = el('div', 'section-heading'); sec.textContent = 'Presence Detect'; panel.appendChild(sec);
+        const mCard = el('div','');
+        mCard.style.marginBottom = '14px';
+        const chkLabel = document.createElement('label');
+        chkLabel.className = 'checkbox-label';
+        const chk = elInput('checkbox', s.mpesti_capable, () => { s.mpesti_capable = !s.mpesti_capable; updatePreview(); });
+        chkLabel.appendChild(chk);
+        chkLabel.appendChild(document.createTextNode(' mpesti_capable'));
+        mCard.appendChild(chkLabel);
+        const hint = el('div','hint'); hint.textContent = 'Include only when M-PESTI is implemented on CONN0.'; hint.style.marginTop='4px';
+        mCard.appendChild(hint);
+        panel.appendChild(mCard);
+      }
+
+      hr(panel);
+
+      if (s.connector_profile) {
+        // connector_profile is mutually exclusive with explicit signal sections
+        const note = el('div', '');
+        note.style.cssText = 'background:#eef7df;border:1px solid #8dc63f;border-radius:6px;padding:12px 14px;font-size:0.8rem;color:#303031;line-height:1.5;margin-bottom:14px;';
+        note.innerHTML = `<strong style="color:#72a230;">connector_profile is set.</strong> Signal definitions (High-Speed Lanes, Clocking, Discrete Signals) are provided entirely by the referenced OCP-ratified profile and cannot be overridden here. Clear the <code>connector_profile</code> field above to define signals explicitly.`;
+        panel.appendChild(note);
+      } else {
+        // High-speed lanes toggle
+        panel.appendChild(toggleSection('High-Speed Lanes', s.hs.enabled, content => {
+          s.hs.enabled = !s.hs.enabled; updatePreview(); renderConnPanel(id);
+        }, () => renderHSLanes(id, s)));
+
+        // Clocking toggle
+        panel.appendChild(toggleSection('Clocking', s.clocking.enabled, () => {
+          s.clocking.enabled = !s.clocking.enabled; updatePreview(); renderConnPanel(id);
+        }, () => renderClocking(id, s)));
+
+        // Discrete signals toggle
+        panel.appendChild(toggleSection('Discrete Signals', s.discrete.enabled, () => {
+          s.discrete.enabled = !s.discrete.enabled; updatePreview(); renderConnPanel(id);
+        }, () => renderDiscrete(id, s)));
+
+        // Visual Pin Map — standalone section
+        hr(panel);
+        panel.appendChild(renderPinMap(id, s));
+      }
+
+      updatePreview();
+    }
+
+    function hr(parent) {
+      const h = document.createElement('hr');
+      h.className = 'section-divider';
+      parent.appendChild(h);
+    }
+
+    // ── High-Speed Lanes render ───────────────────────────────────────────────
+    // Auto-sync lanes array to match total_lanes (newLanes RX + newLanes TX).
+    // Preserves existing pin assignments by index/direction where possible.
+    // Shows a toast if lanes are removed.
+    function autoSyncLanes(grp, newLanes, connId) {
+      if (!newLanes || newLanes <= 0) return;
+      // USB 2.0: single bidirectional D+/D− pair — 1 BI lane only (not RX+TX)
+      if (grp.protocol === 'USB 2.0') {
+        const existing = (grp.lanes || []).find(l => l.direction === 'BI' && l.lane_index === 0);
+        const hadOthers = (grp.lanes || []).filter(l => l.direction !== 'BI' && (l.pin_positive || l.pin_negative));
+        if (hadOthers.length) showToast('Replaced directional lanes with a single BI lane for USB 2.0', 4000);
+        grp.lanes = [existing || { lane_index: 0, direction: 'BI', pin_positive: '', pin_negative: '' }];
+        return;
+      }
+      const minLanes = parseInt(grp.minimum_lanes) || 0;
+      const keep = (dir) => {
+        const existing = (grp.lanes || []).filter(l => l.direction === dir);
+        const result = [];
+        for (let i = 0; i < newLanes; i++) {
+          const found = existing.find(l => l.lane_index === i);
+          // required = true for lanes 0..(minimum_lanes-1), false for the rest
+          const isRequired = i < minLanes;
+          result.push(found ? { lane_index: found.lane_index, direction: found.direction, pin_positive: found.pin_positive||'', pin_negative: found.pin_negative||'' } : { lane_index: i, direction: dir, pin_positive: '', pin_negative: '' });
+        }
+        return result;
+      };
+      const oldRX = (grp.lanes || []).filter(l => l.direction === 'RX');
+      const oldTX = (grp.lanes || []).filter(l => l.direction === 'TX');
+      const removedRX = oldRX.filter(l => l.lane_index >= newLanes && (l.pin_positive || l.pin_negative));
+      const removedTX = oldTX.filter(l => l.lane_index >= newLanes && (l.pin_positive || l.pin_negative));
+      const removed = [...removedRX, ...removedTX];
+      if (removed.length) {
+        const desc = removed.map(l => l.direction + ' Lane ' + l.lane_index + (l.pin_positive ? ' (+' + l.pin_positive + ')' : '') + (l.pin_negative ? ' (-' + l.pin_negative + ')' : '')).join(', ');
+        showToast('Lanes removed due to total_lanes change: ' + desc, 5000);
+      }
+      grp.lanes = [...keep('RX'), ...keep('TX')];
+    }
+
+    function renderHSLanes(id, s) {
+      const hs = s.hs;
+      const div = el('div','');
+      const groups = hs.groups || [];
+
+      // Render one card per protocol group
+      groups.forEach((grp, gi) => {
+        const grpCard = el('div','');
+        grpCard.style.cssText = 'border:1px solid var(--ocp-border);border-radius:8px;padding:14px 16px;margin-bottom:12px;';
+
+        // Group header with remove button (don't allow removing the last group)
+        const grpHdrRow = el('div',''); grpHdrRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;';
+        const grpTitle = el('span',''); grpTitle.style.cssText='font-size:0.8rem;font-weight:700;color:var(--ocp-text);';
+        grpTitle.textContent = grp.protocol ? `Protocol Group ${gi}: ${grp.protocol}` : `Protocol Group ${gi}`;
+        const rmGrp = makeBtn('Remove Group', 'btn btn-danger btn-sm', () => {
+          if (hs.groups.length <= 1) return;
+          hs.groups.splice(gi,1); updatePreview(); renderConnPanel(id);
+        });
+        rmGrp.disabled = groups.length <= 1;
+        grpHdrRow.appendChild(grpTitle); grpHdrRow.appendChild(rmGrp);
+        grpCard.appendChild(grpHdrRow);
+
+        // Protocol / role / direction
+        grpCard.appendChild(fieldText('hs-name-'+id+'-'+gi, withTip('name','Unique snake_case identifier for this protocol group (e.g. &quot;pcie_primary&quot;, &quot;eth_fabric&quot;). Use lowercase letters, digits, and underscores only. Must be unique within the connector\'s high_speed_lanes array.'), grp.name||'', 'e.g. pcie_primary', true, v => { grp.name=v; updatePreview(); }));
+        grpCard.appendChild(fieldSelect('hs-protocol-'+id+'-'+gi, withTip('protocol','High-speed protocol for this lane group. Determines allowed directions and lane compatibility rules.'), grp.protocol,
+          ['',...PROTOCOLS], ['-- select --',...PROTOCOLS], true,
+          v => {
+            grp.protocol = v;
+            grpTitle.textContent = v ? `Protocol Group ${gi}: ${v}` : `Protocol Group ${gi}`;
+            // USB 2.0: lock total_lanes to 1 (single differential pair only)
+            if (v === 'USB 2.0') {
+              grp.total_lanes = '1';
+              autoSyncLanes(grp, 1, id);
+            }
+            updatePreview(); renderConnPanel(id);
+          }));
+
+        const row1 = el('div','field-row');
+        row1.appendChild(fieldSelect('hs-dir-'+id+'-'+gi, withTip('link_direction','Signal direction from the adapter\'s perspective. INBOUND = host→adapter (e.g. PCIe downstream). OUTBOUND = adapter→host (e.g. Ethernet TX). Some protocols use BI.'), grp.link_direction,
+          ['',...LINK_DIRS], ['-- select --',...LINK_DIRS], true, v => { grp.link_direction = v; updatePreview(); }));
+        grpCard.appendChild(row1);
+
+        const row2 = el('div','field-row');
+        const isUSB2 = grp.protocol === 'USB 2.0';
+        if (isUSB2 && grp.total_lanes !== '1') { grp.total_lanes = '1'; autoSyncLanes(grp, 1, id); }
+        const totalLanesField = fieldNum('hs-total-'+id+'-'+gi, withTip('total_lanes','Total lane count in this protocol group (one-directional). Max 16 per connector. The physical implementation includes both TX and RX per lane index.'), grp.total_lanes, 'e.g. 8', true,
+          v => {
+            grp.total_lanes = v; updatePreview();
+            // Debounce mode reset + toast — only fire after user stops typing for 800ms
+            clearTimeout(grp._lanesTimer);
+            grp._lanesTimer = setTimeout(() => {
+              const newLanes = parseInt(v) || 0;
+              renderConnPanel(id);
+            }, 800);
+          }, '1');
+        if (isUSB2) {
+          const inp = totalLanesField.querySelector('input');
+          if (inp) {
+            inp.disabled = true;
+            inp.style.background = 'var(--ocp-mid)';
+            inp.style.color = 'var(--ocp-muted)';
+            inp.style.cursor = 'not-allowed';
+            inp.title = 'USB 2.0: single bidirectional D+/D− pair — fixed at 1 lane';
+          }
+        }
+        row2.appendChild(totalLanesField);
+        row2.appendChild(fieldNum('hs-min-'+id+'-'+gi, withTip('minimum_lanes','Optional vendor-imposed operational floor. The BMC should block slot energization if fewer lanes are electrically routed from the baseboard than this value. Leave blank if any lane count is acceptable.'), grp.minimum_lanes, 'optional', false,
+          v => { grp.minimum_lanes = v; autoSyncLanes(grp, parseInt(grp.total_lanes)||0, id); updatePreview(); renderConnPanel(id); }, '1'));
+        grpCard.appendChild(row2);
+
+        // Lanes table for this group
+        const lanesSec=el('div','');
+        const lanesHdr=el('div','section-heading'); lanesHdr.textContent=`Lanes (Group ${gi})`; lanesSec.appendChild(lanesHdr);
+        // Auto-populate lanes if total_lanes is set but lanes array is empty
+        const _tl = parseInt(grp.total_lanes) || 0;
+        if (_tl > 0 && (!grp.lanes || grp.lanes.length === 0)) {
+          autoSyncLanes(grp, _tl, id);
+        }
+        lanesSec.appendChild(lanesTable(id, grp, gi));
+        // Lanes are auto-generated from total_lanes — no manual Add buttons needed
+        grpCard.appendChild(lanesSec);
+        div.appendChild(grpCard);
+      });
+
+      // Add Protocol Group button — capped at connector max (CONN0: 18, CONN1-6: 16)
+      // In profile mode use is_conn0 checkbox; in CID mode use the connector id
+      const maxGroups = 8; // max 8 protocol groups per connector (uint32 nibble SCD encoding)
+      div.appendChild(makeBtn('+ Add Protocol Group', 'btn btn-secondary btn-sm', () => {
+        if (hs.groups.length >= maxGroups) {
+          showToast(`Maximum ${maxGroups} protocol groups allowed per connector`);
+          return;
+        }
+        hs.groups.push({name:'',protocol:'',link_direction:'',total_lanes:'',minimum_lanes:'',lanes:[]});
+        updatePreview(); renderConnPanel(id);
+      }));
+
+      return div;
+    }
+
+    function nextLaneIdx(lanes, dir) {
+      const existing = lanes.filter(l=>l.direction===dir).map(l=>l.lane_index);
+      if (!existing.length) return 0;
+      return Math.max(...existing)+1;
+    }
+
+    function lanesTable(id, grp, gi) {
+      const minLanes = parseInt(grp.minimum_lanes) || 0;
+      const tbl = document.createElement('table');
+      tbl.className = 'items-table';
+      tbl.innerHTML = `<thead><tr><th>Lane Index</th><th>Direction</th><th>Pin (+)</th><th>Pin (−)</th><th>Status</th><th></th></tr></thead>`;
+      const tbody = document.createElement('tbody');
+      (grp.lanes || []).forEach((lane, i) => {
+        const isRequired = lane.lane_index < minLanes;
+        const tr = document.createElement('tr');
+        tr.style.background = isRequired ? '#f5fbea' : '';
+        tr.innerHTML = `
+          <td><input type="number" value="${lane.lane_index}" style="width:44px" onchange="s_laneSet('${id}',${gi},${i},'lane_index',+this.value)" /></td>
+          <td><select style="width:52px" onchange="s_laneSet('${id}',${gi},${i},'direction',this.value)">${LANE_DIRS.map(d=>`<option value="${d}"${d===lane.direction?' selected':''}>${d}</option>`).join('')}</select></td>
+          <td><input type="text" value="${lane.pin_positive}" placeholder="e.g. L8" style="width:54px" oninput="s_laneSet('${id}',${gi},${i},'pin_positive',this.value)" /></td>
+          <td><input type="text" value="${lane.pin_negative}" placeholder="e.g. K8" style="width:54px" oninput="s_laneSet('${id}',${gi},${i},'pin_negative',this.value)" /></td>
+          <td><span style="font-size:0.68rem;font-weight:700;padding:2px 6px;border-radius:3px;${isRequired?'background:#dff0d8;color:#3a7d44;':'background:#f7f7f7;color:#9fa0a1;'}">${isRequired?'Required':'Negotiated'}</span></td>
+          <td><button class="btn btn-danger btn-sm" onclick="s_laneRm('${id}',${gi},${i})">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody);
+      return tbl;
+    }
+
+    function nextLaneIdx(lanes, dir) {
+      const existing = lanes.filter(l=>l.direction===dir).map(l=>l.lane_index);
+      if (!existing.length) return 0;
+      return Math.max(...existing)+1;
+    }
+
+
+
+
+
+
+    // Generate valid link_subdivision modes for a given total_lanes value.
+    // Modes are produced by recursive binary halving: x16 → x8x8 → x8x4x4 → x4x4x4x4, etc.
+    function getSubdivModes(n) {
+      // All ordered permutations matter: x8x2x2 vs x2x8x2 assign different lane ranges.
+      if (!n || n <= 0) return [];
+      const modes = new Set();
+      function split(groups) {
+        const str = groups.map(g => 'x' + g).join('');
+        if (modes.has(str)) return;
+        modes.add(str);
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i] >= 2 && groups[i] % 2 === 0) {
+            const half = groups[i] / 2;
+            split([...groups.slice(0, i), half, half, ...groups.slice(i + 1)]);
+          }
+        }
+      }
+      modes.add('x' + n); // full-width: meaningful when advertising alongside subdivided modes
+      if (n >= 2 && n % 2 === 0) split([n / 2, n / 2]);
+      return Array.from(modes).sort((a, b) => {
+        const ag = a.match(/\d+/g).map(Number);
+        const bg = b.match(/\d+/g).map(Number);
+        if (ag.length !== bg.length) return ag.length - bg.length;
+        for (let i = 0; i < ag.length; i++) if (ag[i] !== bg[i]) return bg[i] - ag[i];
+        return 0;
+      });
+    }
+
+
+
+    function s_laneSet(id, gi, i, key, val) { connState[id].hs.groups[gi].lanes[i][key]=val; updatePreview(); refreshPinMap(id); }
+    function s_laneRm(id, gi, i) { connState[id].hs.groups[gi].lanes.splice(i,1); updatePreview(); renderConnPanel(id); }
+
+    // ── Visual Pin Map ────────────────────────────────────────────────────────
+    const PIN_ROWS = ['N','M','L','K','J','I','H','G','F','E','D','C','B','A'];
+    const ODD_BLOCKED  = new Set(['B','E','H','K','N']);   // fully blocked in odd cols
+    const EVEN_BLOCKED = new Set(['A','D','G','J','M']);   // fully blocked in even cols
+    // ADDITIONAL HS restriction: odd-col Row A and even-col Row N are clk/discrete only
+
+    function pinMapCols(connId) {
+      // In profile mode derive column count from the is_conn0 checkbox
+      let maxCol;
+      if (connId === 'PROFILE') {
+        const cb = document.getElementById('pf-is-conn0');
+        maxCol = (!cb || cb.checked) ? 9 : 8;
+      } else {
+        maxCol = connId === 'CONN0' ? 9 : 8;
+      }
+      const cols = [];
+      for (let c = maxCol; c >= 1; c--) cols.push(c);
+      return cols;
+    }
+
+    // 'full'=nothing allowed, 'hs-blocked'=clk/discrete only, 'open'=any signal
+    function cellStatus(row, col) {
+      if (row === 'A' && col === 1) return 'reserved';
+      const odd = col % 2 === 1;
+      if (odd  && ODD_BLOCKED.has(row))  return 'full';
+      if (!odd && EVEN_BLOCKED.has(row)) return 'full';
+      if (odd  && row === 'A')           return 'hs-blocked';
+      if (!odd && row === 'N')           return 'hs-blocked';
+      return 'open';
+    }
+
+    function pinName(row, col) { return row + col; }
+
+    // Unified reverse map from all signal types: pin → descriptor
+    function buildFullPinMap(s) {
+      const map = {};
+      (s.hs.groups || []).forEach((grp, gi) => {
+        const proto = grp.protocol || `Group ${gi}`;
+        (grp.lanes || []).forEach((lane, i) => {
+          if (lane.pin_positive) map[lane.pin_positive] = { type:'hs', gi, i, dir:lane.direction, idx:lane.lane_index, side:'+', proto };
+          if (lane.pin_negative) map[lane.pin_negative] = { type:'hs', gi, i, dir:lane.direction, idx:lane.lane_index, side:'-', proto };
+        });
+      });
+      (s.clocking.clocks || []).forEach((clk, i) => {
+        const id = clk.clock_id || `CLK${i}`;
+        if (clk.pin_positive) map[clk.pin_positive] = { type:'clk', i, id, side:'+' };
+        if (clk.pin_negative) map[clk.pin_negative] = { type:'clk', i, id, side:'-' };
+        if (clk.pin)          map[clk.pin]          = { type:'clk', i, id, side:'S' };
+      });
+      (s.discrete.signals || []).forEach((sig, i) => {
+        if (sig.pin) map[sig.pin] = { type:'discrete', i, name:sig.signal_name || `SIG${i}` };
+      });
+      return map;
+    }
+
+    function assignmentCellClass(a) {
+      if (!a) return 'empty';
+      if (a.type === 'hs') return a.dir==='RX' ? (a.side==='+'?'assigned-rx-pos':'assigned-rx-neg') : (a.side==='+'?'assigned-tx-pos':'assigned-tx-neg');
+      if (a.type === 'clk') return 'assigned-clk';
+      if (a.type === 'discrete') return 'assigned-discrete';
+      return 'empty';
+    }
+    function assignmentCellText(a, pin) {
+      if (!a) return pin;
+      if (a.type === 'hs')       return `G${a.gi}·${a.dir}${a.idx}${a.side}`;
+      if (a.type === 'clk')      return `⏱${a.id.slice(0,6)}${a.side==='S'?'':a.side}`;
+      if (a.type === 'discrete') return `⚡${a.name.replace('VENDOR_','').slice(0,5)}`;
+      return pin;
+    }
+    function assignmentTitle(a, pin) {
+      if (!a) return `${pin} — click to assign`;
+      if (a.type === 'hs')       return `${pin} → Group ${a.gi} [${a.proto}]: ${a.dir} Lane ${a.idx} (${a.side==='+'?'positive':'negative'})\nClick to clear`;
+      if (a.type === 'clk')      return `${pin} → Clock: ${a.id} (${a.side==='S'?'single':a.side==='+'?'positive':'negative'})\nClick to clear`;
+      if (a.type === 'discrete') return `${pin} → ${a.name}\nClick to clear`;
+      return pin;
+    }
+
+    let _activePicker = null;
+    function closePicker() {
+      if (_activePicker) {
+        _activePicker.remove(); // removes from body
+        _activePicker = null;
+      }
+    }
+
+    function renderPinMap(connId, s) {
+      const wrap = document.createElement('div');
+      wrap.className = 'pin-map-wrap';
+      wrap.id = 'pin-map-wrap-' + connId;
+
+      const toggle = document.createElement('div');
+      toggle.className = 'pin-map-toggle';
+      const caret = document.createElement('span');
+      caret.className = 'pin-map-caret';
+      caret.textContent = '▶';
+      const lbl = document.createElement('span'); lbl.textContent = 'Visual Pin Map';
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:0.68rem;font-weight:400;color:var(--ocp-muted);margin-left:8px;text-transform:none;letter-spacing:0;';
+      hint.textContent = 'Click any pin to assign HS lanes, clocking, or discrete signals';
+      toggle.appendChild(caret); toggle.appendChild(lbl); toggle.appendChild(hint);
+
+      const gridWrap = document.createElement('div');
+      gridWrap.className = 'pin-map-grid-wrap';
+      gridWrap.style.display = 'none';
+
+      toggle.onclick = () => {
+        const open = gridWrap.style.display !== 'none';
+        gridWrap.style.display = open ? 'none' : '';
+        caret.classList.toggle('open', !open);
+        if (!open) drawGrid(connId, s, gridWrap);
+      };
+      wrap.appendChild(toggle);
+      wrap.appendChild(gridWrap);
+      return wrap;
+    }
+
+    function drawGrid(connId, s, container) {
+      container.innerHTML = '';
+      const cols = pinMapCols(connId);
+      const pinMap = buildFullPinMap(s);
+
+      const tbl = document.createElement('table');
+      tbl.className = 'pin-map-table';
+
+      // Header
+      const thead = document.createElement('thead');
+      const hrow = document.createElement('tr');
+      const corner = document.createElement('th'); corner.textContent = '↓Row  Col→';
+      hrow.appendChild(corner);
+      cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; hrow.appendChild(th); });
+      thead.appendChild(hrow); tbl.appendChild(thead);
+
+      // Body: N→A top to bottom
+      const tbody = document.createElement('tbody');
+      PIN_ROWS.forEach(row => {
+        const tr = document.createElement('tr');
+        const rowLbl = document.createElement('td');
+        rowLbl.className = 'pin-row-label'; rowLbl.textContent = row;
+        tr.appendChild(rowLbl);
+
+        cols.forEach(col => {
+          const td = document.createElement('td');
+          const cell = document.createElement('div');
+          cell.className = 'pin-cell';
+          const pin = pinName(row, col);
+          const status = cellStatus(row, col);
+          const assignment = pinMap[pin];
+
+          if (status === 'reserved') {
+            cell.classList.add('blocked');
+            cell.textContent = '·';
+            cell.title = `${pin} — reserved for OAC_PRSNT#/M-PESTI (not assignable)`;
+          } else if (status === 'full') {
+            cell.classList.add('blocked');
+            cell.textContent = '·';
+            cell.title = `${pin} — not available`;
+          } else {
+            if (assignment) {
+              cell.classList.add(assignmentCellClass(assignment));
+              cell.textContent = assignmentCellText(assignment, pin);
+              cell.title = assignmentTitle(assignment, pin);
+              cell.onclick = e => { e.stopPropagation(); openPinPicker(connId, s, pin, assignment, cell, status); };
+            } else {
+              cell.classList.add(status === 'hs-blocked' ? 'hs-blocked' : 'empty');
+              cell.textContent = pin;
+              cell.title = status === 'hs-blocked'
+                ? `${pin} — clocking / discrete only (HS signals not permitted here)`
+                : `${pin} — click to assign`;
+              cell.onclick = e => { e.stopPropagation(); openPinPicker(connId, s, pin, null, cell, status); };
+            }
+          }
+          td.appendChild(cell); tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody);
+      container.appendChild(tbl);
+
+      // Legend
+      const legend = document.createElement('div');
+      legend.style.cssText = 'display:flex;gap:8px 18px;flex-wrap:wrap;margin-top:10px;font-size:0.68rem;';
+      [
+        ['#d0eaff','HS RX pin+'], ['#e8f4ff','HS RX pin−'],
+        ['#d8f5e0','HS TX pin+'], ['#edfaf2','HS TX pin−'],
+        ['#fff3cd','Clocking'],   ['#ede7f6','Discrete Signal'],
+        ['#ececec','Not available'], ['#fafafa','Clk/Discrete only'],
+      ].forEach(([bg, text]) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;gap:5px;';
+        const sw = document.createElement('div');
+        sw.style.cssText = `width:12px;height:12px;border-radius:2px;background:${bg};border:1px solid #dfdfe0;flex-shrink:0;`;
+        const sp = document.createElement('span'); sp.textContent = text; sp.style.color = '#5f6062';
+        item.appendChild(sw); item.appendChild(sp); legend.appendChild(item);
+      });
+      container.appendChild(legend);
+    }
+
+    function openPinPicker(connId, s, pin, existing, cellEl, status) {
+      if (pin === 'A1') return; // A1 reserved for OAC_PRSNT#/M-PESTI
+      closePicker();
+      const picker = document.createElement('div');
+      picker.className = 'pin-picker';
+
+      const title = document.createElement('div');
+      title.className = 'pin-picker-title';
+      title.textContent = existing ? `${pin} — Clear` : `Assign ${pin}`;
+      picker.appendChild(title);
+
+      if (existing) {
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size:0.72rem;color:var(--ocp-muted);margin-bottom:8px;';
+        info.textContent = assignmentTitle(existing, pin).split('\n')[0];
+        picker.appendChild(info);
+        const btns = document.createElement('div'); btns.className = 'pin-picker-btns';
+        btns.appendChild(makeBtn('Clear', 'btn btn-danger btn-sm', () => {
+          clearPin(s, pin, existing); updatePreview(); closePicker(); renderConnPanelKeepMap(connId);
+        }));
+        btns.appendChild(makeBtn('Cancel', 'btn btn-secondary btn-sm', closePicker));
+        picker.appendChild(btns);
+      } else {
+        const groups = buildAvailableGroups(s, status);
+        if (!groups.length) {
+          const msg = document.createElement('div');
+          msg.style.cssText = 'color:var(--ocp-muted);font-size:0.72rem;margin-bottom:8px;';
+          msg.textContent = 'No unassigned signals. Add lanes, clocks, or discrete signals — or clear existing pin assignments.';
+          picker.appendChild(msg);
+          picker.appendChild(makeBtn('Close', 'btn btn-secondary btn-sm', closePicker));
+        } else {
+          const sel = (lbl, mb) => {
+            const d = document.createElement('div');
+            d.style.cssText = `margin-bottom:4px;color:var(--ocp-muted);font-size:0.7rem;`;
+            d.textContent = lbl; picker.appendChild(d);
+            const s2 = document.createElement('select');
+            s2.style.cssText = `width:100%;margin-bottom:${mb};padding:4px 6px;font-size:0.75rem;border:1px solid var(--ocp-border);border-radius:4px;`;
+            picker.appendChild(s2); return s2;
+          };
+
+          const typeSel = sel('Signal type:', '6px');
+          groups.forEach((g, gi) => { const o = document.createElement('option'); o.value=gi; o.textContent=g.label; typeSel.appendChild(o); });
+
+          const termSel = sel('Lane / Signal:', '8px');
+          function populateTerms() {
+            termSel.innerHTML = '';
+            groups[parseInt(typeSel.value)].options.forEach((opt, oi) => {
+              const o = document.createElement('option'); o.value=oi; o.textContent=opt.label; termSel.appendChild(o);
+            });
+          }
+          typeSel.onchange = populateTerms; populateTerms();
+
+          const btns = document.createElement('div'); btns.className = 'pin-picker-btns';
+          btns.appendChild(makeBtn('Assign', 'btn btn-primary btn-sm', () => {
+            const opt = groups[parseInt(typeSel.value)].options[parseInt(termSel.value)];
+            clearAllPin(s, pin); opt.assign(pin);
+            updatePreview(); closePicker(); renderConnPanelKeepMap(connId);
+          }));
+          btns.appendChild(makeBtn('Cancel', 'btn btn-secondary btn-sm', closePicker));
+          picker.appendChild(btns);
+        }
+      }
+
+      picker.addEventListener('click', e => e.stopPropagation());
+
+      // Attach to body so mouse movement inside the cell doesn't destabilise it
+      picker.style.position = 'fixed';
+      picker.style.left = '-9999px'; // off-screen until positioned
+      picker.style.top  = '0';
+      document.body.appendChild(picker);
+      _activePicker = picker;
+
+      // Position below the cell, flip left if needed
+      const cellRect = cellEl.getBoundingClientRect();
+      let left = cellRect.left;
+      let top  = cellRect.bottom + 4;
+      // Flip upward if below viewport
+      if (top + 260 > window.innerHeight) top = cellRect.top - 4 - picker.offsetHeight;
+      // Flip leftward if overflows right edge
+      if (left + 342 > window.innerWidth - 8) left = cellRect.right - 342;
+      picker.style.left = left + 'px';
+      picker.style.top  = top  + 'px';
+
+      setTimeout(() => { document.addEventListener('click', closePicker, { once: true }); }, 0);
+    }
+
+    function buildAvailableGroups(s, status) {
+      const groups = [];
+      // HS lanes — only on 'open' cells
+      if (status === 'open' && s.hs.enabled) {
+        const opts = [];
+        (s.hs.groups || []).forEach((grp, gi) => {
+          const proto = grp.protocol || `Group ${gi}`;
+          (grp.lanes || []).forEach(lane => {
+            if (!lane.pin_positive) opts.push({ label:`G${gi} [${proto}] – ${lane.direction} Lane ${lane.lane_index} — Positive (+)`, assign: pin => { lane.pin_positive = pin; } });
+            if (!lane.pin_negative) opts.push({ label:`G${gi} [${proto}] – ${lane.direction} Lane ${lane.lane_index} — Negative (−)`, assign: pin => { lane.pin_negative = pin; } });
+          });
+        });
+        if (opts.length) groups.push({ label:'HS Lane', options: opts });
+      }
+      // Clocking — allowed on 'open' and 'hs-blocked'
+      if (s.clocking.enabled) {
+        const opts = [];
+        (s.clocking.clocks || []).forEach(clk => {
+          const id = clk.clock_id || 'Clock';
+          if (!clk.clock_type || clk.clock_type === 'REFCLK_DIFF') {
+            if (!clk.pin_positive) opts.push({ label:`${id} — Positive (+)`, assign: pin => { clk.pin_positive = pin; } });
+            if (!clk.pin_negative) opts.push({ label:`${id} — Negative (−)`, assign: pin => { clk.pin_negative = pin; } });
+          } else {
+            if (!clk.pin) opts.push({ label:`${id} — Signal`, assign: pin => { clk.pin = pin; } });
+          }
+        });
+        if (opts.length) groups.push({ label:'Clocking', options: opts });
+      }
+      // Discrete — allowed on 'open' and 'hs-blocked'
+      if (s.discrete.enabled) {
+        const opts = [];
+        (s.discrete.signals || []).forEach(sig => {
+          if (!sig.pin) opts.push({ label: sig.signal_name || 'Signal', assign: pin => { sig.pin = pin; } });
+        });
+        if (opts.length) groups.push({ label:'Discrete Signal', options: opts });
+      }
+      return groups;
+    }
+
+    function clearPin(s, pin, a) {
+      if (a.type === 'hs') { const l=s.hs.groups[a.gi].lanes[a.i]; if(l.pin_positive===pin)l.pin_positive=''; if(l.pin_negative===pin)l.pin_negative=''; }
+      else if (a.type === 'clk') { const c=s.clocking.clocks[a.i]; if(c.pin_positive===pin)c.pin_positive=''; if(c.pin_negative===pin)c.pin_negative=''; if(c.pin===pin)c.pin=''; }
+      else if (a.type === 'discrete') { const d=s.discrete.signals[a.i]; if(d.pin===pin)d.pin=''; }
+    }
+
+    function clearAllPin(s, pin) {
+      (s.hs.groups||[]).forEach(grp => { (grp.lanes||[]).forEach(l => { if(l.pin_positive===pin)l.pin_positive=''; if(l.pin_negative===pin)l.pin_negative=''; }); });
+      (s.clocking.clocks||[]).forEach(c => { if(c.pin_positive===pin)c.pin_positive=''; if(c.pin_negative===pin)c.pin_negative=''; if(c.pin===pin)c.pin=''; });
+      (s.discrete.signals||[]).forEach(d => { if(d.pin===pin)d.pin=''; });
+    }
+
+    // Re-renders the connector panel while keeping the pin map open if it already was
+    function renderConnPanelKeepMap(connId) {
+      const oldWrap = document.getElementById('pin-map-wrap-' + connId);
+      const wasOpen = oldWrap
+        ? (oldWrap.querySelector('.pin-map-grid-wrap') || {}).style?.display !== 'none'
+        : false;
+      renderConnPanel(connId);
+      if (wasOpen) {
+        // Re-open the pin map in the freshly-rendered panel
+        const newWrap = document.getElementById('pin-map-wrap-' + connId);
+        if (newWrap) {
+          const gridWrap = newWrap.querySelector('.pin-map-grid-wrap');
+          const caret    = newWrap.querySelector('.pin-map-caret');
+          if (gridWrap) { gridWrap.style.display = ''; }
+          if (caret)    { caret.classList.add('open'); }
+          drawGrid(connId, connState[connId], gridWrap);
+        }
+      }
+    }
+
+    function refreshPinMap(connId) {
+      const s = connState[connId];
+      const wrap = document.getElementById('pin-map-wrap-' + connId);
+      if (!wrap) return;
+      const gridWrap = wrap.querySelector('.pin-map-grid-wrap');
+      if (!gridWrap || gridWrap.style.display === 'none') return;
+      drawGrid(connId, s, gridWrap);
+    }
+
+    // ── Clocking render ───────────────────────────────────────────────────────
+    function renderClocking(id, s) {
+      const div = el('div','');
+      s.clocking.clocks.forEach((clk, i) => {
+        const card = el('div','');
+        card.style.cssText = 'border:1px solid var(--ocp-border);border-radius:6px;padding:12px;margin-bottom:10px;';
+        const hdr = el('div',''); hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;';
+        const lbl = el('span',''); lbl.id='clk-lbl-'+id+'-'+i; lbl.textContent = clk.clock_id || `Clock ${i}`; lbl.style.fontWeight='600';
+        const rmBtn = makeBtn('Remove', 'btn btn-danger btn-sm', () => { s.clocking.clocks.splice(i,1); updatePreview(); renderConnPanel(id); });
+        hdr.appendChild(lbl); hdr.appendChild(rmBtn);
+        card.appendChild(hdr);
+
+        const r1 = el('div','field-row');
+        r1.appendChild(fieldTextInline(withTip('clock_id','Unique identifier for this reference clock within the connector (e.g. &quot;REFCLK0&quot;). Used by the BMC to map the clock to its physical pins.'), clk.clock_id||'', 'CLOCK0', v => { clk.clock_id=v; const _cl=document.getElementById('clk-lbl-'+id+'-'+i); if(_cl) _cl.textContent=v||`Clock ${i}`; updatePreview(); }));
+        r1.appendChild(fieldSelectInline('clock_type', clk.clock_type, ['','REFCLK_DIFF','REFCLK_SINGLE'], ['-- select --','REFCLK_DIFF','REFCLK_SINGLE'],
+          v => { clk.clock_type=v; updatePreview(); renderConnPanel(id); }));
+        card.appendChild(r1);
+
+        const r2 = el('div','field-row');
+        r2.appendChild(fieldNumInline(withTip('frequency_mhz','Nominal clock frequency in MHz. Common: 100.0 (PCIe, UALink), 156.25 (Ethernet 100G/200G).'), clk.frequency_mhz||'', '100.0', v => { clk.frequency_mhz=v?parseFloat(v):undefined; updatePreview(); }));
+        r2.appendChild(fieldSelectInline('direction', clk.direction, ['',...CLOCK_DIRS], ['-- select --',...CLOCK_DIRS],
+          v => { clk.direction=v; updatePreview(); renderConnPanel(id); }));
+        card.appendChild(r2);
+
+        if (clk.clock_type === 'REFCLK_DIFF' || !clk.clock_type) {
+          const r3 = el('div','field-row');
+          r3.appendChild(fieldTextInline('pin_positive', clk.pin_positive||'', '', v => { clk.pin_positive=v; updatePreview(); refreshPinMap(id); }));
+          r3.appendChild(fieldTextInline('pin_negative', clk.pin_negative||'', '', v => { clk.pin_negative=v; updatePreview(); refreshPinMap(id); }));
+          card.appendChild(r3);
+        } else {
+          card.appendChild(fieldTextInline('pin', clk.pin||'', '', v => { clk.pin=v; updatePreview(); refreshPinMap(id); }));
+        }
+
+        const r4 = el('div',''); r4.style.cssText='display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;align-items:center;';
+        r4.appendChild(buildCheckboxField(withTip('ssc_supported','true if this clock supports Spread Spectrum Clocking (SSC). Applies to both INPUT and OUTPUT clocks.'), !!clk.ssc_supported, v => { clk.ssc_supported=v; updatePreview(); }));
+        r4.appendChild(buildCheckboxField('required', clk.required, v => { clk.required=v; updatePreview(); }));
+        card.appendChild(r4);
+
+        div.appendChild(card);
+      });
+
+      const addBtn = makeBtn('+ Add Clock', 'btn btn-secondary btn-sm', () => {
+        if (s.clocking.clocks.length >= 16) { showToast('Maximum 16 clock signals allowed per connector'); return; }
+        s.clocking.clocks.push({ clock_id:'', clock_type:'REFCLK_DIFF', frequency_mhz:100.0, pin_positive:'', pin_negative:'', direction:'INPUT', ssc_supported:true, required:true });
+        updatePreview(); renderConnPanel(id);
+      });
+      div.appendChild(addBtn);
+      return div;
+    }
+
+    // ── Discrete signals render ───────────────────────────────────────────────
+    function renderDiscrete(id, s) {
+      const div = el('div','');
+      s.discrete.signals.forEach((sig, i) => {
+        const card = el('div','');
+        card.style.cssText = 'border:1px solid var(--ocp-border);border-radius:6px;padding:12px;margin-bottom:10px;';
+        const hdr = el('div',''); hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;';
+        const lbl = el('span',''); lbl.id='sig-lbl-'+id+'-'+i; lbl.textContent = sig.signal_name||`Signal ${i}`; lbl.style.fontWeight='600';
+        const rmBtn = makeBtn('Remove', 'btn btn-danger btn-sm', () => { s.discrete.signals.splice(i,1); updatePreview(); renderConnPanel(id); });
+        hdr.appendChild(lbl); hdr.appendChild(rmBtn);
+        card.appendChild(hdr);
+
+        const r1 = el('div','field-row');
+        r1.appendChild(fieldTextInline('signal_name', sig.signal_name||'', 'VENDOR_MY_SIGNAL#', v => { sig.signal_name=v; const _sl=document.getElementById('sig-lbl-'+id+'-'+i); if(_sl) _sl.textContent=v||`Signal ${i}`; updatePreview(); }));
+        r1.appendChild(fieldTextInline('pin', sig.pin||'', 'A1', v => { sig.pin=v; updatePreview(); refreshPinMap(id); }));
+        card.appendChild(r1);
+
+        const r2 = el('div','field-row');
+        r2.appendChild(fieldSelectInline('direction', sig.direction, ['','INPUT','OUTPUT'], ['-- select --','INPUT','OUTPUT'], v => { sig.direction=v; updatePreview(); }));
+        r2.appendChild(fieldSelectInline('active_level', sig.active_level, ['',...ACTIVE_LEVELS], ['-- select --',...ACTIVE_LEVELS], v => { sig.active_level=v; updatePreview(); }));
+        card.appendChild(r2);
+
+        const r3 = el('div','field-row');
+        r3.appendChild(fieldNumInline('voltage_level_v', sig.voltage_level_v||'', '3.3', v => { sig.voltage_level_v=v?parseFloat(v):undefined; updatePreview(); }));
+        r3.appendChild(fieldSelectInline('driver_type', sig.driver_type, ['',...DRIVER_TYPES], ['-- select --',...DRIVER_TYPES], v => { sig.driver_type=v; updatePreview(); }));
+        card.appendChild(r3);
+
+        r3.appendChild(fieldSelectInline('default_state', sig.default_state, ['',...DEFAULT_STATES], ['-- select --',...DEFAULT_STATES], v => { sig.default_state=v; updatePreview(); }));
+
+        // pullup / pulldown
+        const puRow = el('div',''); puRow.style.cssText='display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;';
+        // pullup
+        const puChkLbl = buildCheckboxField('pullup_required', sig.pullup_required, v => {
+          sig.pullup_required=v;
+          if (v) sig.pulldown_required=false;
+          updatePreview(); renderConnPanel(id);
+        });
+        puRow.appendChild(puChkLbl);
+        if (sig.pullup_required) {
+          const puGrp = el('div',''); puGrp.style.cssText='display:flex;gap:8px;';
+          puGrp.appendChild(fieldNumInline('pullup_voltage_v', sig.pullup_voltage_v||'', '3.3', v => { sig.pullup_voltage_v=v?parseFloat(v):undefined; updatePreview(); }));
+          puGrp.appendChild(fieldNumInline('pullup_kohm', sig.pullup_kohm||'', '10.0', v => { sig.pullup_kohm=v?parseFloat(v):undefined; updatePreview(); }));
+          puRow.appendChild(puGrp);
+        }
+        // pulldown
+        const pdChkLbl = buildCheckboxField('pulldown_required', sig.pulldown_required, v => {
+          sig.pulldown_required=v;
+          if (v) sig.pullup_required=false;
+          updatePreview(); renderConnPanel(id);
+        });
+        puRow.appendChild(pdChkLbl);
+        if (sig.pulldown_required) {
+          const pdGrp = el('div',''); pdGrp.style.cssText='display:flex;gap:8px;';
+          pdGrp.appendChild(fieldNumInline('pulldown_voltage_v', sig.pulldown_voltage_v||'', '3.3', v => { sig.pulldown_voltage_v=v?parseFloat(v):undefined; updatePreview(); }));
+          pdGrp.appendChild(fieldNumInline('pulldown_kohm', sig.pulldown_kohm||'', '10.0', v => { sig.pulldown_kohm=v?parseFloat(v):undefined; updatePreview(); }));
+          pdGrp.appendChild(buildCheckboxField('required', sig.required, v => { sig.required=v; updatePreview(); }));
+          puRow.appendChild(pdGrp);
+        } else {
+          puRow.appendChild(buildCheckboxField('required', sig.required, v => { sig.required=v; updatePreview(); }));
+        }
+        card.appendChild(puRow);
+        div.appendChild(card);
+      });
+
+      const addBtn = makeBtn('+ Add Signal', 'btn btn-secondary btn-sm', () => {
+        s.discrete.signals.push({ signal_name:'', pin:'', direction:'', active_level:'', voltage_level_v:3.3, driver_type:'', default_state:'', pullup_required:false, pulldown_required:false, required:true });
+        updatePreview(); renderConnPanel(id);
+      });
+      div.appendChild(addBtn);
+      return div;
+    }
+
+    // ── JSON builder ──────────────────────────────────────────────────────────
+    function buildSchema() {
+      const obj = { oac_cid: {} };
+      const cid = obj.oac_cid;
+
+      // metadata
+      const sv = v('f-schema-version');
+      const osp = v('f-oac-spec');
+      const desc = v('f-desc');
+      cid.metadata = {};
+      if (sv) cid.metadata.schema_version = sv;
+      if (osp) cid.metadata.oac_spec_revision = osp;
+      if (desc) cid.metadata.description = desc;
+      const pen = vn('f-iana-pen');
+      if (pen) cid.metadata.iana_pen = Math.round(pen);
+      const pct = v('f-pct');
+      if (pct && pen) cid.metadata.platform_token = pct;  // platform_token requires iana_pen
+
+      // power
+      const volt = v('f-voltage');
+      const ct = v('f-conn-type');
+      const omax = vn('f-opl-max');
+      const oemg = vn('f-opl-emg');
+      const oeff = vn('f-opl-eff');
+      const ored = vn('f-opl-red');
+      const osmin = vn('f-opl-set-min');
+      const osmax = vn('f-opl-set-max');
+      if (volt || ct || omax !== null || oemg !== null) {
+        const pwr = {};
+        if (volt) pwr.input_voltage = volt;
+        if (ct) pwr.connector_type = ct;
+        if (omax !== null) pwr.opl_max_w = omax;
+        if (oemg !== null) pwr.opl_emg_w = oemg;
+        if (oeff !== null) pwr.opl_eff_w = oeff;
+        if (ored !== null) pwr.opl_red_w = ored;
+        if (osmin !== null) pwr.opl_set_min_w = osmin;
+        if (osmax !== null) pwr.opl_set_max_w = osmax;
+        cid.power = { primary: pwr };
+      }
+
+      // connectors
+      const connectors = [];
+      CONN_IDS.forEach(id => {
+        const s = connState[id];
+        if (!s.populated) return;
+        const c = { id, populated: true };
+        if (s.impedance_ohm) c.impedance_ohm = parseInt(s.impedance_ohm);
+        if (s.connector_profile) c.connector_profile = s.connector_profile;
+
+        // presence_detect (CONN0 only)
+        if (id === 'CONN0' && s.mpesti_capable) {
+          c.presence_detect = { mpesti_capable: true };
+        }
+
+        // high_speed_lanes array — omitted when connector_profile is set (mutually exclusive)
+        if (s.hs.enabled && !s.connector_profile) {
+          const hsArray = (s.hs.groups || []).filter(grp => grp.protocol || (grp.lanes && grp.lanes.length)).map(grp => {
+            const hs = {};
+            if (grp.name) hs.name = grp.name;
+            if (grp.protocol) hs.protocol = grp.protocol;
+            if (grp.link_direction) hs.link_direction = grp.link_direction;
+            if (grp.total_lanes !== '') hs.total_lanes = parseInt(grp.total_lanes)||0;
+            if (grp.minimum_lanes !== '') hs.minimum_lanes = parseInt(grp.minimum_lanes)||0;
+            if (grp.lanes && grp.lanes.length) {
+              hs.lanes = grp.lanes.map(lane => {
+                const l = { lane_index: lane.lane_index, direction: lane.direction };
+                if (lane.pin_positive) l.pin_positive = lane.pin_positive;
+                if (lane.pin_negative) l.pin_negative = lane.pin_negative;
+                  return l;
+              });
+            }
+            return hs;
+          });
+          if (hsArray.length === 1) c.high_speed_lanes = hsArray[0];
+          else if (hsArray.length > 1) c.high_speed_lanes = hsArray;
+        }
+
+        // clocking
+        if (s.clocking.enabled && s.clocking.clocks.length > 16 && !s.connector_profile) {
+          errs.push(`${connLabel}: clocking array has ${s.clocking.clocks.length} entries — maximum is 16`);
+        }
+        if (s.clocking.enabled && s.clocking.clocks.length && !s.connector_profile) {
+          c.clocking = s.clocking.clocks.map(clk => {
+            const ck = {};
+            if (clk.clock_id) ck.clock_id = clk.clock_id;
+            if (clk.clock_type) ck.clock_type = clk.clock_type;
+            if (clk.frequency_mhz != null) ck.frequency_mhz = clk.frequency_mhz;
+            if (clk.clock_type === 'REFCLK_DIFF' || !clk.clock_type) {
+              if (clk.pin_positive) ck.pin_positive = clk.pin_positive;
+              if (clk.pin_negative) ck.pin_negative = clk.pin_negative;
+            } else {
+              if (clk.pin) ck.pin = clk.pin;
+            }
+            if (clk.direction) ck.direction = clk.direction;
+            
+            ck.ssc_supported = !!clk.ssc_supported;
+            ck.required = !!clk.required;
+            return ck;
+          });
+        }
+
+        // discrete_signals
+        if (s.discrete.enabled && s.discrete.signals.length && !s.connector_profile) {
+          c.discrete_signals = s.discrete.signals.map(sig => {
+            const d = {};
+            if (sig.signal_name) d.signal_name = sig.signal_name;
+            if (sig.pin) d.pin = sig.pin;
+            if (sig.direction) d.direction = sig.direction;
+            if (sig.active_level) d.active_level = sig.active_level;
+            if (sig.voltage_level_v != null) d.voltage_level_v = sig.voltage_level_v;
+            if (sig.driver_type) d.driver_type = sig.driver_type;
+            if (sig.default_state) d.default_state = sig.default_state;
+            if (sig.pullup_required) {
+              d.pullup_required = true;
+              if (sig.pullup_voltage_v != null) d.pullup_voltage_v = sig.pullup_voltage_v;
+              if (sig.pullup_kohm != null) d.pullup_kohm = sig.pullup_kohm;
+            } else if (sig.pulldown_required) {
+              d.pulldown_required = true;
+              if (sig.pulldown_voltage_v != null) d.pulldown_voltage_v = sig.pulldown_voltage_v;
+              if (sig.pulldown_kohm != null) d.pulldown_kohm = sig.pulldown_kohm;
+            }
+            d.required = !!sig.required;
+            return d;
+          });
+        }
+
+        connectors.push(c);
+      });
+      if (connectors.length) cid.connectors = connectors;
+
+      return obj;
+    }
+
+    function buildJsonString() {
+      return JSON.stringify(buildSchema(), null, 2);
+    }
+
+
+    // ── CID Validation Engine ────────────────────────────────────────────────────
+    function validateCID(obj, mode) {
+      const errors = [];
+      const warnings = [];
+      const E = msg => errors.push(msg);
+      const W = msg => warnings.push(msg);
+
+      if (!obj) { E('No JSON to validate.'); return { errors, warnings }; }
+
+      if (mode === 'profile') {
+        const p = obj.oac_connector_profile;
+        if (!p) { E('Missing root key: oac_connector_profile'); return { errors, warnings }; }
+        if (!p.profile_id) E('profile_id is required');
+        if (!p.schema_version) E('schema_version is required');
+        if (p.is_conn0 === undefined) W('is_conn0 not declared');
+        validateSignals(p, E, W, 'Profile');
+        return { errors, warnings };
+      }
+
+      // CID mode
+      const cid = obj.oac_cid;
+      if (!cid) { E('Missing root key: oac_cid'); return { errors, warnings }; }
+
+      // Metadata
+      const meta = cid.metadata || {};
+      if (!meta.schema_version) E('metadata.schema_version is required');
+      if (!meta.oac_spec_revision) E('metadata.oac_spec_revision is required');
+      if (meta.platform_token && !meta.iana_pen) W('platform_token declared without iana_pen');
+
+      // Power
+      const pwr = (cid.power || {}).primary || {};
+      if (!pwr.input_voltage) E('power.primary.input_voltage is required');
+      if (!pwr.connector_type) E('power.primary.connector_type is required');
+      if (!pwr.opl_max_w) E('power.primary.opl_max_w is required');
+      if (!pwr.opl_emg_w) E('power.primary.opl_emg_w is required');
+      if (pwr.opl_max_w && pwr.opl_emg_w && pwr.opl_emg_w > pwr.opl_max_w)
+        E('opl_emg_w must be ≤ opl_max_w');
+      if (pwr.opl_eff_w && pwr.opl_max_w && pwr.opl_eff_w > pwr.opl_max_w)
+        E('opl_eff_w must be ≤ opl_max_w');
+      if (pwr.opl_red_w && pwr.opl_eff_w && pwr.opl_red_w > pwr.opl_eff_w)
+        E('opl_red_w must be ≤ opl_eff_w');
+      if (pwr.opl_set_min_w && pwr.opl_set_max_w && pwr.opl_set_min_w > pwr.opl_set_max_w)
+        E('opl_set_min_w must be ≤ opl_set_max_w');
+
+      // Connectors
+      const connectors = cid.connectors || [];
+      const conn0 = connectors.find(c => c.id === 'CONN0');
+      if (!conn0 || !conn0.populated) E('CONN0 must be present and populated');
+
+      connectors.filter(c => c.populated && !c.connector_profile).forEach(c => {
+        validateSignals(c, E, W, c.id);
+      });
+
+      return { errors, warnings };
+    }
+
+    function validateSignals(obj, E, W, label) {
+      const allPins = new Map(); // pin -> source label
+      function checkPin(pin, src) {
+        if (!pin) return;
+        if (allPins.has(pin)) E(label + ': Duplicate pin assignment — ' + pin + ' used by both "' + allPins.get(pin) + '" and "' + src + '"');
+        else allPins.set(pin, src);
+      }
+
+      // High-speed lanes
+      const hsArr = Array.isArray(obj.high_speed_lanes) ? obj.high_speed_lanes : (obj.high_speed_lanes ? [obj.high_speed_lanes] : []);
+      hsArr.forEach((grp, gi) => {
+        const gLabel = label + ' HS Group ' + gi;
+        if (!grp.name)     E(gLabel + ': name is required (snake_case identifier, e.g. pcie_primary)');
+        if (!grp.protocol) E(gLabel + ': protocol is required');
+        if (!grp.link_direction) E(gLabel + ': link_direction is required');
+        const tl = grp.total_lanes || 0;
+        const ml = grp.minimum_lanes || 0;
+        if (tl <= 0) E(gLabel + ': total_lanes must be > 0');
+        if (ml > tl) E(gLabel + ': minimum_lanes (' + ml + ') must be ≤ total_lanes (' + tl + ')');
+        (grp.lanes || []).forEach(l => {
+          if (!l.pin_positive) E(gLabel + ' Lane ' + l.lane_index + ' ' + l.direction + ': pin_positive is not assigned');
+          if (!l.pin_negative) E(gLabel + ' Lane ' + l.lane_index + ' ' + l.direction + ': pin_negative is not assigned');
+          checkPin(l.pin_positive, gLabel + ' Lane ' + l.lane_index + '(+)');
+          checkPin(l.pin_negative, gLabel + ' Lane ' + l.lane_index + '(-)');
+        });
+      });
+
+      // Clocking
+      (obj.clocking || []).forEach((clk, i) => {
+        const cLabel = label + ' Clock "' + (clk.clock_id || i) + '"';
+        if (!clk.clock_id) E(cLabel + ': clock_id is required');
+        if (!clk.frequency_mhz || clk.frequency_mhz <= 0) E(cLabel + ': frequency_mhz must be > 0');
+        if (clk.clock_type === 'REFCLK_DIFF' || !clk.clock_type) {
+          if (!clk.pin_positive) E(cLabel + ': pin_positive is not assigned');
+          if (!clk.pin_negative) E(cLabel + ': pin_negative is not assigned');
+          checkPin(clk.pin_positive, cLabel + '(+)');
+          checkPin(clk.pin_negative, cLabel + '(-)');
+        } else {
+          if (!clk.pin) E(cLabel + ': pin is not assigned');
+          checkPin(clk.pin, cLabel);
+        }
+              });
+
+      // Discrete signals
+      (obj.discrete_signals || []).forEach((sig, i) => {
+        const sLabel = label + ' Signal "' + (sig.signal_name || i) + '"';
+        if (!sig.signal_name) E(sLabel + ': signal_name is required');
+        if (!sig.pin) E(sLabel + ': pin is not assigned');
+        checkPin(sig.pin, sLabel);
+      });
+    }
+
+    function updatePreview() {
+      if (suppressPreview) return;
+      // In manual mode use textarea content directly (it IS the source of truth)
+      const isManual = currentMode === 'manual';
+      const json = isManual
+        ? (document.getElementById('manual-textarea') || {value: '{}'}).value
+        : (appMode === 'profile' ? buildProfileJSON() : buildJsonString());
+      document.getElementById('json-output').textContent = isManual ? json : json;
+      // Run validation against whatever JSON is currently active
+      try {
+        const obj = JSON.parse(json);
+        const { errors, warnings } = validateCID(obj, appMode);
+        const badge = document.getElementById('val-badge');
+        const panel = document.getElementById('val-panel');
+        if (errors.length) {
+          badge.className = 'error'; badge.textContent = '✗ ' + errors.length + ' error' + (errors.length>1?'s':'');
+          const pane = document.getElementById('val-pane-wrap');
+          const title = document.getElementById('val-pane-title');
+          pane.className = 'val-pane-wrap show';
+          title.textContent = errors.length + ' Error' + (errors.length>1?'s':'') + (warnings.length ? ' · ' + warnings.length + ' Warning' + (warnings.length>1?'s':'') : '');
+          panel.innerHTML = errors.map(e=>'<div class="val-error">✖ '+e+'</div>').join('') +
+            warnings.map(w=>'<div class="val-warning">⚠ '+w+'</div>').join('');
+        } else if (warnings.length) {
+          badge.className = 'warning'; badge.textContent = '⚠ ' + warnings.length + ' warning' + (warnings.length>1?'s':'');
+          const pane = document.getElementById('val-pane-wrap');
+          const title = document.getElementById('val-pane-title');
+          pane.className = 'val-pane-wrap show';
+          title.textContent = warnings.length + ' Warning' + (warnings.length>1?'s':'');
+          panel.innerHTML = warnings.map(w=>'<div class="val-warning">⚠ '+w+'</div>').join('');
+        } else {
+          badge.className = 'valid'; badge.textContent = '✓ Valid';
+          const pane = document.getElementById('val-pane-wrap');
+          if(pane) { pane.className = 'val-pane-wrap'; }
+          panel.innerHTML = '';
+        }
+      } catch(e) {
+        const badge = document.getElementById('val-badge');
+        if(badge){badge.className='error';badge.textContent='✗ Invalid JSON';}
+      }
+      if (appMode === 'cid' && currentMode === 'manual') {
+        document.getElementById('manual-textarea').value = json;
+        validateManual(); updateHighlight();
+      }
+    }
+
+    // ── Manual mode ────────────────────────────────────────────────────────────
+
+    function escHtmlHighlight(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function highlightJSON(raw) {
+      // Simple regex-based JSON colorizer
+      return raw.replace(
+        /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(\b-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\btrue\b|\bfalse\b)|(\bnull\b)|([{}\[\],:])/g,
+        (m, key, str, num, bool, nil, punct) => {
+          if (key)   return '<span class="json-key">'   + escHtmlHighlight(m) + '</span>';
+          if (str)   return '<span class="json-string">' + escHtmlHighlight(m) + '</span>';
+          if (num)   return '<span class="json-number">' + escHtmlHighlight(m) + '</span>';
+          if (bool)  return '<span class="json-bool">'  + escHtmlHighlight(m) + '</span>';
+          if (nil)   return '<span class="json-null">'  + escHtmlHighlight(m) + '</span>';
+          if (punct) return '<span class="json-punct">' + escHtmlHighlight(m) + '</span>';
+          return escHtmlHighlight(m);
+        }
+      );
+    }
+    function updateHighlight() {
+      const ta = document.getElementById('manual-textarea');
+      const hl = document.getElementById('manual-highlight');
+      if (!ta || !hl) return;
+      // Sync scroll
+      hl.scrollTop  = ta.scrollTop;
+      hl.scrollLeft = ta.scrollLeft;
+      hl.innerHTML = highlightJSON(ta.value) + '\n'; // trailing newline prevents last-line clipping
+    }
+
+    function onManualEdit() {
+      const txt = document.getElementById('manual-textarea').value;
+      const valid = validateManual();
+      if (valid) {
+        try {
+          const obj = JSON.parse(txt);
+          document.getElementById('json-output').textContent = JSON.stringify(obj, null, 2);
+          if (appMode === 'profile' && obj.oac_connector_profile) {
+            populateProfileFromObj(obj);
+          } else if (appMode === 'cid') {
+            populateFromObj(obj);
+          }
+          // Run validation against the live textarea content
+          const { errors, warnings } = validateCID(obj, appMode);
+          const badge = document.getElementById('val-badge');
+          const panel = document.getElementById('val-panel');
+          const pane  = document.getElementById('val-pane-wrap');
+          const title = document.getElementById('val-pane-title');
+          if (errors.length) {
+            badge.className='error'; badge.textContent='✗ '+errors.length+' error'+(errors.length>1?'s':'');
+            pane.className='val-pane-wrap show';
+            title.textContent=errors.length+' Error'+(errors.length>1?'s':'')+(warnings.length?' · '+warnings.length+' Warning'+(warnings.length>1?'s':''):'');
+            panel.innerHTML=errors.map(e=>'<div class="val-error">✖ '+e+'</div>').join('')+warnings.map(w=>'<div class="val-warning">⚠ '+w+'</div>').join('');
+          } else if (warnings.length) {
+            badge.className='warning'; badge.textContent='⚠ '+warnings.length+' warning'+(warnings.length>1?'s':'');
+            pane.className='val-pane-wrap show'; title.textContent=warnings.length+' Warning'+(warnings.length>1?'s':'');
+            panel.innerHTML=warnings.map(w=>'<div class="val-warning">⚠ '+w+'</div>').join('');
+          } else {
+            badge.className='valid'; badge.textContent='✓ Valid';
+            pane.className='val-pane-wrap'; panel.innerHTML='';
+          }
+        } catch(e) {}
+      } else {
+        // Invalid JSON — show parse error in badge
+        const badge = document.getElementById('val-badge');
+        if (badge) { badge.className='error'; badge.textContent='✗ Invalid JSON'; }
+      }
+    }
+
+    function validateManual() {
+      const txt = document.getElementById('manual-textarea').value;
+      const el_ = document.getElementById('manual-status');
+      try {
+        JSON.parse(txt);
+        el_.className = 'json-status valid';
+        el_.textContent = '✔ Valid JSON';
+        return true;
+      } catch(e) {
+        el_.className = 'json-status invalid';
+        el_.textContent = '✖ ' + e.message.slice(0,40);
+        return false;
+      }
+    }
+
+    // ── App mode (CID / Connector Profile) ────────────────────────────────────
+    function setAppMode(mode) {
+      appMode = mode;
+      document.getElementById('appmode-cid-btn').classList.toggle('active', mode === 'cid');
+      document.getElementById('appmode-profile-btn').classList.toggle('active', mode === 'profile');
+
+      const guidedArea  = document.getElementById('guided-area');
+      const profileArea = document.getElementById('profile-area');
+      const manualArea  = document.getElementById('manual-area');
+      const guidedNav   = document.getElementById('guided-nav');
+
+      // Always re-sync Guided/Manual button highlight to currentMode
+      document.getElementById('mode-guided-btn').classList.toggle('active', currentMode === 'guided');
+      document.getElementById('mode-manual-btn').classList.toggle('active', currentMode === 'manual');
+
+      if (mode === 'cid') {
+        guidedArea.style.display  = currentMode === 'guided' ? '' : 'none';
+        profileArea.classList.remove('visible');
+        manualArea.classList.toggle('visible', currentMode === 'manual');
+        guidedNav.style.display   = '';
+        if (currentMode === 'manual') {
+          const ta = document.getElementById('manual-textarea');
+          if (ta) { ta.value = buildJsonString(); updateHighlight(); }
+        }
+        updatePreview();
+      } else {
+        // Profile mode: guided shows profileArea; manual shows manualArea
+        guidedArea.style.display  = 'none';
+        profileArea.classList.toggle('visible', currentMode === 'guided');
+        manualArea.classList.toggle('visible', currentMode === 'manual');
+        guidedNav.style.display   = 'none';
+        if (currentMode === 'guided') renderProfilePanel();
+        if (currentMode === 'manual') {
+          const ta = document.getElementById('manual-textarea');
+          if (ta) { ta.value = buildProfileJSON(); updateHighlight(); }
+        }
+        updatePreview();
+      }
+    }
+
+
+    // Protocol abbreviation map for profile_id suggestion
+    const PROTO_ABBREV = {
+      'PCIe Gen4': 'PCIeGen4',
+      'PCIe Gen5': 'PCIeGen5',
+      'PCIe Gen6': 'PCIeGen6',
+      'PCIe Gen7': 'PCIeGen7',
+      'UALink 1.0': 'UALink1',
+      'UALink 2.0': 'UALink2',
+      'UALink 3.0': 'UALink3',
+      'UALoE 200G': 'UALoE200G',
+      'CXL 1.1/2.0/3.0': 'CXL3',
+      'CXL 4.0': 'CXL4',
+      'NVLINK 6.0': 'NVLink6',
+      'NVLink 4.0': 'NVLink4',
+      'NVLink 5.0': 'NVLink5',
+      'Ethernet 200G': 'Eth200G',
+      'Ethernet 400G': 'Eth400G',
+      'Ethernet 800G': 'Eth800G',
+      'USB 2.0': 'USB2',
+      'USB 3.2 Gen1': 'USB3Gen1',
+      'USB 3.2 Gen2': 'USB3Gen2',
+      'USB4 Gen2': 'USB4Gen2',
+      'USB4 Gen3': 'USB4Gen3',
+    };
+
+    function suggestProfileId() {
+      const s = connState['PROFILE'];
+      const isConn0 = !!(document.getElementById('pf-is-conn0') || {checked:true}).checked;
+      const connPart = isConn0 ? 'CONN0' : 'CONN';
+      const groups = (s.hs.groups || []).filter(g => g.protocol || (g.lanes && g.lanes.length));
+
+      if (!groups.length) {
+        showToast('No protocol groups defined. Add at least one High-Speed Lanes group before suggesting an ID.', 4000);
+        return;
+      }
+
+      const missing = [];
+      const parts = [];
+      groups.forEach((grp, gi) => {
+        if (!grp.protocol)      missing.push('Group ' + gi + ': protocol required');
+        if (!grp.total_lanes)   missing.push('Group ' + gi + ': total_lanes required');
+        if (!grp.link_direction) missing.push('Group ' + gi + ': link_direction required');
+        if (grp.protocol && grp.total_lanes && grp.link_direction) {
+          const abbr = PROTO_ABBREV[grp.protocol] || grp.protocol.replace(/[^a-zA-Z0-9]/g,'');
+          const dir  = grp.link_direction === 'INBOUND' ? 'IN' : 'OUT';
+          parts.push(abbr + '-x' + grp.total_lanes + '-' + dir);
+        }
+      });
+
+      if (missing.length) {
+        showToast('Cannot suggest ID — missing: ' + missing.join('; '), 5000);
+        return;
+      }
+
+      const version = (document.getElementById('pf-profile-version') || {}).value || '1.0';
+      const vNum = version.replace(/\./g, '-'); // "1.0" → "1-0" for filename safety, or keep as v1
+      // Use major version only for the v<n> suffix (e.g. "1.0" → "v1")
+      const major = version.split('.')[0] || '1';
+      const suggested = 'OAC-PROF-' + connPart + '-' + parts.join('-') + '-v' + major;
+      document.getElementById('pf-profile-id').value = suggested;
+      updatePreview();
+      showToast('Profile ID suggested: ' + suggested, 3000);
+    }
+
+    function onIsConn0Change(cb) {
+      if (!cb.checked) {
+        // Warn and clear any column-9 pin assignments (col 9 doesn't exist on CONN1-6)
+        const s = connState['PROFILE'];
+        const col9Pins = [];
+        const allSections = [
+          ...(s.hs.groups || []).flatMap(g => (g.lanes||[]).flatMap(l => [l.pin_positive, l.pin_negative])),
+          ...(s.clocking.clocks || []).flatMap(c => [c.pin_positive, c.pin_negative, c.pin]),
+          ...(s.discrete.signals || []).map(d => d.pin)
+        ].filter(p => p && /[A-N]9$/.test(p));
+
+        if (allSections.length) {
+          const list = [...new Set(allSections)].join(', ');
+          if (!confirm(`Switching to CONN1–CONN6 (8 columns) will clear all pin assignments on column 9:\n${list}\n\nProceed?`)) {
+            cb.checked = true; // revert
+            return;
+          }
+          // Clear all column-9 assignments
+          (s.hs.groups || []).forEach(g => {
+            (g.lanes||[]).forEach(l => {
+              if (/[A-N]9$/.test(l.pin_positive)) l.pin_positive = '';
+              if (/[A-N]9$/.test(l.pin_negative)) l.pin_negative = '';
+            });
+          });
+          (s.clocking.clocks || []).forEach(c => {
+            if (/[A-N]9$/.test(c.pin_positive)) c.pin_positive = '';
+            if (/[A-N]9$/.test(c.pin_negative)) c.pin_negative = '';
+            if (/[A-N]9$/.test(c.pin)) c.pin = '';
+          });
+          (s.discrete.signals || []).forEach(d => {
+            if (/[A-N]9$/.test(d.pin)) d.pin = '';
+          });
+        }
+      }
+      updatePreview();
+      renderProfilePanel();
+      refreshPinMap('PROFILE');
+    }
+
+    function renderProfilePanel() {
+      const panel = document.getElementById('profile-signals-panel');
+      panel.innerHTML = '';
+      const s = connState['PROFILE'];
+
+      function profileCard(child) {
+        const card = el('div','form-card'); card.appendChild(child); return card;
+      }
+
+      panel.appendChild(profileCard(toggleSection('High-Speed Lanes', s.hs.enabled, () => {
+        s.hs.enabled = !s.hs.enabled; updatePreview(); renderProfilePanel();
+      }, () => renderHSLanes('PROFILE', s))));
+
+      panel.appendChild(profileCard(toggleSection('Clocking', s.clocking.enabled, () => {
+        s.clocking.enabled = !s.clocking.enabled; updatePreview(); renderProfilePanel();
+      }, () => renderClocking('PROFILE', s))));
+
+      panel.appendChild(profileCard(toggleSection('Discrete Signals', s.discrete.enabled, () => {
+        s.discrete.enabled = !s.discrete.enabled; updatePreview(); renderProfilePanel();
+      }, () => renderDiscrete('PROFILE', s))));
+
+      const pinCard = el('div','form-card');
+      pinCard.appendChild(renderPinMap('PROFILE', s));
+      panel.appendChild(pinCard);
+    }
+
+    function buildProfileJSON() {
+      const s = connState['PROFILE'];
+      const prof = {
+        oac_connector_profile: {
+          profile_id:          v('pf-profile-id')           || '',
+          schema_version:      v('pf-schema-version')       || '0.9',
+          profile_version:     v('pf-profile-version')     || '1.0',
+          is_conn0: !!(document.getElementById('pf-is-conn0') || {checked:true}).checked,
+        }
+      };
+      const desc = v('pf-desc');
+      if (desc) prof.oac_connector_profile.description = desc;
+
+      if (s.hs.enabled) {
+        const hsArray = (s.hs.groups||[]).filter(g=>g.protocol||(g.lanes&&g.lanes.length)).map(grp => {
+          const hs = {};
+          if (grp.name) hs.name = grp.name;
+          if (grp.protocol) hs.protocol = grp.protocol;
+          if (grp.link_direction) hs.link_direction = grp.link_direction;
+          if (grp.total_lanes!=='') hs.total_lanes = parseInt(grp.total_lanes)||0;
+          if (grp.minimum_lanes!=='') hs.minimum_lanes = parseInt(grp.minimum_lanes)||0;
+          if (grp.lanes&&grp.lanes.length) hs.lanes=grp.lanes.map(l=>({lane_index:l.lane_index,direction:l.direction,pin_positive:l.pin_positive||'',pin_negative:l.pin_negative||''}));
+          return hs;
+        });
+        if (hsArray.length===1) prof.oac_connector_profile.high_speed_lanes=hsArray[0];
+        else if (hsArray.length>1) prof.oac_connector_profile.high_speed_lanes=hsArray;
+      }
+
+      if (s.clocking.enabled && s.clocking.clocks.length) {
+        prof.oac_connector_profile.clocking = s.clocking.clocks.map(ck => {
+          const c = { clock_id: ck.clock_id, clock_type: ck.clock_type, frequency_mhz: ck.frequency_mhz, direction: ck.direction, required: ck.required };
+          if (ck.ssc_supported) c.ssc_supported = true;
+          if (ck.clock_type === 'REFCLK_DIFF') { c.pin_positive = ck.pin_positive; c.pin_negative = ck.pin_negative; }
+          else if (ck.pin) { c.pin = ck.pin; }
+          
+          if (ck.description)  c.description  = ck.description;
+          return c;
+        });
+      }
+
+      if (s.discrete.enabled && s.discrete.signals.length) {
+        prof.oac_connector_profile.discrete_signals = s.discrete.signals.map(sig => {
+          const d = { signal_name: sig.signal_name, pin: sig.pin, direction: sig.direction, active_level: sig.active_level, voltage_level_v: sig.voltage_level_v, driver_type: sig.driver_type, default_state: sig.default_state, pullup_required: sig.pullup_required, pulldown_required: sig.pulldown_required, required: sig.required };
+          if (sig.pullup_required)   { d.pullup_voltage_v = sig.pullup_voltage_v; if (sig.pullup_kohm)   d.pullup_kohm   = sig.pullup_kohm; }
+          if (sig.pulldown_required) { d.pulldown_voltage_v = sig.pulldown_voltage_v; if (sig.pulldown_kohm) d.pulldown_kohm = sig.pulldown_kohm; }
+          return d;
+        });
+      }
+
+      return JSON.stringify(prof, null, 2);
+    }
+
+    function populateProfileFromObj(obj) {
+      const p = obj.oac_connector_profile;
+      setVal('pf-profile-id',         p.profile_id          || '');
+      setVal('pf-schema-version',     p.schema_version      || '0.9');
+      setVal('pf-profile-version',     p.profile_version     || '1.0');
+      const isConn0Cb = document.getElementById('pf-is-conn0');
+      if (isConn0Cb) isConn0Cb.checked = p.is_conn0 !== false; // default true if field absent
+      setVal('pf-desc',               p.description         || '');
+
+      const s = freshProfileState();
+      if (p.high_speed_lanes) {
+        s.hs.enabled = true;
+        const hsArr = Array.isArray(p.high_speed_lanes) ? p.high_speed_lanes : [p.high_speed_lanes];
+        s.hs.groups = hsArr.map(h => ({
+          protocol: h.protocol||'', link_direction: h.link_direction||'',
+          total_lanes: h.total_lanes!=null?String(h.total_lanes):'',
+          minimum_lanes: h.minimum_lanes!=null?String(h.minimum_lanes):'',
+          name: h.name||'',
+          lanes: (h.lanes||[]).map(l => ({
+            lane_index: l.lane_index, direction: l.direction,
+            pin_positive: l.pin_positive||'', pin_negative: l.pin_negative||''
+          }))
+        }));
+      }
+      if (p.clocking && p.clocking.length) {
+        s.clocking.enabled = true;
+        s.clocking.clocks = p.clocking.map(ck => ({ clock_id:ck.clock_id||'', clock_type:ck.clock_type||'', frequency_mhz:ck.frequency_mhz, pin_positive:ck.pin_positive||'', pin_negative:ck.pin_negative||'', pin:ck.pin||'', direction:ck.direction||'', ssc_supported:!!ck.ssc_supported, required:!!ck.required }))
+      }
+      if (p.discrete_signals && p.discrete_signals.length) {
+        s.discrete.enabled = true;
+        s.discrete.signals = p.discrete_signals.map(d => ({ signal_name:d.signal_name||'', pin:d.pin||'', direction:d.direction||'', active_level:d.active_level||'', voltage_level_v:d.voltage_level_v, driver_type:d.driver_type||'', default_state:d.default_state||'', pullup_required:!!d.pullup_required, pullup_voltage_v:d.pullup_voltage_v, pullup_kohm:d.pullup_kohm, pulldown_required:!!d.pulldown_required, pulldown_voltage_v:d.pulldown_voltage_v, pulldown_kohm:d.pulldown_kohm, required:!!d.required }));
+      }
+      connState['PROFILE'] = s;
+      renderProfilePanel();
+    }
+
+    // ── Import / Export ────────────────────────────────────────────────────────
+    function importJSON() { document.getElementById('import-file').click(); }
+
+    function handleImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const obj = JSON.parse(e.target.result);
+          if (obj.oac_connector_profile) {
+            // Auto-switch to profile mode and populate
+            setAppMode('profile');
+            populateProfileFromObj(obj);
+          } else {
+            setAppMode('cid');
+            populateFromObj(obj);
+          }
+          // Always refresh the manual textarea with the newly imported content
+          // regardless of current mode, so manual mode shows the imported JSON immediately
+          const ta = document.getElementById('manual-textarea');
+          if (ta) {
+            ta.value = appMode === 'profile' ? buildProfileJSON() : buildJsonString();
+            updateHighlight();
+          }
+          updatePreview();
+        } catch(err) {
+          alert('Invalid JSON file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function populateFromObj(obj) {
+      suppressPreview = true;
+      const cid = obj.oac_cid || obj;
+
+      // metadata
+      const meta = cid.metadata || {};
+      setVal('f-schema-version', meta.schema_version||'');
+      setVal('f-oac-spec', meta.oac_spec_revision||'');
+      setVal('f-desc', meta.description||'');
+
+      // power
+      const pwr = (cid.power || {}).primary || {};
+      setVal('f-voltage', pwr.input_voltage||'');
+      setVal('f-conn-type', pwr.connector_type||'');
+      setVal('f-opl-max', pwr.opl_max_w!=null?pwr.opl_max_w:'');
+      setVal('f-opl-emg', pwr.opl_emg_w!=null?pwr.opl_emg_w:'');
+      setVal('f-opl-eff', pwr.opl_eff_w!=null?pwr.opl_eff_w:'');
+      setVal('f-opl-red', pwr.opl_red_w!=null?pwr.opl_red_w:'');
+      setVal('f-opl-set-min', pwr.opl_set_min_w!=null?pwr.opl_set_min_w:'');
+      setVal('f-opl-set-max', pwr.opl_set_max_w!=null?pwr.opl_set_max_w:'');
+      document.getElementById('opl-set-max-field').style.display = pwr.opl_set_min_w!=null ? '' : 'none';
+
+      // connectors
+      CONN_IDS.forEach(id => {
+        connState[id] = {
+          populated: id==='CONN0',
+          impedance_ohm:'', connector_profile:'', mpesti_capable:false,
+          hs:{ enabled:false, groups:[{ name:'', protocol:'', link_direction:'', total_lanes:'', minimum_lanes:'', lanes:[] }] },
+          clocking:{ enabled:false, clocks:[] },
+          discrete:{ enabled:false, signals:[] }
+        };
+      });
+
+      (cid.connectors || []).forEach(c => {
+        const id = c.id;
+        if (!CONN_IDS.includes(id)) return;
+        const s = connState[id];
+        s.populated = c.populated !== false;
+        s.impedance_ohm = c.impedance_ohm != null ? String(c.impedance_ohm) : '';
+        s.connector_profile = c.connector_profile || '';
+        if (c.presence_detect) s.mpesti_capable = !!c.presence_detect.mpesti_capable;
+
+        if (c.high_speed_lanes) {
+          s.hs.enabled = true;
+          const hsArr = Array.isArray(c.high_speed_lanes) ? c.high_speed_lanes : [c.high_speed_lanes];
+          s.hs.groups = hsArr.map(h => ({
+            protocol: h.protocol||'', link_direction: h.link_direction||'',
+            total_lanes: h.total_lanes!=null?String(h.total_lanes):'',
+            minimum_lanes: h.minimum_lanes!=null?String(h.minimum_lanes):'',
+            name: h.name||'',
+            lanes: (h.lanes||[]).map(l => ({
+              lane_index: l.lane_index, direction: l.direction,
+              pin_positive: l.pin_positive||'', pin_negative: l.pin_negative||''
+            }))
+          }));
+        }
+
+        if (c.clocking && c.clocking.length) {
+          s.clocking.enabled = true;
+          s.clocking.clocks = c.clocking.map(ck => ({
+            clock_id:ck.clock_id||'', clock_type:ck.clock_type||'', frequency_mhz:ck.frequency_mhz, pin_positive:ck.pin_positive||'', pin_negative:ck.pin_negative||'', pin:ck.pin||'', direction:ck.direction||'', ssc_supported:!!ck.ssc_supported, required:!!ck.required
+          }));
+        }
+
+        if (c.discrete_signals && c.discrete_signals.length) {
+          s.discrete.enabled = true;
+          s.discrete.signals = c.discrete_signals.map(d => ({
+            signal_name:d.signal_name||'', pin:d.pin||'', direction:d.direction||'', active_level:d.active_level||'', voltage_level_v:d.voltage_level_v, driver_type:d.driver_type||'', default_state:d.default_state||'', pullup_required:!!d.pullup_required, pullup_voltage_v:d.pullup_voltage_v, pullup_kohm:d.pullup_kohm, pulldown_required:!!d.pulldown_required, pulldown_voltage_v:d.pulldown_voltage_v, pulldown_kohm:d.pulldown_kohm, required:!!d.required
+          }));
+        }
+      });
+
+      suppressPreview = false;
+      buildConnTabs();
+      renderConnPanel(activeConn);
+    }
+
+    function toggleExportMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('export-menu');
+      menu.style.display = menu.style.display === 'none' ? '' : 'none';
+    }
+    function closeExportMenu() {
+      const menu = document.getElementById('export-menu');
+      if (menu) menu.style.display = 'none';
+    }
+    // Close export menu on outside click
+    document.addEventListener('click', () => closeExportMenu());
+
+    function _downloadJSON(json, fname) {
+      const blob = new Blob([json], { type:'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fname; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportJSON() {
+      const json = appMode === 'profile' ? buildProfileJSON() : buildJsonString();
+      const fname = appMode === 'profile'
+        ? `${v('pf-profile-id') || 'OAC-PROF'}-${Date.now()}.json`
+        : `OAC-CID-${v('f-schema-version') || '0.7'}-${Date.now()}.json`;
+      _downloadJSON(json, fname);
+    }
+
+    function exportMinifiedJSON() {
+      // Parse and re-serialize with no whitespace — removes $comment fields too
+      const raw = appMode === 'profile' ? buildProfileJSON() : buildJsonString();
+      let obj;
+      try { obj = JSON.parse(raw); } catch(e) { alert('Cannot minify: invalid JSON — ' + e.message); return; }
+      // Strip $comment keys recursively
+      function stripComments(o) {
+        if (Array.isArray(o)) return o.map(stripComments);
+        if (o && typeof o === 'object') {
+          const out = {};
+          for (const [k, val] of Object.entries(o)) {
+            if (k.startsWith('$comment')) continue;
+            out[k] = stripComments(val);
+          }
+          return out;
+        }
+        return o;
+      }
+      const minified = JSON.stringify(stripComments(obj)); // no indent = minified
+      const base = appMode === 'profile'
+        ? `${v('pf-profile-id') || 'OAC-PROF'}`
+        : `OAC-CID-${v('f-schema-version') || '0.7'}`;
+      _downloadJSON(minified, `${base}-minified-${Date.now()}.json`);
+      showToast(`Saved minified JSON (${minified.length} bytes)`);
+    }
+
+    function clearAll() {
+      if (!confirm('Clear all fields?')) return;
+      suppressPreview = true;
+      if (appMode === 'profile') {
+        ['pf-profile-id','pf-schema-version','pf-profile-version','pf-desc'].forEach(id => setVal(id, id==='pf-schema-version'||id==='pf-profile-version'?'1.0':''));
+        connState['PROFILE'] = freshProfileState();
+        suppressPreview = false;
+        renderProfilePanel();
+        updatePreview();
+        return;
+      }
+      ['f-schema-version','f-oac-spec','f-desc','f-voltage','f-conn-type',
+       'f-opl-max','f-opl-emg','f-opl-eff','f-opl-red','f-opl-set-min','f-opl-set-max','f-pct','f-iana-pen'].forEach(id => setVal(id,''));
+      document.getElementById('opl-set-max-field').style.display='none';
+      CONN_IDS.forEach(id => {
+        connState[id] = {
+          populated: id==='CONN0', impedance_ohm:'', connector_profile:'', mpesti_capable:false,
+          hs:{ enabled:false, groups:[{ name:'', protocol:'', link_direction:'', total_lanes:'', minimum_lanes:'', lanes:[] }] },
+          clocking:{ enabled:false, clocks:[] },
+          discrete:{ enabled:false, signals:[] }
+        };
+      });
+      suppressPreview = false;
+      buildConnTabs();
+      renderConnPanel(activeConn);
+      updatePreview();
+    }
+
+    // ── Toast notification ──────────────────────────────────────────────────────
+    function showToast(msg, durationMs) {
+      const t = document.getElementById('oac-toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.remove('show'), durationMs || 3000);
+    }
+
+    // ── DOM helpers ───────────────────────────────────────────────────────────
+    function el(tag, cls) { const e=document.createElement(tag); if(cls)e.className=cls; return e; }
+    function v(id) { const e=document.getElementById(id); return e?e.value.trim():''; }
+    function vn(id) { const e=document.getElementById(id); if(!e||e.value.trim()==='')return null; const n=parseFloat(e.value); return isNaN(n)?null:n; }
+    function setVal(id, val) { const e=document.getElementById(id); if(e){ if(e.type==='checkbox')e.checked=!!val; else e.value=val; } }
+
+    function elInput(type, val, onchange) {
+      const i=document.createElement('input'); i.type=type;
+      if(type==='checkbox') i.checked=!!val; else i.value=val||'';
+      i.onchange=onchange; return i;
+    }
+
+    function buildSelect(options, current, onchange) {
+      const sel=document.createElement('select');
+      options.forEach(o=>{ const opt=document.createElement('option'); opt.value=o; opt.textContent=o; if(o===current)opt.selected=true; sel.appendChild(opt); });
+      sel.onchange=()=>onchange(sel.value);
+      return sel;
+    }
+
+    function makeBtn(text, cls, onclick) {
+      const b=document.createElement('button'); b.className=cls; b.textContent=text; b.onclick=onclick; return b;
+    }
+
+    function buildCheckboxField(labelText, val, onChange) {
+      const lbl=document.createElement('label'); lbl.className='checkbox-label'; lbl.style.fontSize='0.78rem';
+      const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=!!val;
+      chk.onchange=()=>onChange(chk.checked);
+      lbl.appendChild(chk); const _cbtxt=document.createElement('span'); _cbtxt.innerHTML=' '+labelText; lbl.appendChild(_cbtxt);
+      return lbl;
+    }
+
+    function fieldDiv(labelText, required, child, hintText) {
+      const f=el('div','field');
+      const lbl=document.createElement('label');
+      lbl.innerHTML=labelText+(required?'<span class="req">*</span>':'<span class="opt-tag">(optional)</span>');
+      f.appendChild(lbl); f.appendChild(child);
+      if(hintText){const h=el('div','hint'); h.textContent=hintText; f.appendChild(h);}
+      return f;
+    }
+
+    function fieldSelect(id, labelText, current, values, labels, required, onChange) {
+      const sel=document.createElement('select'); sel.id=id;
+      values.forEach((v,i)=>{ const o=document.createElement('option'); o.value=v; o.textContent=labels[i]; if(v===current)o.selected=true; sel.appendChild(o); });
+      sel.onchange=()=>onChange(sel.value);
+      return fieldDiv(labelText, required, sel);
+    }
+
+    function fieldText(id, labelText, current, placeholder, required, onChange) {
+      const inp=document.createElement('input'); inp.type='text'; inp.id=id; inp.value=current||''; inp.placeholder=placeholder||'';
+      inp.oninput=()=>onChange(inp.value);
+      return fieldDiv(labelText, required, inp);
+    }
+
+    function fieldNum(id, labelText, current, placeholder, required, onChange, step) {
+      const inp=document.createElement('input'); inp.type='number'; inp.id=id; inp.value=current||''; inp.placeholder=placeholder||''; inp.step=step||'0.1';
+      if (step === '1') { inp.min='0'; }
+      inp.oninput=()=>onChange(inp.value);
+      return fieldDiv(labelText, required, inp);
+    }
+
+    // Inline variants (no id, no opt tag, smaller label)
+    function fieldTextInline(labelText, current, placeholder, onChange) {
+      const f=el('div','field');
+      const lbl=document.createElement('label'); lbl.innerHTML=labelText; f.appendChild(lbl);
+      const inp=document.createElement('input'); inp.type='text'; inp.value=current||''; inp.placeholder=placeholder||'';
+      inp.oninput=()=>onChange(inp.value); f.appendChild(inp);
+      return f;
+    }
+
+    function fieldNumInline(labelText, current, placeholder, onChange) {
+      const f=el('div','field');
+      const lbl=document.createElement('label'); lbl.innerHTML=labelText; f.appendChild(lbl);
+      const inp=document.createElement('input'); inp.type='number'; inp.step='0.01'; inp.value=current||''; inp.placeholder=placeholder||'';
+      inp.oninput=()=>onChange(inp.value); f.appendChild(inp);
+      return f;
+    }
+
+    function fieldSelectInline(labelText, current, values, labels, onChange) {
+      const f=el('div','field');
+      const lbl=document.createElement('label'); lbl.innerHTML=labelText; f.appendChild(lbl);
+      const sel=document.createElement('select');
+      values.forEach((v,i)=>{ const o=document.createElement('option'); o.value=v; o.textContent=labels[i]; if(v===current)o.selected=true; sel.appendChild(o); });
+      sel.onchange=()=>onChange(sel.value); f.appendChild(sel);
+      return f;
+    }
+
+    function toggleSection(title, isOpen, onToggle, contentFn) {
+      const wrap=el('div','toggle-section');
+      const hdr=el('div','toggle-header'+(isOpen?' open':''));
+      const lbl=el('span','toggle-label'); lbl.textContent=title;
+      const caret=el('span','toggle-caret'); caret.textContent='▶';
+      hdr.appendChild(caret); hdr.appendChild(lbl);
+      hdr.onclick=onToggle;
+      const body=el('div','toggle-body'+(isOpen?' open':''));
+      if(isOpen) { const content=contentFn(); if(content)body.appendChild(content); }
+      wrap.appendChild(hdr); wrap.appendChild(body);
+      return wrap;
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    init();
+  
+    // ── Help modal ──────────────────────────────────────────────────────────
+    const HELP_REF_DATA = [
+      // Metadata
+      {f:'schema_version',    s:'Metadata',  t:'string',  r:true,  d:'JSON schema version this CID conforms to (e.g. "0.9").'},
+      {f:'oac_spec_revision', s:'Metadata',  t:'string',  r:true,  d:'OCP OAC Base Specification revision this adapter targets (e.g. "0.9").'},
+      {f:'description',       s:'Metadata',  t:'string',  r:false, d:'Human-readable adapter description for display and logging purposes.'},
+      {f:'iana_pen',          s:'Metadata',  t:'integer', r:false, d:'IANA Private Enterprise Number of the adapter vendor. Required for closed-deployment platform compatibility tokens.'},
+      {f:'platform_compat_token', s:'Metadata', t:'string', r:false, d:'Vendor-defined opaque string used in closed deployments to restrict adapter operation to specific platforms.'},
+      // Power
+      {f:'input_voltage',     s:'Power',     t:'string',  r:true,  d:'Primary power rail voltage delivered by the baseboard. Allowed: "+12V" or "+50V".'},
+      {f:'connector_type',    s:'Power',     t:'string',  r:true,  d:'Power connector variant per OAC Base Spec §9.3. "100A" (BK100, 80 A derated) or "125A" (BK125, 100 A derated, double-wide only).'},
+      {f:'opl_max_w',         s:'Power',     t:'number',  r:true,  d:'Maximum adapter power draw at full performance (OPL-MAX). Must be ≥ all other OPL values.'},
+      {f:'opl_emg_w',         s:'Power',     t:'number',  r:true,  d:'Power in emergency/safe mode (OPL-EMG). The BMC may fall back to this level during a power emergency.'},
+      {f:'opl_eff_w',         s:'Power',     t:'number',  r:false, d:'Efficient operating power level (OPL-EFF). Optional reduced-performance state.'},
+      {f:'opl_red_w',         s:'Power',     t:'number',  r:false, d:'Reduced operating power level (OPL-RED). Optional further reduction state.'},
+      {f:'opl_set_min_w',     s:'Power',     t:'number',  r:false, d:'Minimum power for OPL-SET range. Paired with opl_set_max_w.'},
+      {f:'opl_set_max_w',     s:'Power',     t:'number',  r:false, d:'Maximum power for OPL-SET range. Defines the settable OPL window.'},
+      // Connector
+      {f:'id',                s:'Connector', t:'string',  r:true,  d:'Connector identifier: "CONN0" through "CONN6".'},
+      {f:'populated',         s:'Connector', t:'boolean', r:true,  d:'true if this connector position is physically populated on the adapter.'},
+      {f:'impedance_ohm',     s:'Connector', t:'integer', r:false, d:'High-speed signal trace impedance in ohms. "85 Ω (Black)" or "92 Ω (White)" per OAC Base Spec color coding.'},
+      {f:'connector_profile', s:'Connector', t:'string',  r:false, d:'Reference to an OCP-ratified connector profile identifier (e.g. "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"). Mutually exclusive with explicit high_speed_lanes, clocking, and discrete_signals.'},
+      {f:'mpesti_capable',    s:'Connector', t:'boolean', r:false, d:'true if this connector supports M-PESTI presence detect on Pin A1 (CONN0 only).'},
+      // HS Lanes
+      {f:'name',              s:'HS Lanes',  t:'string',  r:true,  d:'Required snake_case identifier for this protocol group (e.g. "pcie_primary", "eth_fabric"). Lowercase letters, digits, and underscores only. Must be unique within the connector\'s high_speed_lanes array.'},
+      {f:'protocol',          s:'HS Lanes',  t:'string',  r:true,  d:'High-speed protocol carried by this lane group (e.g. "PCIe Gen6", "Ethernet 200G", "UALink 800G").'},
+      {f:'link_direction',    s:'HS Lanes',  t:'string',  r:true,  d:'Signal direction: "INBOUND" (host→adapter) or "OUTBOUND" (adapter→host).'},
+      {f:'total_lanes',       s:'HS Lanes',  t:'integer', r:true,  d:'Total number of high-speed lane positions in this protocol group (one-directional count). Max 16 per connector.'},
+      {f:'minimum_lanes',     s:'HS Lanes',  t:'integer', r:false, d:'Vendor-imposed operational floor. BMC should block slot energization if fewer lanes are electrically routed from the baseboard. When absent, any lane count is accepted.'},
+      // Clocking
+      {f:'clock_id',          s:'Clocking',  t:'string',  r:true,  d:'Unique identifier for this reference clock within the connector (e.g. "REFCLK0").'},
+      {f:'clock_type',        s:'Clocking',  t:'string',  r:true,  d:'"REFCLK_DIFF" (differential pair, uses pin_positive/pin_negative) or "REFCLK_SINGLE" (single-ended, uses pin).'},
+      {f:'frequency_mhz',     s:'Clocking',  t:'number',  r:true,  d:'Nominal clock frequency in MHz (e.g. 100.0 for PCIe/UALink, 156.25 for Ethernet).'},
+      {f:'direction',         s:'Clocking',  t:'string',  r:true,  d:'"INPUT" = baseboard provides clock to adapter. "OUTPUT" = adapter sources the clock.'},
+      {f:'ssc_supported',     s:'Clocking',  t:'boolean', r:true,  d:'true if this clock supports Spread Spectrum Clocking (SSC). Applies to both INPUT and OUTPUT clocks.'},
+      {f:'associated_lanes',  s:'Clocking',  t:'array',   r:false, d:'Lane indices this clock serves. Empty array = not lane-specific (system reference).'},
+      {f:'required',          s:'Clocking',  t:'boolean', r:true,  d:'true if this clock must be present and valid for the connector to operate.'},
+      // Discrete Signals
+      {f:'signal_name',       s:'Discrete',  t:'string',  r:true,  d:'Signal identifier. Vendor-defined signals must use the VENDOR_ prefix. Active-low signals must end with #.'},
+      {f:'direction',         s:'Discrete',  t:'string',  r:true,  d:'"INPUT" (baseboard→adapter) or "OUTPUT" (adapter→baseboard).'},
+      {f:'pullup_required',   s:'Discrete',  t:'boolean', r:false, d:'true if the baseboard must provide a pull-up resistor on this signal.'},
+      {f:'pulldown_required', s:'Discrete',  t:'boolean', r:false, d:'true if the baseboard must provide a pull-down resistor on this signal.'},
+      {f:'required',          s:'Discrete',  t:'boolean', r:true,  d:'true if the baseboard must implement this signal for the adapter to operate correctly.'},
+      // Profile
+      {f:'profile_id',        s:'Profile',   t:'string',  r:true,  d:'OCP-ratified profile identifier. Format: OAC-PROF-<CONN0|CONN>-<proto>-x<lanes>-<dir>-v<n>[-minified].'},
+      {f:'profile_version',   s:'Profile',   t:'string',  r:true,  d:'Semantic version of this specific profile definition (e.g. "1.0"). Incremented when pin assignments change.'},
+      {f:'is_conn0',          s:'Profile',   t:'boolean', r:true,  d:'true if this profile targets CONN0 (9 assignable columns); false for CONN1–CONN6 (8 assignable columns).'},
+    ];
+
+    function buildHelpRefTable() {
+      const tbody = document.getElementById('help-ref-body');
+      if (!tbody || tbody.children.length) return;
+      HELP_REF_DATA.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.dataset.search = (row.f + ' ' + row.s + ' ' + row.d).toLowerCase();
+        tr.innerHTML = `<td class="field-name">${row.f}</td><td style="color:var(--ocp-muted);font-size:0.71rem;">${row.s}</td><td style="color:var(--ocp-muted);font-size:0.71rem;">${row.t}</td><td><span class="field-req ${row.r?'req':'opt'}">${row.r?'Req':'Opt'}</span></td><td style="color:#5f6062;">${row.d}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    function filterHelpRef(q) {
+      const rows = document.querySelectorAll('#help-ref-body tr');
+      const lq = q.toLowerCase();
+      rows.forEach(r => r.style.display = r.dataset.search.includes(lq) ? '' : 'none');
+    }
+    function openHelp() {
+      document.getElementById('help-overlay').classList.add('open');
+      buildHelpRefTable();
+      const lm = document.getElementById('help-last-modified');
+      if (lm) { const d = new Date(document.lastModified); lm.textContent = isNaN(d)?'—':d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}); }
+    }
+    function closeHelp() { document.getElementById('help-overlay').classList.remove('open'); }
+    function closeHelpOnOverlay(e) { if (e.target === document.getElementById('help-overlay')) closeHelp(); }
+    function switchHelpTab(id, btn) {
+      document.querySelectorAll('.help-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.help-tab').forEach(b => b.classList.remove('active'));
+      document.getElementById('hp-' + id).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { closeHelp(); closePicker(); }
+      if (e.key === '?' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) openHelp();
+      if (e.altKey && e.key === 'g') { e.preventDefault(); setMode('guided'); }
+      if (e.altKey && e.key === 'm') { e.preventDefault(); setMode('manual'); }
+      if (e.altKey && e.key === 'i') { e.preventDefault(); importJSON(); }
+      if (e.altKey && e.key === 'e') { e.preventDefault(); exportJSON(); }
+    });
+
+    // Tooltip helper — call withTip(labelText, tipText) in fieldDiv invocations
+    function withTip(label, tip) {
+      return `<span class="tip-wrap">${label}<span class="tip-icon">?<span class="tip-bubble">${tip}</span></span></span>`;
+    }
+
+</script>
+
+  <!-- Help Modal -->
+  <div class="help-overlay" id="help-overlay" onclick="closeHelpOnOverlay(event)">
+    <div class="help-modal">
+      <div class="help-modal-header">
+        <span class="help-modal-title">OAC CID Editor — Help</span>
+        <button class="help-close" onclick="closeHelp()">✕</button>
+      </div>
+      <div class="help-tabs">
+        <button class="help-tab active" onclick="switchHelpTab('gs',this)">Getting Started</button>
+        <button class="help-tab" onclick="switchHelpTab('ref',this)">Field Reference</button>
+        <button class="help-tab" onclick="switchHelpTab('keys',this)">Keyboard Shortcuts</button>
+        <button class="help-tab" onclick="switchHelpTab('about',this)">About</button>
+      </div>
+      <div class="help-body">
+
+        <!-- Getting Started -->
+        <div class="help-panel active" id="hp-gs">
+          <div class="help-step"><div class="help-step-num">1</div><div class="help-step-body"><h4>Choose a mode</h4><p>Use the <strong>CID</strong> / <strong>Connector Profile</strong> toggle in the header to select what you're authoring. A CID describes a complete adapter. A Connector Profile defines a reusable, OCP-ratified pinout for a single connector position.</p></div></div>
+          <div class="help-step"><div class="help-step-num">2</div><div class="help-step-body"><h4>Fill in Metadata &amp; Power</h4><p>In CID mode, start with the Metadata section (schema version, spec revision, adapter description), then complete the Power section (input voltage, connector type, and all required OPL fields).</p></div></div>
+          <div class="help-step"><div class="help-step-num">3</div><div class="help-step-body"><h4>Configure Connectors</h4><p>Use the left nav to jump to each connector (CONN0–CONN6). Mark a connector as Populated to unlock its signal sections. For each connector, either reference an OCP-ratified Connector Profile, or define High-Speed Lanes, Clocking, and Discrete Signals explicitly — not both.</p></div></div>
+          <div class="help-step"><div class="help-step-num">4</div><div class="help-step-body"><h4>Assign Pins</h4><p>Expand the Visual Pin Map for each connector to assign physical pins to lane signals, clock signals, and discrete signals by clicking on pin cells. The map enforces position constraints automatically.</p></div></div>
+          <div class="help-step"><div class="help-step-num">5</div><div class="help-step-body"><h4>Validate &amp; Export</h4><p>Watch the validation badge in the JSON Preview panel for errors and warnings. When the badge shows ✓ Valid, use <strong>Export JSON</strong> to save your CID as a formatted or minified JSON file ready for firmware integration.</p></div></div>
+          <div class="help-step"><div class="help-step-num">6</div><div class="help-step-body"><h4>Import an existing CID</h4><p>Use <strong>Import JSON</strong> to load an existing CID or Connector Profile file. The editor will auto-detect the document type, switch to the correct mode, and populate all fields. Switching to Manual mode gives you direct JSON editing with live syntax highlighting.</p></div></div>
+        </div>
+
+        <!-- Field Reference -->
+        <div class="help-panel" id="hp-ref">
+          <input class="help-search" id="help-search" placeholder="Search fields…" oninput="filterHelpRef(this.value)" />
+          <table class="help-ref-table" id="help-ref-table">
+            <thead><tr><th>Field</th><th>Section</th><th>Type</th><th>Req?</th><th>Description</th></tr></thead>
+            <tbody id="help-ref-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="help-panel" id="hp-keys">
+          <div class="help-kbd-row"><span>Open Help</span><span class="help-kbd">?</span></div>
+          <div class="help-kbd-row"><span>Close Help / dismiss dialog</span><span class="help-kbd">Esc</span></div>
+          <div class="help-kbd-row"><span>Switch to Guided mode</span><span><span class="help-kbd">Alt</span> + <span class="help-kbd">G</span></span></div>
+          <div class="help-kbd-row"><span>Switch to Manual mode</span><span><span class="help-kbd">Alt</span> + <span class="help-kbd">M</span></span></div>
+          <div class="help-kbd-row"><span>Import JSON</span><span><span class="help-kbd">Alt</span> + <span class="help-kbd">I</span></span></div>
+          <div class="help-kbd-row"><span>Export JSON (formatted)</span><span><span class="help-kbd">Alt</span> + <span class="help-kbd">E</span></span></div>
+        </div>
+
+        <!-- About -->
+        <div class="help-panel" id="hp-about">
+          <div class="help-about-row"><span>Tool</span><span class="help-about-val">OAC CID Editor</span></div>
+          <div class="help-about-row"><span>Last Modified</span><span class="help-about-val" id="help-last-modified">—</span></div>
+          <div class="help-about-row"><span>CID Schema Version</span><span class="help-about-val">0.8</span></div>
+          <div class="help-about-row"><span>OCP OAC Base Spec Revision</span><span class="help-about-val">0.8</span></div>
+          <div class="help-about-row"><span>Repository</span><span class="help-about-val"><a href="https://github.com/ocp-oac/cid" target="_blank" style="color:var(--ocp-accent)">github.com/ocp-oac/cid</a></span></div>
+          <div class="help-about-row"><span>Normative references</span><span class="help-about-val">DMTF DSP0220, DSP0257, DSP0242</span></div>
+          <div style="margin-top:16px;font-size:0.74rem;color:var(--ocp-muted);line-height:1.6;">
+            This tool is provided as a convenience for authoring and validating OAC CID documents. It does not replace the normative OAC CID Specification. All field definitions, constraints, and compliance requirements are defined in the specification document.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

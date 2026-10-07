@@ -1,0 +1,45 @@
+@startuml OAC power up to S5
+
+participant Baseboard
+participant OAC 
+
+== OAC Power on O0 to O3 ==
+note left of Baseboard
+O0
+end note
+Baseboard <- OAC: Assert OAC_PRSNT[0:6]#
+note right of Baseboard
+OAC_PRSNT[0:6]# assertion is initiated by physical insertion
+and seating of the OAC. Presence is indicated by
+grounding OAC_PRSNT[0:6]# or MPESTI-based discovery.
+end note
+Baseboard -> Baseboard: Check OAC Adapter Presence
+note left of Baseboard
+O1
+end note
+Baseboard -> OAC: Provide +12V Auxliary Power
+OAC -> OAC: Enable standby VRs, clocks, USB-Hubs...
+OAC -> OAC: Validate standby power environment
+OAC -> Baseboard: Assert OAC_AUX_PWR_GD
+note left of Baseboard
+O2
+end note
+Baseboard -> OAC: Deassert OAC_MC_RST#
+OAC -> OAC: Initialize MC subsystem
+OAC -> OAC: Boot MC
+OAC -> OAC: Enable MCTP/PLDM services
+OAC -> Baseboard: OAC_MC_RDY
+note left of Baseboard
+O3
+end note
+Baseboard -> OAC: Enumerate management interface
+Baseboard -> OAC: Establish MCTP/PLDM communication
+Baseboard -> OAC: Query OAC connector interface definition (CID)
+Baseboard -> OAC: Query OAC slot configuration data definitions (SCDD)
+Baseboard -> Baseboard: Check platform compatibility against CID
+Baseboard -> Baseboard: Derive slot configuration data assignments (SCDA)
+Baseboard -> OAC: Write slot configuration data assignments (SCDA) to OAC
+OAC -> OAC: Validate SCDA against operational requirements
+OAC -> Baseboard: Accept the configuration
+
+@enduml

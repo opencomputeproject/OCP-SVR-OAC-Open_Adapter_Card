@@ -1,0 +1,33 @@
+@startuml OAC power up to S5
+
+participant Baseboard
+participant OAC 
+
+
+== OAC Power on from O3 to O5 ==
+note left of Baseboard
+O3
+end note
+Baseboard -> Baseboard: Energize primary power bus bar
+Baseboard -> OAC: Assert OAC_PWR_EN
+OAC -> OAC: Enable VRs, Clocks...
+OAC -> Baseboard: Assert OAC_PWR_GD
+note right of Baseboard
+When multiple OACs are installed within a platform, 
+primary power may be applied sequentially. 
+As a result, the time between OAC_PWR_GD assertion 
+and the next primary power-up event may vary and 
+is platform-dependent.
+end note
+note left of Baseboard
+O4
+end note
+
+Baseboard -> OAC: Deassert OAC_PLT_RST#
+OAC -> OAC: Intialize devices in primary power domain
+Baseboard -> OAC: Enumerate Devices
+note left of Baseboard
+O5
+end note
+
+@enduml

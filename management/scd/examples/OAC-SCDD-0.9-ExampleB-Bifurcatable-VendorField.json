@@ -1,0 +1,84 @@
+{
+  "oac_scdd": {
+    "metadata": {
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "definition_revision": 1,
+      "description": "Example B SCD Definition: five fields covering both response classes, both cid_binding kinds, the sentinel default, and both namespaces. One subdividable PCIe group on CONN0. IANA PEN 32473 is the number reserved for documentation use; a real OAC substitutes its own.",
+      "iana_pen": 32473
+    },
+    "fields": [
+      {
+        "id": "ocp.slot_id",
+        "display_name": "Slot Identifier",
+        "description": "Logical slot identifier of the position this OAC occupies.",
+        "type": "integer",
+        "response": "required",
+        "default": 255,
+        "sentinel_default": true,
+        "min": 0,
+        "max": 15
+      },
+      {
+        "id": "ocp.max_power_w",
+        "display_name": "Platform Power Budget",
+        "description": "Sustained power the platform can supply to this slot.",
+        "type": "integer",
+        "response": "required",
+        "default": 625,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "id": "ocp.initial_power_level_set_w",
+        "display_name": "Initial OPL-SET Wattage",
+        "description": "Power cap applied when the OAC enters Operational State O5.",
+        "type": "integer",
+        "response": "optional",
+        "default": 1200,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "id": "ocp.link_subdivision.conn0.pcie_primary",
+        "display_name": "Link Subdivision, CONN0 Primary PCIe Group",
+        "description": "Partitioning of the CONN0 primary PCIe group into independent links.",
+        "type": "enumeration",
+        "response": "required",
+        "default": "x16",
+        "cid_binding": {
+          "cid_object": "protocol_group",
+          "cid_connector": "CONN0",
+          "cid_group_name": "pcie_primary"
+        },
+        "values": [
+          { "value": "x16", "description": "Single x16 link, lanes 0-15" },
+          { "value": "x8x8", "description": "Two x8 links, lanes 0-7 and 8-15" },
+          { "value": "x4x4x4x4", "description": "Four x4 links, lanes 0-3, 4-7, 8-11, 12-15" }
+        ]
+      },
+      {
+        "id": "pen.32473.boot_source",
+        "display_name": "OAC Boot Source",
+        "description": "Where the OAC loads its operational firmware image from.",
+        "type": "enumeration",
+        "response": "required",
+        "default": "local_flash",
+        "values": [
+          { "value": "local_flash", "description": "Boot from flash on the OAC" },
+          { "value": "stream", "description": "Boot from an image streamed by the platform" }
+        ]
+      }
+    ]
+  }
+}

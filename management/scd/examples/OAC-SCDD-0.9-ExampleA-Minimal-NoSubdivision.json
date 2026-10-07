@@ -1,0 +1,38 @@
+{
+  "oac_scdd": {
+    "metadata": {
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "definition_revision": 1,
+      "description": "Example A SCD Definition: minimal OAC. Two fields. CONN0 is defined by a connector profile and carries no subdividable group, so no protocol_group binding appears. The CID declares only opl_max_w and opl_emg_w, so there is no OPL-SET band and ocp.initial_power_level_set_w is not declared."
+    },
+    "fields": [
+      {
+        "id": "ocp.slot_id",
+        "display_name": "Slot Identifier",
+        "description": "Logical slot identifier of the position this OAC occupies.",
+        "type": "integer",
+        "response": "required",
+        "default": 255,
+        "sentinel_default": true,
+        "min": 0,
+        "max": 15
+      },
+      {
+        "id": "ocp.max_power_w",
+        "display_name": "Platform Power Budget",
+        "description": "Sustained power the platform can supply to this slot.",
+        "type": "integer",
+        "response": "required",
+        "default": 625,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      }
+    ]
+  }
+}

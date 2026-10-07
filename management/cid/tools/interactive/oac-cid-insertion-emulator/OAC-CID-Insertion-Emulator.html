@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OAC CID Insertion Emulator</title>
+<style>
+/* ── OCP Brand Design Tokens ───────────────────────────────── */
+:root {
+  --ocp-white:   #FFFFFF;
+  --ocp-bg:      #f7f7f7;
+  --ocp-navy:    #1f2020;
+  --ocp-blue:    #8dc63f;
+  --ocp-mid:     #f7f7f7;
+  --ocp-border:  #dfdfe0;
+  --ocp-text:    #303031;
+  --ocp-muted:   #5f6062;
+  --green:       #72a230;
+  --green-bg:    #eef7df;
+  --yellow:      #b98c2e;
+  --yellow-bg:   #fdf6e3;
+  --red:         #de3b3b;
+  --red-bg:      #fef0f0;
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: var(--ocp-bg);
+  color: var(--ocp-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+header {
+  background: var(--ocp-navy);
+  border-bottom: 3px solid var(--ocp-blue);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.ocp-logo {
+  width: 38px; height: 38px;
+  background: var(--ocp-blue);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 13px; color: #fff; flex-shrink: 0;
+  letter-spacing: 0.04em;
+}
+header h1 { font-size: 1.1rem; font-weight: 700; color: #fff; }
+header p  { font-size: 0.73rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+/* ── Layout ─────────────────────────────────────────────── */
+.main { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ── Left panel ─────────────────────────────────────────── */
+.left-panel {
+  width: 320px; flex-shrink: 0;
+  background: var(--ocp-mid);
+  border-right: 1px solid var(--ocp-border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.panel-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ocp-border);
+}
+.panel-section h3 {
+  font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--ocp-blue);
+  margin-bottom: 10px; font-weight: 700;
+}
+
+.schema-slot {
+  background: var(--ocp-white);
+  border: 1.5px dashed var(--ocp-border);
+  border-radius: 7px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+.schema-slot:hover { border-color: var(--ocp-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
+.schema-slot.loaded {
+  border-style: solid; border-color: var(--green);
+  background: var(--green-bg);
+  box-shadow: none;
+}
+.schema-slot label {
+  font-size: 0.68rem; color: var(--ocp-muted);
+  display: block; margin-bottom: 4px; cursor: pointer;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.schema-slot .slot-name {
+  font-size: 0.82rem; font-weight: 700; color: var(--ocp-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.schema-slot .slot-meta {
+  font-size: 0.68rem; color: var(--ocp-muted); margin-top: 3px;
+}
+.schema-slot input[type=file] { display: none; }
+
+.btn {
+  display: block; width: 100%;
+  padding: 10px 16px;
+  border: none; border-radius: 6px;
+  font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  letter-spacing: 0.03em;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: var(--ocp-blue); color: #fff;
+  box-shadow: 0 2px 6px rgba(0,114,206,0.3);
+}
+.btn-primary:hover:not(:disabled) { box-shadow: 0 3px 10px rgba(0,114,206,0.45); }
+.btn-primary:disabled {
+  opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none;
+}
+.btn-secondary {
+  background: var(--ocp-white); color: var(--ocp-text);
+  border: 1px solid var(--ocp-border);
+  margin-top: 8px;
+}
+.btn-secondary:hover { background: var(--ocp-mid); }
+.btn-export {
+  background: var(--ocp-navy); color: #fff;
+  margin-top: 8px;
+  box-shadow: 0 2px 6px rgba(0,43,73,0.25);
+}
+.btn-export:hover { box-shadow: 0 3px 10px rgba(0,43,73,0.4); }
+
+/* ── Center panel ───────────────────────────────────────── */
+.center-panel {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  padding: 22px 20px 28px;
+  gap: 18px;
+  background: var(--ocp-bg);
+}
+
+/* ── Scene wrapper ──────────────────────────────────────── */
+.scene-wrap {
+  width: 100%; max-width: 620px;
+  background: var(--ocp-white);
+  border: 1px solid var(--ocp-border);
+  border-radius: 10px;
+  padding: 18px 20px 20px;
+  box-shadow: 0 2px 8px rgba(0,43,73,0.07);
+}
+.scene-title {
+  font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--ocp-blue);
+  margin-bottom: 14px; font-weight: 700;
+}
+
+.scene {
+  width: 100%; max-width: 520px; height: 280px;
+  position: relative;
+  margin: 0 auto;
+}
+
+/* ── Baseboard ──────────────────────────────────────────── */
+.baseboard {
+  position: absolute;
+  bottom: 8px; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(180deg, #2d5a27 0%, #1e3d1a 100%);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  z-index: 1;
+}
+
+.bs-socket-power {
+  position: absolute;
+  top: -28px; left: 149px;
+  width: 24px; height: 28px;
+  background: linear-gradient(180deg, #383838 0%, #222 60%, #111 100%);
+  border: 1px solid #555;
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  box-shadow: inset 0 4px 6px rgba(0,0,0,0.8);
+}
+.bs-socket-power::before {
+  content: '';
+  position: absolute;
+  top: 6px; left: 4px; right: 4px; height: 12px;
+  background: #0a0a0a;
+  border-radius: 1px;
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.9);
+}
+
+.bs-socket-examax {
+  position: absolute;
+  top: -28px; left: 179px;
+  width: 130px; height: 28px;
+  background: linear-gradient(180deg, #2e2e2e 0%, #1c1c1c 60%, #0d0d0d 100%);
+  border: 1px solid #4a4a4a;
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  box-shadow: inset 0 4px 8px rgba(0,0,0,0.9);
+  overflow: hidden;
+}
+.bs-socket-examax::before {
+  content: '';
+  position: absolute;
+  top: 5px; bottom: 4px; left: 3px; right: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #0a0a0a 0px, #0a0a0a 8px,
+    #333    8px, #333    10px,
+    #0a0a0a 10px, #0a0a0a 18px,
+    #2a2a2a 18px, #2a2a2a 19px
+  );
+  border-radius: 1px;
+}
+.bs-socket-examax::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 5px;
+  background: linear-gradient(180deg, #555 0%, #2a2a2a 100%);
+}
+
+.oac-slot-label {
+  position: absolute;
+  top: 4px; left: 180px;
+  font-size: 7px; color: #adadad; letter-spacing: 0.1em;
+  white-space: nowrap; font-weight: 600;
+}
+
+/* ── Adapter card ───────────────────────────────────────── */
+.adapter-card {
+  position: absolute;
+  bottom: 115px; left: 0;
+  width: 325px; height: 148px;
+  display: flex; flex-direction: column;
+  transition: bottom 0.7s cubic-bezier(0.4, 0.0, 0.2, 1);
+  will-change: bottom;
+  z-index: 2;
+}
+.adapter-card.inserting { bottom: 90px; transition-duration: 0.65s; }
+.adapter-card.inserted  {
+  bottom: 68px;
+  transition: bottom 0.35s cubic-bezier(0.0, 0.0, 0.2, 1);
+}
+
+.pcb {
+  width: 325px; height: 120px;
+  background: linear-gradient(160deg, #1a6b3a 0%, #144f2b 60%, #0f3b20 100%);
+  border: 1px solid #2a8a4a;
+  border-radius: 3px 3px 0 0;
+  position: relative;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.18), 2px 0 8px rgba(0,0,0,0.18);
+  flex-shrink: 0;
+}
+.pcb::before {
+  content: '';
+  position: absolute;
+  top: 16px; left: 75%; transform: translateX(-50%);
+  width: 90px; height: 90px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 3px;
+  box-shadow: inset 0 0 14px rgba(92,184,92,0.3);
+}
+.pcb::after {
+  content: '';
+  position: absolute;
+  bottom: 36px; left: 44px; width: 90px; height: 9px;
+  background: repeating-linear-gradient(
+    90deg, #555 0px, #555 8px, transparent 8px, transparent 14px
+  );
+}
+
+.bracket {
+  width: 10px; height: 120px;
+  background: linear-gradient(90deg, #777 0%, #aaa 40%, #777 100%);
+  border-radius: 2px 0 0 0;
+  position: absolute; left: -10px; top: 0;
+}
+
+.power-connector {
+  position: absolute;
+  bottom: -28px; left: 149px;
+  width: 24px; height: 28px;
+  background: linear-gradient(180deg, #4a3a00 0%, #2e2400 60%, #1a1500 100%);
+  border: 1px solid #6a5500;
+  border-radius: 0 0 1px 1px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+  overflow: hidden;
+}
+.power-connector::before {
+  content: '';
+  position: absolute;
+  top: 5px; left: 4px; right: 4px; bottom: 5px;
+  background: repeating-linear-gradient(
+    90deg, #b8860c 0px, #b8860c 3px, #3a2800 3px, #3a2800 7px
+  );
+  border-radius: 1px;
+}
+
+.connector-row {
+  position: absolute;
+  bottom: -28px; left: 179px;
+  width: 130px; height: 28px;
+  background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 60%, #0d0d0d 100%);
+  border: 1px solid #4a4a4a;
+  border-radius: 0 0 2px 2px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+.connector-row::before {
+  content: '';
+  position: absolute;
+  top: 4px; bottom: 3px; left: 3px; right: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #888 0px, #888 3px,
+    #444 3px, #444 4px,
+    #999 4px, #999 7px,
+    #333 7px, #333 8px
+  );
+  border-radius: 1px;
+}
+.connector-row::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(180deg, #555 0%, #2a2a2a 100%);
+}
+
+.card-leds {
+  position: absolute; top: 8px; left: 14px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.led {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #333;
+  border: 1px solid #222;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.led.green  { background: #22cc55; box-shadow: 0 0 7px #22cc55; }
+.led.yellow { background: #ffaa00; box-shadow: 0 0 7px #ffaa00; }
+.led.red    { background: #ff3333; box-shadow: 0 0 7px #ff3333; }
+
+/* ── Status banner ──────────────────────────────────────── */
+.status-banner {
+  width: 100%; max-width: 620px;
+  border-radius: 8px;
+  padding: 14px 18px;
+  border: 1px solid transparent;
+  display: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.status-banner.show { display: block; }
+.status-banner.green  { background: var(--green-bg);  border-color: var(--green);  }
+.status-banner.yellow { background: var(--yellow-bg); border-color: var(--yellow); }
+.status-banner.red    { background: var(--red-bg);    border-color: var(--red);    }
+.status-banner .sb-title {
+  font-size: 0.9rem; font-weight: 700; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 8px;
+  color: var(--ocp-text);
+}
+.status-banner .sb-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.status-banner.green  .sb-dot { background: var(--green); }
+.status-banner.yellow .sb-dot { background: var(--yellow); }
+.status-banner.red    .sb-dot { background: var(--red); }
+.status-banner .sb-msg { font-size: 0.79rem; color: var(--ocp-muted); line-height: 1.55; }
+
+/* ── Issues list ─────────────────────────────────────────── */
+.issues-list {
+  width: 100%; max-width: 620px;
+  display: none;
+}
+.issues-list.show { display: block; }
+.issues-list h4 {
+  font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--ocp-blue);
+  margin-bottom: 8px; font-weight: 700;
+}
+.issue-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  margin-bottom: 5px;
+  font-size: 0.77rem; line-height: 1.5;
+  animation: fadeIn 0.2s ease;
+}
+.issue-item.fail {
+  background: var(--red-bg);
+  border: 1px solid rgba(192,57,43,0.35);
+  color: #9b2222;
+}
+.issue-item.warn {
+  background: var(--yellow-bg);
+  border: 1px solid rgba(176,96,0,0.35);
+  color: #7a4200;
+}
+.issue-icon { flex-shrink: 0; font-size: 0.9rem; margin-top: 1px; }
+
+/* ── Schema summary ─────────────────────────────────────── */
+#schema-summary {
+  font-size: 0.72rem;
+  color: var(--ocp-muted);
+  line-height: 1.7;
+}
+#schema-summary b { color: var(--ocp-text); }
+
+/* ── Right panel: event log ─────────────────────────────── */
+.right-panel {
+  width: 340px; flex-shrink: 0;
+  background: var(--ocp-navy);
+  border-left: 1px solid rgba(255,255,255,0.08);
+  display: flex; flex-direction: column;
+}
+.log-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.09em; color: rgba(255,255,255,0.55);
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 700; flex-shrink: 0;
+}
+.log-header span { font-size: 0.68rem; color: rgba(255,255,255,0.35); text-transform: none; letter-spacing: 0; font-weight: 400; }
+#event-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  font-size: 0.7rem;
+  font-family: "Cascadia Code", "Consolas", "Lucida Console", monospace;
+}
+#event-log::-webkit-scrollbar { width: 5px; }
+#event-log::-webkit-scrollbar-track { background: transparent; }
+#event-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+.log-entry {
+  padding: 4px 14px;
+  border-left: 3px solid transparent;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.75);
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity:0; transform:translateX(4px); } to { opacity:1; transform:none; } }
+
+.log-entry.info    { border-color: var(--ocp-blue); }
+.log-entry.success { border-color: #22cc55; color: #7debb4; }
+.log-entry.warning { border-color: #ffaa00; color: #ffd06b; }
+.log-entry.error   { border-color: #ff4444; color: #ff9999; }
+.log-entry.section {
+  border-color: var(--ocp-blue);
+  color: #66b8ff;
+  font-weight: 700;
+  margin-top: 3px;
+  background: rgba(0,114,206,0.08);
+}
+.log-ts { color: rgba(255,255,255,0.3); margin-right: 6px; }
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .main { flex-direction: column; overflow-y: auto; }
+  .left-panel, .right-panel { width: 100%; }
+  .right-panel { min-height: 300px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ocp-logo">OCP</div>
+  <div>
+    <h1>OAC CID Insertion Emulator</h1>
+    <p>JSON CID v0.7 — Adapter compatibility check with O-state power sequencing</p>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- ── Left: controls ──────────────────────────────────── -->
+  <div class="left-panel">
+
+    <div class="panel-section">
+      <h3>Baseboard JSON</h3>
+      <div class="schema-slot" id="bs-slot" onclick="document.getElementById('bs-file').click()">
+        <label>Load Baseboard JSON (slot capabilities)</label>
+        <div class="slot-name" id="bs-name">Click to load&hellip;</div>
+        <div class="slot-meta" id="bs-meta">No file loaded</div>
+        <input type="file" id="bs-file" accept=".json" onchange="loadSchema('baseboard', this)"/>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Adapter JSON</h3>
+      <div class="schema-slot" id="ad-slot" onclick="document.getElementById('ad-file').click()">
+        <label>Load OAC Adapter CID (oac_cid)</label>
+        <div class="slot-name" id="ad-name">Click to load&hellip;</div>
+        <div class="slot-meta" id="ad-meta">No file loaded</div>
+        <input type="file" id="ad-file" accept=".json" onchange="loadSchema('adapter', this)"/>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Simulation</h3>
+      <button class="btn btn-primary" id="insert-btn" onclick="startInsertion()" disabled>
+        Insert Adapter into Baseboard
+      </button>
+      <button class="btn btn-secondary" onclick="resetSim()">Reset Simulation</button>
+      <button class="btn btn-export" onclick="exportLog()">Export Event Log</button>
+    </div>
+
+    <div class="panel-section" style="flex:1;">
+      <h3>Loaded Schemas</h3>
+      <div id="schema-summary">No schemas loaded.</div>
+    </div>
+
+  </div>
+
+  <!-- ── Center: visualization ───────────────────────────── -->
+  <div class="center-panel">
+
+    <div class="scene-wrap">
+      <div class="scene-title">Hardware Visualization</div>
+      <div class="scene">
+
+        <!-- Adapter card -->
+        <div class="adapter-card" id="adapter-card">
+          <div class="pcb">
+            <div class="bracket"></div>
+            <div class="card-leds">
+              <div class="led" id="led0"></div>
+              <div class="led" id="led1"></div>
+              <div class="led" id="led2"></div>
+            </div>
+            <div class="power-connector"></div>
+            <div class="connector-row"></div>
+          </div>
+        </div>
+
+        <!-- Baseboard with socket housings -->
+        <div class="baseboard">
+          <div class="bs-socket-power"></div>
+          <div class="bs-socket-examax"></div>
+          <div class="oac-slot-label">OAC SLOT</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Status banner -->
+    <div class="status-banner" id="status-banner">
+      <div class="sb-title">
+        <div class="sb-dot"></div>
+        <span id="sb-title-text"></span>
+      </div>
+      <div class="sb-msg" id="sb-msg-text"></div>
+    </div>
+
+    <!-- Issues list -->
+    <div class="issues-list" id="issues-list">
+      <h4 id="issues-heading">Compatibility Issues</h4>
+      <div id="issues-items"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Right: event log ────────────────────────────────── -->
+  <div class="right-panel">
+    <div class="log-header">
+      Event Log
+      <span id="log-count">0 events</span>
+    </div>
+    <div id="event-log"></div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────
+let schemas    = { baseboard: null, adapter: null };
+let logEntries = [];
+let simRunning = false;
+let simStart   = null;
+
+// ─────────────────────────────────────────────────────────
+// Schema Loading — JSON.parse, no external libs
+// ─────────────────────────────────────────────────────────
+function getRoot(schema) {
+  return schema.oac_cid || schema.oac_baseboard || schema;
+}
+
+function loadSchema(role, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      schemas[role] = parsed;
+      const root = getRoot(parsed);
+      const meta = root.metadata || {};
+      const pwr  = (root.power || {}).primary || {};
+      const cons = (root.connectors || []).filter(c => c.populated !== false);
+      const prefix = role === 'baseboard' ? 'bs' : 'ad';
+      document.getElementById(`${prefix}-name`).textContent = file.name;
+      document.getElementById(`${prefix}-meta`).textContent =
+        `Spec: ${meta.oac_spec_revision || '—'}  |  Connectors: ${cons.length}  |  Voltage: ${pwr.input_voltage || '—'}`;
+      document.getElementById(`${prefix}-slot`).classList.add('loaded');
+      updateSummary();
+      checkReady();
+    } catch (err) {
+      alert(`Failed to parse ${file.name}:\n${err.message}`);
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function updateSummary() {
+  const lines = [];
+  for (const [role, label] of [['baseboard','Baseboard'],['adapter','Adapter']]) {
+    if (!schemas[role]) continue;
+    const r = getRoot(schemas[role]);
+    const m = r.metadata || {};
+    const p = (r.power || {}).primary || {};
+    const cons = (r.connectors || []).filter(c => c.populated !== false);
+    lines.push(`<b>${label}</b>`);
+    if (m.description) lines.push(truncate(m.description, 60));
+    lines.push(`Spec: ${m.oac_spec_revision || '—'} &nbsp;|&nbsp; Schema: ${m.schema_version || '—'}`);
+    lines.push(`Voltage: ${p.input_voltage || '—'} &nbsp;|&nbsp; Connector: ${p.connector_type || '—'}`);
+    lines.push(`OPL-Max: ${p.opl_max_w != null ? p.opl_max_w + 'W' : '—'} &nbsp;|&nbsp; OPL-EMG: ${p.opl_emg_w != null ? p.opl_emg_w + 'W' : '—'}`);
+    lines.push(`Populated connectors: ${cons.length}`);
+    lines.push('');
+  }
+  document.getElementById('schema-summary').innerHTML =
+    lines.length ? lines.join('<br>') : 'No schemas loaded.';
+}
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function checkReady() {
+  const ready = !!(schemas.baseboard && schemas.adapter);
+  document.getElementById('insert-btn').disabled = !ready || simRunning;
+}
+
+// ─────────────────────────────────────────────────────────
+// Logging
+// ─────────────────────────────────────────────────────────
+function log(msg, type = 'info') {
+  const now = simStart != null ? ((Date.now() - simStart) / 1000).toFixed(3) : '0.000';
+  logEntries.push({ ts: now, msg, type });
+  const el = document.createElement('div');
+  el.className = `log-entry ${type}`;
+  if (msg === '') { el.style.height = '6px'; el.style.borderColor = 'transparent'; }
+  else el.innerHTML = `<span class="log-ts">[${now}s]</span>${esc(msg)}`;
+  const logEl = document.getElementById('event-log');
+  logEl.appendChild(el);
+  logEl.scrollTop = logEl.scrollHeight;
+  document.getElementById('log-count').textContent = `${logEntries.length} events`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────────────────
+// Reset
+// ─────────────────────────────────────────────────────────
+function resetSim() {
+  simRunning = false;
+  simStart   = null;
+  logEntries = [];
+  document.getElementById('event-log').innerHTML = '';
+  document.getElementById('log-count').textContent = '0 events';
+  const card = document.getElementById('adapter-card');
+  card.className = 'adapter-card';
+  document.getElementById('status-banner').className = 'status-banner';
+  document.getElementById('issues-list').className   = 'issues-list';
+  document.getElementById('issues-items').innerHTML  = '';
+  ['led0','led1','led2'].forEach(id => document.getElementById(id).className = 'led');
+  checkReady();
+}
+
+// ─────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────
+function exportLog() {
+  if (!logEntries.length) { alert('No events to export.'); return; }
+  const sep = '─'.repeat(70);
+  const lines = [
+    'OAC CID Insertion Emulator — Event Log',
+    `Exported: ${new Date().toISOString()}`,
+    sep, ''
+  ];
+  logEntries.forEach(e => {
+    if (e.msg === '') { lines.push(''); return; }
+    lines.push(`[${e.ts}s]  [${e.type.toUpperCase().padEnd(7)}]  ${e.msg}`);
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `OAC-EventLog-${Date.now()}.txt`;
+  a.click();
+}
+
+// ─────────────────────────────────────────────────────────
+// LED helpers
+// ─────────────────────────────────────────────────────────
+function setLeds(color) {
+  ['led0','led1','led2'].forEach(id =>
+    document.getElementById(id).className = `led ${color}`);
+}
+
+// ─────────────────────────────────────────────────────────
+// Status banner + issues list
+// ─────────────────────────────────────────────────────────
+function showStatus(color, title, msg, results) {
+  const banner = document.getElementById('status-banner');
+  banner.className = `status-banner show ${color}`;
+  document.getElementById('sb-title-text').textContent = title;
+  document.getElementById('sb-msg-text').textContent   = msg;
+
+  const fails  = results.filter(r => r.result === 'FAIL');
+  const warns  = results.filter(r => r.result === 'WARN');
+  const issues = [...fails, ...warns];
+  const listEl = document.getElementById('issues-list');
+
+  if (!issues.length) { listEl.className = 'issues-list'; return; }
+
+  const parts = [];
+  if (fails.length) parts.push(`${fails.length} failure${fails.length > 1 ? 's' : ''}`);
+  if (warns.length) parts.push(`${warns.length} warning${warns.length > 1 ? 's' : ''}`);
+  document.getElementById('issues-heading').textContent =
+    `Compatibility Issues — ${parts.join(', ')}`;
+
+  const itemsEl = document.getElementById('issues-items');
+  itemsEl.innerHTML = '';
+  issues.forEach(r => {
+    const div = document.createElement('div');
+    div.className = `issue-item ${r.result === 'FAIL' ? 'fail' : 'warn'}`;
+    div.innerHTML = `<span class="issue-icon">${r.result === 'FAIL' ? '&#x2716;' : '&#x26A0;'}</span><span>${esc(r.msg)}</span>`;
+    itemsEl.appendChild(div);
+  });
+  listEl.className = 'issues-list show';
+}
+
+// ─────────────────────────────────────────────────────────
+// Main insertion flow
+// ─────────────────────────────────────────────────────────
+async function startInsertion() {
+  if (simRunning) return;
+  simRunning = true;
+  simStart   = Date.now();
+  document.getElementById('insert-btn').disabled = true;
+
+  const bs = getRoot(schemas.baseboard);
+  const ad = getRoot(schemas.adapter);
+
+  // ── Phase 1: Physical insertion animation ──────────────
+  log('PHYSICAL INSERTION SEQUENCE', 'section');
+  log('Adapter card moving toward baseboard OAC slot...', 'info');
+  const card = document.getElementById('adapter-card');
+  card.classList.add('inserting');
+  await delay(700);
+  log('Connector edge approaching OAC slot — seating...', 'info');
+  card.classList.remove('inserting');
+  card.classList.add('inserted');
+  await delay(400);
+  log('Adapter card seated in OAC slot. Mechanical engagement complete.', 'success');
+  await delay(300);
+
+  // ── Phase 2: O-state power sequencing ─────────────────
+  log('', 'info');
+  log('POWER SEQUENCING (O-STATES)', 'section');
+  await delay(300);
+  log('Baseboard applying +12V Auxiliary power... (O0 -> O2)', 'info');
+  setLeds('yellow');
+  await delay(600);
+  log('OAC Management Controller initializing...', 'info');
+  await delay(600);
+  log('OAC_MC_RDY asserted — Operational State O3 reached.', 'success');
+  await delay(300);
+  log('BMC retrieving JSON-encoded CID via PLDM (DSP0257)...', 'info');
+  await delay(500);
+  log('CID received. Beginning compliance evaluation.', 'info');
+  await delay(200);
+
+  // ── Phase 3: Compliance checks ────────────────────────
+  log('', 'info');
+  log('COMPLIANCE EVALUATION (CID v0.7)', 'section');
+  const results = await runComplianceChecks(bs, ad);
+
+  // ── Phase 4: Verdict ──────────────────────────────────
+  log('', 'info');
+  log('COMPLIANCE VERDICT', 'section');
+  await delay(300);
+
+  const hasFail = results.some(r => r.result === 'FAIL');
+  const hasWarn = results.some(r => r.result === 'WARN');
+  const nPass   = results.filter(r => r.result === 'PASS').length;
+  const nWarn   = results.filter(r => r.result === 'WARN').length;
+  const nFail   = results.filter(r => r.result === 'FAIL').length;
+
+  if (hasFail) {
+    setLeds('red');
+    log('RESULT: BLOCKED — Compatibility failure detected.', 'error');
+    log('OAC_PWR_EN remains de-asserted. Adapter will not power on.', 'error');
+    log(`Summary: PASS=${nPass}  WARN=${nWarn}  FAIL=${nFail}`, 'error');
+    showStatus('red',
+      'Adapter BLOCKED — Compatibility Failure',
+      'The upstream controller determined the baseboard cannot satisfy one or more hard requirements of this adapter CID. OAC_PWR_EN will remain de-asserted. Adapter will not receive primary power.',
+      results);
+  } else if (hasWarn) {
+    setLeds('yellow');
+    log('RESULT: DEGRADED — Minimum requirements met; full capability not verified.', 'warning');
+    await delay(400);
+    log('Asserting OAC_PWR_EN (O3 -> O4 -> O5). Adapter powered in degraded mode.', 'warning');
+    log(`Summary: PASS=${nPass}  WARN=${nWarn}  FAIL=${nFail}`, 'warning');
+    showStatus('yellow',
+      'Adapter ON — Degraded Mode',
+      'Minimum hard requirements are satisfied but one or more optional or informational checks could not be fully verified (e.g. reduced bandwidth, undeclared fields). OAC_PWR_EN has been asserted. Adapter is powered on with possible operational restrictions.',
+      results);
+  } else {
+    setLeds('green');
+    log('RESULT: NORMAL — All checks passed. Full compatibility confirmed.', 'success');
+    await delay(400);
+    log('Asserting OAC_PWR_EN (O3 -> O4 -> O5). Adapter at full capability.', 'success');
+    log(`Summary: PASS=${nPass}  WARN=${nWarn}  FAIL=${nFail}`, 'success');
+    showStatus('green',
+      'Adapter ON — Normal Operation',
+      'All compliance checks passed. OAC_PWR_EN has been asserted. Adapter is fully powered and operating at full capability.',
+      results);
+  }
+
+  simRunning = false;
+  checkReady();
+}
+
+// ─────────────────────────────────────────────────────────
+// Compliance Engine — 10 checks, 200ms pacing
+// ─────────────────────────────────────────────────────────
+async function runComplianceChecks(bs, ad) {
+  const results = [];
+
+  function pass(msg) { log('  PASS  ' + msg, 'success'); results.push({ result:'PASS', msg }); }
+  function warn(msg) { log('  WARN  ' + msg, 'warning'); results.push({ result:'WARN', msg }); }
+  function fail(msg) { log('  FAIL  ' + msg, 'error');   results.push({ result:'FAIL', msg }); }
+  function info(msg) { log('        ' + msg, 'info'); }
+
+  const bsPwr  = (bs.power || {}).primary || {};
+  const adPwr  = (ad.power || {}).primary || {};
+  const bsCons = bs.connectors || [];
+  const adCons = ad.connectors || [];
+  const adPop  = adCons.filter(c => c.populated !== false);
+
+  // ── CHECK 1: Primary Input Voltage ──────────────────────
+  await delay(200);
+  log('CHECK 1 — Primary Input Voltage (power.primary.input_voltage)', 'section');
+  {
+    const av = adPwr.input_voltage;
+    const bv = bsPwr.input_voltage;
+    info(`Adapter: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
+    if (!av || !bv) {
+      fail('input_voltage not declared in one or both schemas.');
+    } else if (av === bv) {
+      pass(`input_voltage match: ${av}`);
+    } else {
+      fail(`input_voltage mismatch — adapter requires ${av}, baseboard provides ${bv}.`);
+    }
+  }
+
+  // ── CHECK 2: Connector Type Compatibility ───────────────
+  await delay(200);
+  log('CHECK 2 — Connector Type Compatibility (power.primary.connector_type)', 'section');
+  {
+    const av = adPwr.connector_type;
+    const bv = bsPwr.connector_type;
+    info(`Adapter: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
+    if (!av) {
+      fail('Adapter does not declare connector_type.');
+    } else if (!bv) {
+      warn('Baseboard does not declare connector_type — cannot verify connector compatibility.');
+    } else if (av === '125A' && bv === '100A') {
+      fail(`Adapter requires 125A connector but baseboard slot only supports 100A.`);
+    } else {
+      pass(`Connector type compatible — baseboard ${bv} supports adapter ${av}.`);
+    }
+  }
+
+  // ── CHECK 3: OPL-MAX Power Budget ──────────────────────
+  await delay(200);
+  log('CHECK 3 — OPL-MAX Power Budget (power.primary.opl_max_w)', 'section');
+  {
+    const av = adPwr.opl_max_w;
+    const bv = bsPwr.opl_max_w;
+    info(`Adapter opl_max_w: ${av != null ? av + 'W' : '(not declared)'}  |  Baseboard opl_max_w: ${bv != null ? bv + 'W' : '(not declared)'}`);
+    if (av == null) {
+      fail('Adapter opl_max_w not declared — power budget cannot be evaluated.');
+    } else if (bv == null) {
+      warn('Baseboard opl_max_w not declared — cannot verify power budget. Proceeding with caution.');
+    } else if (bv >= av) {
+      pass(`Baseboard power budget ${bv}W >= adapter opl_max_w ${av}W.`);
+    } else {
+      fail(`Baseboard power budget ${bv}W < adapter opl_max_w ${av}W. Insufficient power.`);
+    }
+  }
+
+  // ── CHECK 4: OPL-EMG Declared ──────────────────────────
+  await delay(200);
+  log('CHECK 4 — OPL-EMG Declared (power.primary.opl_emg_w)', 'section');
+  {
+    const av = adPwr.opl_emg_w;
+    info(`Adapter opl_emg_w: ${av != null ? av + 'W' : '(not declared)'}`);
+    if (av == null) {
+      warn('Adapter opl_emg_w not declared — emergency power level unspecified. OAC_PWRBRK# behavior undefined.');
+    } else {
+      pass(`Adapter opl_emg_w declared: ${av}W.`);
+    }
+  }
+
+  // ── CHECK 5: Connector Impedance ──────────────────────
+  await delay(200);
+  log('CHECK 5 — Connector Impedance (connectors[].impedance_ohm)', 'section');
+  {
+    let anyCheck = false;
+    for (const ac of adPop) {
+      if (ac.id === 'CABLE') continue;
+      const bc = bsCons.find(c => c.id === ac.id);
+      if (!bc) {
+        fail(`${ac.id}: no matching baseboard connector definition.`);
+        anyCheck = true; continue;
+      }
+      const ai = ac.impedance_ohm;
+      const bi = bc.impedance_ohm;
+      info(`${ac.id}: adapter=${ai != null ? ai + 'ohm' : '(none)'}  |  baseboard=${bi != null ? bi + 'ohm' : '(none)'}`);
+      anyCheck = true;
+      if (ai == null || bi == null) {
+        warn(`${ac.id}: impedance_ohm not fully declared — cannot verify trace matching.`);
+      } else if (ai === bi) {
+        pass(`${ac.id}: impedance match (${ai} ohm).`);
+      } else {
+        fail(`${ac.id}: impedance mismatch — adapter ${ai} ohm != baseboard ${bi} ohm.`);
+      }
+    }
+    if (!anyCheck) info('No populated connectors to check.');
+  }
+
+  // ── CHECK 6: High-Speed Lane Protocol, Role, Direction, Min Lanes ─
+  await delay(200);
+  log('CHECK 6 — High-Speed Lane Protocol, Role, Direction, Minimum Lanes', 'section');
+  {
+    let anyHS = false;
+    for (const ac of adPop) {
+      const aHS = ac.high_speed_lanes;
+      if (!aHS) continue;
+      anyHS = true;
+      const bc  = bsCons.find(c => c.id === ac.id);
+      const bHS = bc && bc.high_speed_lanes;
+      if (!bHS) {
+        fail(`${ac.id}: adapter declares high_speed_lanes but baseboard has no matching definition.`);
+        continue;
+      }
+      for (const [field, av, bv] of [
+        ['protocol',       aHS.protocol,       bHS.protocol],
+        ['link_role',      aHS.link_role,       bHS.link_role],
+        ['link_direction', aHS.link_direction,  bHS.link_direction],
+      ]) {
+        info(`${ac.id}.${field}: adapter=${av || '—'}  |  baseboard=${bv || '—'}`);
+        if (!av || !bv) {
+          warn(`${ac.id}.${field}: not declared in one or both schemas.`);
+        } else if (av === bv) {
+          pass(`${ac.id}.${field}: match (${av}).`);
+        } else {
+          fail(`${ac.id}.${field}: mismatch — adapter=${av}, baseboard=${bv}.`);
+        }
+      }
+      // minimum_lanes
+      const adMin = aHS.minimum_lanes != null ? Number(aHS.minimum_lanes) : NaN;
+      const bsTot = bHS.total_lanes   != null ? Number(bHS.total_lanes)   : NaN;
+      const bsMin = bHS.minimum_lanes != null ? Number(bHS.minimum_lanes) : NaN;
+      const bsAvail = !isNaN(bsTot) ? bsTot : bsMin;
+      info(`${ac.id}.minimum_lanes: adapter=${isNaN(adMin)?'—':adMin}  |  baseboard available=${isNaN(bsAvail)?'—':bsAvail}`);
+      if (isNaN(adMin)) {
+        warn(`${ac.id}: adapter minimum_lanes not declared.`);
+      } else if (isNaN(bsAvail)) {
+        warn(`${ac.id}: baseboard lane count not declared — cannot verify minimum lanes.`);
+      } else if (bsAvail >= adMin) {
+        pass(`${ac.id}: baseboard supports ${bsAvail} lanes >= adapter minimum ${adMin}.`);
+      } else {
+        fail(`${ac.id}: baseboard supports only ${bsAvail} lanes < adapter minimum_lanes ${adMin}.`);
+      }
+    }
+    if (!anyHS) info('No connectors with high_speed_lanes to check.');
+  }
+
+  // ── CHECK 7: Lane Pin Assignments (required lanes) ─────
+  await delay(200);
+  log('CHECK 7 — Lane Pin Assignments (required lanes)', 'section');
+  {
+    let anyLane = false;
+    for (const ac of adPop) {
+      const aHS = ac.high_speed_lanes;
+      if (!aHS || !aHS.lanes || !aHS.lanes.length) continue;
+      const requiredLanes = aHS.lanes.filter(l => l.required === true);
+      if (!requiredLanes.length) { info(`${ac.id}: no lanes marked required.`); continue; }
+      anyLane = true;
+      const bc       = bsCons.find(c => c.id === ac.id);
+      const bLanes   = (bc && bc.high_speed_lanes && bc.high_speed_lanes.lanes) || [];
+      let lFail = 0;
+      for (const al of requiredLanes) {
+        const bl = bLanes.find(l => l.lane_index === al.lane_index && l.direction === al.direction);
+        if (!bl) {
+          fail(`${ac.id} lane[${al.lane_index}/${al.direction}]: required lane missing from baseboard.`);
+          lFail++;
+        } else if (bl.pin_positive !== al.pin_positive || bl.pin_negative !== al.pin_negative) {
+          fail(`${ac.id} lane[${al.lane_index}/${al.direction}]: pin mismatch — adapter=(${al.pin_positive},${al.pin_negative}) baseboard=(${bl.pin_positive},${bl.pin_negative}).`);
+          lFail++;
+        }
+      }
+      if (!lFail) pass(`${ac.id}: all ${requiredLanes.length} required lane pin assignments verified.`);
+      // Warn on total lane count delta
+      const adTot = aHS.total_lanes != null ? Number(aHS.total_lanes) : NaN;
+      const bTot  = bc && bc.high_speed_lanes && bc.high_speed_lanes.total_lanes != null
+                    ? Number(bc.high_speed_lanes.total_lanes) : NaN;
+      if (!isNaN(adTot) && !isNaN(bTot) && bTot < adTot) {
+        warn(`${ac.id}: baseboard total_lanes (${bTot}) < adapter total_lanes (${adTot}) — reduced bandwidth.`);
+      }
+    }
+    if (!anyLane) info('No connectors with required lane assignments to verify.');
+  }
+
+  // ── CHECK 8: Reference Clocking ─────────────────────────
+  await delay(200);
+  log('CHECK 8 — Reference Clocking (required clocks)', 'section');
+  {
+    let anyClk = false;
+    for (const ac of adPop) {
+      const aClks = (ac.clocking || []).filter(c => c.required !== false);
+      if (!aClks.length) continue;
+      anyClk = true;
+      const bc    = bsCons.find(c => c.id === ac.id);
+      const bClks = (bc && bc.clocking) || [];
+      for (const ak of aClks) {
+        const bk = bClks.find(c => c.clock_id === ak.clock_id);
+        if (!bk) {
+          if (ak.required === true) {
+            fail(`${ac.id}.${ak.clock_id}: required clock not found in baseboard.`);
+          } else {
+            warn(`${ac.id}.${ak.clock_id}: clock not found in baseboard.`);
+          }
+          continue;
+        }
+        let ok = true;
+        for (const field of ['clock_type','frequency_mhz','direction']) {
+          if (ak[field] !== undefined && bk[field] !== undefined && ak[field] !== bk[field]) {
+            fail(`${ac.id}.${ak.clock_id}.${field}: mismatch — adapter=${ak[field]}, baseboard=${bk[field]}.`);
+            ok = false;
+          }
+        }
+        for (const pin of ['pin_positive','pin_negative']) {
+          if (ak[pin] && bk[pin] && ak[pin] !== bk[pin]) {
+            fail(`${ac.id}.${ak.clock_id}.${pin}: mismatch — adapter=${ak[pin]}, baseboard=${bk[pin]}.`);
+            ok = false;
+          }
+        }
+        if (ok) pass(`${ac.id}.${ak.clock_id}: clock parameters verified.`);
+      }
+    }
+    if (!anyClk) info('No connectors with required reference clocks to verify.');
+  }
+
+  // ── CHECK 9: Required Discrete Signals ──────────────────
+  await delay(200);
+  log('CHECK 9 — Required Discrete Signals (discrete_signals[required=true])', 'section');
+  {
+    let anySig = false;
+    for (const ac of adPop) {
+      const aSigs = (ac.discrete_signals || []).filter(s => s.required === true);
+      if (!aSigs.length) continue;
+      anySig = true;
+      const bc    = bsCons.find(c => c.id === ac.id);
+      const bSigs = (bc && bc.discrete_signals) || [];
+      for (const as of aSigs) {
+        const bs2 = bSigs.find(s => s.signal_name === as.signal_name);
+        if (!bs2) {
+          fail(`${ac.id}.${as.signal_name}: required signal missing from baseboard.`);
+          continue;
+        }
+        if (as.pin && bs2.pin && as.pin !== bs2.pin) {
+          fail(`${ac.id}.${as.signal_name}: pin mismatch — adapter=${as.pin}, baseboard=${bs2.pin}.`);
+        } else {
+          pass(`${ac.id}.${as.signal_name}: signal present and pin verified.`);
+        }
+      }
+    }
+    if (!anySig) info('No required discrete signals declared by adapter.');
+  }
+
+  // ── CHECK 10: OAC Spec Revision ─────────────────────────
+  await delay(200);
+  log('CHECK 10 — OAC Spec Revision (metadata.oac_spec_revision)', 'section');
+  {
+    const av = (ad.metadata || {}).oac_spec_revision;
+    const bv = (bs.metadata || {}).oac_spec_revision;
+    info(`Adapter: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
+    if (!av || !bv) {
+      warn('oac_spec_revision not declared in one or both schemas — revision compatibility unverified.');
+    } else if (av === bv) {
+      pass(`Spec revision match: ${av}.`);
+    } else {
+      warn(`Spec revision differs — adapter targets ${av}, baseboard targets ${bv}. Verify backward compatibility.`);
+    }
+  }
+
+  // Summary
+  const nP = results.filter(r => r.result === 'PASS').length;
+  const nW = results.filter(r => r.result === 'WARN').length;
+  const nF = results.filter(r => r.result === 'FAIL').length;
+  log('', 'info');
+  log(`Evaluation complete — PASS: ${nP}  WARN: ${nW}  FAIL: ${nF}`, 'info');
+
+  return results;
+}
+</script>
+</body>
+</html>

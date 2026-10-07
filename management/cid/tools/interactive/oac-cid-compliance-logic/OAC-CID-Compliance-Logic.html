@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAC CID Compliance Logic</title>
+<style>
+:root {
+  --ocp-white:   #FFFFFF;
+  --ocp-bg:      #f7f7f7;
+  --ocp-navy:    #1f2020;
+  --ocp-blue:    #8dc63f;
+  --ocp-mid:     #f7f7f7;
+  --ocp-border:  #dfdfe0;
+  --ocp-text:    #303031;
+  --ocp-muted:   #5f6062;
+  --green:       #72a230;
+  --green-bg:    #eef7df;
+  --yellow:      #b98c2e;
+  --yellow-bg:   #fdf6e3;
+  --red:         #de3b3b;
+  --red-bg:      #fef0f0;
+  --skip-bg:     #EEF2F7;
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--ocp-bg);
+  color: var(--ocp-text);
+  min-height: 100vh;
+}
+
+header {
+  background: var(--ocp-navy);
+  border-bottom: 3px solid var(--ocp-blue);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 64px;
+}
+.logo-block {
+  background: var(--ocp-blue);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.header-title {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.header-sub {
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+main {
+  max-width: 900px;
+  margin: 32px auto;
+  padding: 0 20px 60px;
+}
+
+.page-intro {
+  background: var(--ocp-white);
+  border: 1px solid var(--ocp-border);
+  border-left: 4px solid var(--ocp-blue);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--ocp-muted);
+  line-height: 1.6;
+}
+
+.legend-bar {
+  background: var(--ocp-white);
+  border: 1px solid var(--ocp-border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ocp-text);
+}
+.legend-chip {
+  width: 28px;
+  height: 14px;
+  border-radius: 7px;
+}
+.legend-chip.fail { background: var(--red-bg); border: 1px solid #E8A89E; }
+.legend-chip.pass { background: var(--green-bg); border: 1px solid #A8D5B5; }
+.legend-chip.warn { background: var(--yellow-bg); border: 1px solid #F0C98A; }
+
+.checks-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.checks-flow > .flow-arrow {
+  align-self: center;
+}
+
+.start-wrap {
+  display: flex;
+  justify-content: center;
+}
+.start-node {
+  background: var(--ocp-navy);
+  color: #fff;
+  border-radius: 32px;
+  padding: 13px 32px;
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.flow-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.flow-arrow .arrow-line {
+  width: 2px;
+  height: 24px;
+  background: var(--ocp-border);
+}
+.flow-arrow .arrow-head {
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 9px solid var(--ocp-border);
+}
+
+.check-card {
+  background: var(--ocp-white);
+  border: 1px solid var(--ocp-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.check-header {
+  background: var(--ocp-mid);
+  border-bottom: 1px solid var(--ocp-border);
+  padding: 9px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.check-num {
+  background: var(--ocp-navy);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.check-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ocp-navy);
+  flex: 1;
+}
+
+.check-field {
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+  font-size: 11px;
+  background: var(--ocp-navy);
+  color: #9DC8F0;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.check-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.outcome-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.outcome-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+
+.chip-fail { background: var(--red-bg); color: var(--red); border: 1px solid #F1C0B9; }
+.chip-pass { background: var(--green-bg); color: var(--green); border: 1px solid #A8D5B5; }
+.chip-warn { background: var(--yellow-bg); color: var(--yellow); border: 1px solid #F0C98A; }
+
+.outcome-label {
+  font-size: 13px;
+  color: var(--ocp-text);
+  line-height: 1.4;
+  padding-top: 2px;
+}
+.outcome-label code {
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+  font-size: 11px;
+  background: var(--ocp-mid);
+  color: var(--ocp-navy);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.verdict-section {
+  margin-top: 4px;
+}
+.verdict-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--ocp-muted);
+  margin-bottom: 14px;
+}
+.verdict-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+.verdict-card {
+  border-radius: 10px;
+  padding: 18px 16px;
+  text-align: center;
+}
+.verdict-card.blocked { background: var(--red-bg); border: 2px solid #E8A89E; }
+.verdict-card.degraded { background: var(--yellow-bg); border: 2px solid #F0C98A; }
+.verdict-card.normal { background: var(--green-bg); border: 2px solid #A8D5B5; }
+
+.verdict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  border-radius: 20px;
+  padding: 5px 14px;
+}
+.blocked .verdict-badge { background: var(--red); color: #fff; }
+.degraded .verdict-badge { background: var(--yellow); color: #fff; }
+.normal .verdict-badge { background: var(--green); color: #fff; }
+
+.verdict-condition {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ocp-muted);
+  margin-bottom: 6px;
+}
+.verdict-action {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ocp-text);
+}
+
+@media (max-width: 640px) {
+  .verdict-grid { grid-template-columns: 1fr; }
+  header { height: auto; padding: 12px 16px; flex-wrap: wrap; }
+  .check-field { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-block">OCP</span>
+  <div>
+    <div class="header-title">OAC Adapter — CID Compliance Check Logic</div>
+    <div class="header-sub">Open Adapter Card &middot; Connector Interface Definition &middot; JSON Schema</div>
+  </div>
+</header>
+
+<main>
+
+  <div class="page-intro">
+    The BMC evaluates each incoming adapter CID (<code>oac_cid JSON</code>) through a sequence of checks. A single FAIL blocks power-on. One or more WARNs (with no FAILs) results in degraded operation. All PASS yields full normal operation.
+  </div>
+
+  <div class="legend-bar">
+    <span style="font-size:12px;font-weight:700;color:var(--ocp-navy);margin-right:4px;">Outcomes:</span>
+    <span class="legend-item"><span class="legend-chip fail"></span> FAIL &mdash; power denied</span>
+    <span class="legend-item"><span class="legend-chip warn"></span> WARN &mdash; degraded</span>
+    <span class="legend-item"><span class="legend-chip pass"></span> PASS &mdash; compliant</span>
+  </div>
+
+  <div class="checks-flow">
+
+    <div class="start-wrap">
+      <div class="start-node">BMC receives adapter CID (oac_cid JSON)</div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">1</div>
+        <div class="check-title">Schema Validation</div>
+        <div class="check-field">metadata.schema_version</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>schema_version</code> missing or unrecognized by BMC firmware</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label"><code>schema_version</code> recognized &mdash; proceed to further checks</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">2</div>
+        <div class="check-title">Input Voltage</div>
+        <div class="check-field">power.primary.input_voltage</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>input_voltage</code> field missing</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Declared <code>input_voltage</code> does not match slot-provided voltage</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Declared voltage matches slot supply</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">3</div>
+        <div class="check-title">Connector Type</div>
+        <div class="check-field">power.primary.connector_type</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>connector_type</code> field missing</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Slot does not support declared variant (e.g., "125A" declared in a "100A" rated slot)</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Connector type is compatible with slot</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">4</div>
+        <div class="check-title">OPL-MAX Power Budget</div>
+        <div class="check-field">power.primary.opl_max_w</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>opl_max_w</code> field missing</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Declared <code>opl_max_w</code> exceeds slot power capacity</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">OPL-MAX is within the slot's power budget</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">5</div>
+        <div class="check-title">OPL-EMG Declared</div>
+        <div class="check-field">power.primary.opl_emg_w</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>opl_emg_w</code> field missing</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Declared <code>opl_emg_w</code> &gt; <code>opl_max_w</code> (emergency cannot exceed maximum)</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">OPL-EMG is declared and does not exceed OPL-MAX</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">6</div>
+        <div class="check-title">Connector Impedance &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per populated connector</span></div>
+        <div class="check-field">connectors[].impedance_ohm</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">No matching baseboard connector definition found</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Declared <code>impedance_ohm</code> does not match baseboard specification</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-warn">&#9888; WARN</span>
+          <span class="outcome-label"><code>impedance_ohm</code> undeclared &mdash; cannot verify impedance compatibility</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Impedance matches baseboard definition for all populated connectors</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">7</div>
+        <div class="check-title">Connector Profile Resolution &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per connector with profile</span></div>
+        <div class="check-field">connectors[].connector_profile</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>OAC-PROF-</code> identifier unrecognized by BMC firmware and no explicit override provided</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>VENDOR-</code> profile FRU File not found and no explicit section override present</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Profile resolved successfully, or all sections explicitly overridden</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">8</div>
+        <div class="check-title">High-Speed Lane Protocol / Role / Direction / Min Lanes &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per connector with hs</span></div>
+        <div class="check-field">high_speed_lanes.protocol &middot; .link_role &middot; .link_direction &middot; .minimum_lanes</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">No baseboard high-speed lane definition found for this connector</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Any mismatch in <code>protocol</code>, <code>link_role</code>, or <code>link_direction</code></span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Available baseboard lanes &lt; declared <code>minimum_lanes</code></span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Protocol, role, direction all match; available lanes &ge; minimum_lanes</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">9</div>
+        <div class="check-title">Lane Pin Assignments &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per connector</span></div>
+        <div class="check-field">lanes[required=true]</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">A required lane is missing from the adapter CID declaration</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Pin assignment for a required lane does not match baseboard definition</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-warn">&#9888; WARN</span>
+          <span class="outcome-label">Declared <code>total_lanes</code> is less than baseboard-supported lane count (reduced lane width)</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">All required lanes present and pin assignments match</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">10</div>
+        <div class="check-title">Reference Clocking &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per required clock</span></div>
+        <div class="check-field">clocking[required=true]</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">A required clock signal is missing from the adapter CID</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Clock type, frequency, pin assignment, or direction mismatch</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">All required clocks declared and match baseboard definition</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">11</div>
+        <div class="check-title">Required Discrete Signals</div>
+        <div class="check-field">discrete_signals[required=true]</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">A required discrete signal is missing from the adapter CID</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Pin assignment for a required discrete signal does not match baseboard</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">All required discrete signals present with matching pin assignments</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">12</div>
+        <div class="check-title">OAC Spec Revision</div>
+        <div class="check-field">metadata.oac_spec_revision</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-warn">&#9888; WARN</span>
+          <span class="outcome-label"><code>oac_spec_revision</code> undeclared &mdash; revision compatibility cannot be confirmed</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-warn">&#9888; WARN</span>
+          <span class="outcome-label">Declared revision differs from baseboard target revision</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Declared <code>oac_spec_revision</code> matches baseboard target revision</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="verdict-section">
+      <div class="verdict-title">Compliance Verdict</div>
+      <div class="verdict-grid">
+
+        <div class="verdict-card blocked">
+          <div><span class="verdict-badge">&#10005; BLOCKED</span></div>
+          <div class="verdict-condition">Any FAIL result in checks 1&ndash;11</div>
+          <div class="verdict-action">OAC_PWR_EN de-asserted &mdash; adapter power denied</div>
+        </div>
+
+        <div class="verdict-card degraded">
+          <div><span class="verdict-badge">&#9888; DEGRADED</span></div>
+          <div class="verdict-condition">No FAILs &mdash; one or more WARNs</div>
+          <div class="verdict-action">OAC_PWR_EN asserted &mdash; reduced capability, BMC logs warning</div>
+        </div>
+
+        <div class="verdict-card normal">
+          <div><span class="verdict-badge">&#10003; NORMAL</span></div>
+          <div class="verdict-condition">All checks PASS &mdash; zero WARNs</div>
+          <div class="verdict-action">OAC_PWR_EN asserted &mdash; full capability enabled</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</main>
+</body>
+</html>

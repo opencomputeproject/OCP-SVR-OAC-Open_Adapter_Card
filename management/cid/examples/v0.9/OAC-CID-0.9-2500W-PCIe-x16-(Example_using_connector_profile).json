@@ -1,0 +1,23 @@
+{
+  "oac_cid": {
+    "metadata": {
+      "description": "Example CID: Double Wide Offset, +50V Input Voltage, 2500W OPL-MAX, 645W OPL-EMG, OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"
+    },
+    "power": {
+      "primary": {
+        "input_voltage": "+50V",
+        "connector_type": "125A",
+        "opl_max_w": 2500,
+        "opl_emg_w": 625
+      }
+    },
+    "connectors": [
+      {
+        "id": "CONN0",
+        "populated": true,
+        "impedance_ohm": 85,
+        "connector_profile": "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"
+      }
+    ]
+  }
+}

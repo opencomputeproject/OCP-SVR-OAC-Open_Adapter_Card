@@ -1,0 +1,767 @@
+# OAC Connector Interface Definition (CID) Specification
+## Version: 0.9
+### Document Identifier: OAC-CID-SPEC
+### Document Status: Draft
+### Document Language: en-US
+### Normative Reference: OCP Open Adapter Card Base Specification v0.9
+
+---
+
+## Foreword
+
+This specification is authored by the OCP Open Adapter Card (OAC) workstream under the Open Compute Project Foundation. It defines the Connector Interface Definition (CID), a machine-readable descriptor that OAC-compliant adapters shall expose to baseboard management infrastructure. The OCP OAC workstream retains editorial authority over this document. Contributions, errata reports, and change proposals shall be submitted through the OCP OAC project repository.
+
+This document is a Draft specification. Contents are subject to revision by the OCP OAC workstream prior to final publication.
+
+---
+
+## Contents
+
+1. Scope
+2. Normative References
+3. Terms and Definitions
+4. Symbols and Abbreviated Terms
+5. CID Overview
+6. CID as a FRU File
+7. CID JSON Document Structure
+   - 7.1 metadata Object
+   - 7.2 power Object
+   - 7.3 connectors Array
+   - 7.4 Enumerated Values Summary
+   - 7.5 Field Naming and Ordering Conventions
+8. CID Retrieval and Validation
+10. Compliance
+
+Annex A (informative) -- Example CID JSON Snippet
+Annex C (informative) -- PLDM Protocol Field Value Reference
+
+---
+
+## 1. Scope
+
+This specification defines the Connector Interface Definition (CID), a normative machine-readable JSON document stored in OAC adapter firmware that declares all connector, power, clocking, and signaling attributes of an OAC-compliant adapter. The CID is published by the OAC management controller as a FRU Data File and retrieved by the upstream management controller using PLDM for FRU Data (DMTF DSP0257) over MCTP on the OAC Management USB 2.0 interface.
+
+The CID enables upstream baseboard management infrastructure to evaluate connector compatibility, power budget feasibility, signaling protocol alignment, and clocking requirements before enabling primary busbar power to the adapter. The CID does not replace mechanical compatibility enforcement but provides a software-accessible complement to hardware keying mechanisms defined in the OCP Open Adapter Card Base Specification v0.9.
+
+The following are within the scope of this specification:
+
+- The structure and encoding of the CID JSON document
+- The retrieval mechanism via DSP0257 PLDM for FRU Data
+- Compliance requirements for OAC adapter implementations and baseboard management implementations
+
+The following are outside the scope of this specification:
+
+- Physical connector mechanical design (governed by OCP Open Adapter Card Base Specification v0.9)
+- Protocol-specific electrical signaling parameters (governed by the respective protocol specifications)
+- Baseboard management controller firmware implementation details
+
+---
+
+## 2. Normative References
+
+The following documents are normative references for this specification. For dated references, only the edition cited applies. For undated references, the latest edition of the referenced document applies.
+
+| Reference | Document |
+|-----------|----------|
+| DSP0220 | DMTF, "FRU Data Specification," Version 1.0.1 |
+| DSP0240 | DMTF, "PLDM Base Specification," Version 1.2 |
+| DSP0257 | DMTF, "PLDM for FRU Data Specification," Version 2.0 |
+| ECMA-404 | ECMA International, "JSON Data Interchange Syntax," 2nd Edition |
+| OCP OAC v0.9 | OCP, "Open Adapter Card Base Specification," Version 0.8 |
+| DSP0242 | DMTF, "PLDM for File Transfer Specification," Version 1.0 |
+| MessagePack | MessagePack Specification, available at msgpack.org |
+| RFC 1952 | IETF, "GZIP file format specification version 4.3" |
+
+---
+
+## 3. Terms and Definitions
+
+For the purposes of this specification, the following terms and definitions apply. Terms not defined here shall have the meaning ascribed to them in DSP0220, DSP0257, or the OCP Open Adapter Card Base Specification v0.9.
+
+**3.1 CID (Connector Interface Definition)**
+A machine-readable JSON document conforming to this specification that declares the connector population, power requirements, Operational Power Levels, high-speed signaling assignments, reference clocking, and vendor-defined discrete signals of a specific OAC adapter.
+
+**3.2 FRU File**
+As defined in DSP0220 and DSP0257: a logically coherent data unit published by a PLDM FRU Data agent and retrieved using PLDM for FRU Data. The CID is a FRU File of classification `FRUDataFile` per DSP0257.
+
+**3.4 OAC (Open Adapter Card)**
+An adapter form factor defined by the OCP Open Adapter Card Base Specification v0.9, characterized by a standardized connector topology supporting up to seven high-speed connector positions (CONN0 through CONN6) and one cable connector position (CABLE).
+
+**3.5 Expanded Format JSON**
+A JSON encoding that includes optional whitespace characters (spaces, tabs, newlines) to improve human readability. Expanded format is appropriate for authoring, documentation, and debugging purposes only.
+
+**3.6 Minified Format JSON**
+A JSON encoding with all optional whitespace removed. Minified format shall be the normative encoding for production CID storage.
+
+**3.7 FRU Bundle**
+As used informally in this specification: the complete set of FRU Files exposed by an OAC adapter's management controller via PLDM for FRU Data. The FRU Bundle includes the CID FRU File and may include additional vendor-defined FRU Files.
+
+**3.8 upstream management controller**
+The management processor on the host baseboard that communicates with OAC adapter management controllers over the OAC Management USB 2.0 interface. The upstream management controller is responsible for retrieving and evaluating the CID before enabling primary busbar power.
+
+**3.9 Operational Power Level (OPL)**
+A discrete operating profile, defined in OCP OAC Base Specification v0.9 Section 9.1.2, that specifies a sustained power limit and associated performance characteristics for an OAC adapter. OPLs are declared in the CID so that the upstream management controller can evaluate power budget feasibility before enabling primary power.
+
+**3.10 Operational State**
+A defined condition of the OAC with respect to power domain availability, management controller readiness, and device initialization, as defined in OCP OAC Base Specification v0.9 Section 9.1.1. CID retrieval occurs in Operational State O3 (Management Initialized).
+
+---
+
+## 4. Symbols and Abbreviated Terms
+
+| Symbol / Abbreviation | Meaning |
+|-----------------------|---------|
+| CID | Connector Interface Definition |
+| FRU | Field Replaceable Unit |
+| JSON | JavaScript Object Notation |
+| MCTP | Management Component Transport Protocol |
+| OAC | Open Adapter Card |
+| OPL | Operational Power Level |
+| PLDM | Platform Level Data Model |
+| RX | Receive (signal direction toward the adapter) |
+| SRIS | Separate Reference clock with Independent Spread |
+| TX | Transmit (signal direction from the adapter toward the baseboard or fabric peer) |
+| UUID | Universally Unique Identifier |
+
+---
+
+## 5. CID Overview
+
+The CID is a structured JSON document that an OAC adapter exposes to the baseboard management infrastructure during enumeration. It provides a complete, self-describing declaration of the adapter's interface characteristics, enabling baseboard management software to make an informed determination of hardware compatibility without requiring physical enumeration of all connected protocols.
+
+The CID declares the following categories of information:
+
+- **Connector population**: which connector positions (CONN0 through CONN6, CABLE) are physically populated on the adapter
+- **Connector impedance**: the differential impedance class (85 ohms or 92 ohms) of each populated connector, which corresponds to the color-coded mechanical keying on the OAC connector
+- **Power requirements**: the primary input voltage rail, Operational Power Level definitions (OPL-MAX, OPL-EFF, OPL-RED, OPL-EMG, OPL-SET), and minimum and maximum current draw
+- **M-PESTI capability**: whether M-PESTI functionality is implemented on CONN0 Pin A1
+- **High-speed signaling assignments**: per-lane protocol, direction, link subdivision topology, and physical pin mapping for each populated connector
+- **Reference clocking**: frequency, type, direction, and lane associations for each reference clock
+- **Vendor-defined discrete signals**: signal name, pin, direction, voltage level, pull termination requirements, driver type, default state, and operational role
+
+CID content can be substantial for fully-populated adapters with per-lane pin mappings across all seven connectors. The CID is transmitted over the OAC Management USB 2.0 interface; minifying the JSON before storage reduces payload size and enumeration latency. 
+
+The CID shall not be used as a substitute for hardware mechanical keying. The mechanical keying defined in OCP Open Adapter Card Base Specification v0.9 ensures electrical safety (e.g., voltage rail isolation). The CID provides complementary software-visible metadata for protocol and capability negotiation.
+
+---
+
+## 6. CID as a FRU File
+
+### 6.1 General
+
+The CID shall be published by the OAC's management controller as PLDM FRU data and retrieved by the upstream management controller using PLDM for FRU Data (DSP0257), over the MCTP session established on the OAC Management USB 2.0 interface (CONN0 Columns 10–11).
+
+DSP0257 provides that aggregated FRU data is identified and formatted in the context of a FRU Data File, and that this context, together with the format of DMTF-specified FRU data files, is defined in FRU Data File. The CID shall be accessed by that method and by no other. The OAC shall expose the CID as a FRU Data File described by the File Descriptor PDR of Section 6.3, and an upstream management controller shall locate and retrieve it through that record. This specification defines no alternative access path to the CID, and an OAC shall not require one.
+
+The CID shall be read-only from the perspective of the upstream management controller. An OAC shall not accept a write to the CID.
+
+The CID should be stored in persistent, non-volatile storage on the OAC, so that it is available to be served as soon as the OAC's management controller is ready and does not have to be reconstructed on every retrieval. An OAC may instead generate the CID on demand from its own firmware configuration.
+
+A CID generated on demand shall be deterministic for a given firmware configuration. An OAC shall not return differing CID content for the same adapter hardware and firmware version, as the upstream management controller uses the CID to make slot energization decisions and a non-deterministic CID would undermine that evaluation.
+
+The CID shall be retrievable whenever the OAC is in Operational State O3 or later. An OAC shall not require primary power to serve its CID.
+
+The upstream management controller shall retrieve the CID before evaluating slot energization eligibility and before retrieving the Slot Configuration Definition (SCD), which is a separate FRU Data File published by the same OAC management controller.
+
+### 6.2 Encoding
+
+The CID shall be encoded in UTF-8 per ECMA-404. No byte order mark shall be present. The JSON document shall be syntactically valid per ECMA-404. Comments are not permitted; ECMA-404 defines no comment syntax, and a document containing `//` or `/* */` sequences outside a string literal is malformed.
+
+The OAC shall publish the CID in minified format JSON for production adapters. An upstream management controller shall parse minified format and should tolerate expanded format.
+
+### 6.3 File Classification and Access
+
+The CID shall be represented in the OAC's PDR repository by a File Descriptor PDR as defined in DSP0248, with EntityType set to Device File and FileClassification set to FRUDataFile. The file so described is a FRU Data File per DSP0257 and is retrieved as required by Section 6.1.
+
+The OAC shall set the FileName field of that File Descriptor PDR, which is a strASCII string, to:
+
+```
+OAC_CID.json
+```
+
+An upstream management controller shall use that name to distinguish the CID from every other FRU Data File the OAC publishes, the Slot Configuration Definition among them, and shall not rely on PDR ordering to make that distinction.
+
+FileName is how the CID is recognised; it is not how it is opened. The same File Descriptor PDR carries a FileIdentifier, a uint16 that DSP0248 defines as unique relative to the PLDM Terminus ID, and DSP0242 requires that value, rather than the name string, as the parameter to DfOpen, DfGetFileAttribute, and DfSetFileAttribute. An upstream management controller shall therefore match on FileName to find the record and then use the FileIdentifier from that same record to open the file. The OAC assigns the FileIdentifier; this specification fixes no value for it, and a controller shall not assume one.
+
+The OAC shall set the FileCapabilities bitfield16 so that no write and no modification of the CID is permitted: FcWritesPermitted and ExWriteOpen shall both be zero.
+
+The CID is a Fixed Length File in the sense of DSP0242 — read after creation, its size unchanged between firmware updates — and an OAC shall treat it as one. Because DSP0242 equates a fixed-length file's size to the FileMaximumSize field of its File Descriptor PDR, the OAC shall set FileMaximumSize to the exact transferred size of the CID it is serving, and shall update that field whenever the CID is replaced by a firmware update.
+
+DSP0242 requires the Device File State Sensor for a Fixed Length File and recommends the File Size Monitoring Sensor. This specification tightens both requirements: an OAC shall publish both sensors for the CID. The Device File State Sensor signals when the CID content has changed (e.g. following a firmware update), and the File Size Monitoring Sensor provides the exact current size for correct retrieval.
+
+| Sensor | Kind | DSP0242 | This specification |
+|--------|------|---------|--------------------|
+| Device File State Sensor | State sensor implementing DSP0249 State Set 68 (Device File) | Shall, for a Fixed Length File | Shall. Reports the state of the file and signals that its content has been modified. |
+| File Size Monitoring Sensor | Compact or Numeric sensor per DSP0242 | Should, for a Fixed Length File | Shall. Reports the current size of the CID in bytes, as transferred. |
+
+An OAC shall not report the File is at Maximum Size state (State 3 of DSP0249 State Set 68) for the CID. A fixed-length file is always at its maximum size, and the state therefore carries no information; DSP0242 advises against supporting it for this file characteristic.
+
+A File Size Monitoring Sensor published for the CID shall set BaseUnit to Bytes and UnitModifier to zero. If it is a Numeric sensor, RateUnit shall be None, Offset shall be zero, and Resolution shall be 1.00; if it is a Compact Numeric sensor, OccurrenceRate shall be No Occurrence Rate.
+
+A sensor is associated with the CID by carrying the same entity identification as the CID's File Descriptor PDR: the same EntityType, the same EntityInstanceNumber, and the same ContainerID. The OAC shall set all three accordingly on both sensor PDRs.
+
+---
+
+## 7. CID JSON Document Structure
+
+### 7.1 General
+
+The CID is a single JSON object. The root key of the JSON document shall be `"oac_cid"`. The value associated with `"oac_cid"` shall be a JSON object containing three sections: `"metadata"`, `"power"`, and `"connectors"`. These three sections shall appear in this order within the `"oac_cid"` object. Additional top-level keys within `"oac_cid"` are permitted for vendor extensions but shall use a vendor-namespaced prefix of the form `"vendor_<name>_"`. Baseboard management controllers shall ignore unrecognized keys.
+
+The complete CID document structure is:
+
+```json
+{
+  "oac_cid": {
+    "metadata": { ... },
+    "power": { ... },
+    "connectors": [ ... ]
+  }
+}
+```
+
+### 7.2 metadata Object
+
+The `"metadata"` object shall be present. It contains fields that identify the schema version and the OAC specification revision the adapter was designed against.
+
+**Table 7.2-1: metadata Object Fields**
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `schema_version` | string | Required | e.g. `"0.9"` | Version of the CID schema this document conforms to. Shall match a published or draft version identifier of this specification. |
+| `oac_spec_revision` | string | Required | e.g. `"0.9"` | OAC Base Specification revision the adapter was designed against. |
+| `description` | string | Optional | Free text | Human-readable summary of adapter function, protocol mix, and power profile. Shall not be relied upon by automated systems for compatibility evaluation. |
+| `iana_pen` | integer | Optional | > 0 | The IANA Private Enterprise Number (PEN) of the organization responsible for the CID and any associated `platform_token` value. When declared, `platform_token` shall only be present if `iana_pen` is also present. See Section 7.2.1. |
+| `platform_token` | string | Optional | Vendor-defined | A vendor-defined identifier used as a simplified interoperability validation token in closed platform deployments. Requires `iana_pen` to be declared in the same metadata object. See Section 7.2.2. |
+
+The value of `schema_version` shall be a string recognized by the upstream management controller. If a upstream management controller receives a CID with a `schema_version` value it does not recognize, it shall log a compatibility warning and may decline to enable primary power.
+
+#### 7.2.1 iana_pen (Optional)
+
+The `iana_pen` field is an optional integer field that declares the IANA Private Enterprise Number (PEN) of the organization responsible for the CID and any associated `platform_token`. IANA PENs are assigned by the Internet Assigned Numbers Authority and serve as globally unique, authoritative identifiers for organizations. The IANA PEN registry is publicly accessible at https://www.iana.org/assignments/enterprise-numbers/.
+
+The `iana_pen` field may be declared independently of `platform_token` to identify the enterprise responsible for the CID. When `platform_token` is also declared, `iana_pen` shall be present; a CID containing `platform_token` without `iana_pen` is malformed. When both fields are present, the upstream management controller may use the PEN to confirm that the `platform_token` value was issued by the enterprise identified by the PEN, providing a namespace that prevents token collision between different organizations. The `iana_pen` field itself does not constitute a compatibility validation mechanism and shall not be used as a substitute for the standard CID validation sequence defined in Section 8.3.
+
+#### 7.2.2 platform_token (Optional)
+
+The `platform_token` field is an optional vendor-defined string that enables a simplified compatibility validation mechanism for closed platform deployments. Its purpose is to reduce bring-up complexity and time-to-power in scenarios where the baseboard and OAC adapter have been co-designed, co-validated, or explicitly pre-approved as a supported combination, and where full field-by-field CID compatibility evaluation is not required.
+
+When a upstream management controller receives a CID containing a `platform_token`, it may compare the token value against a set of internally known or pre-configured approved token values. If the token matches an approved value, the upstream management controller may bypass or abbreviate the standard CID validation sequence defined in Section 8.3 and proceed directly to primary power enablement.
+
+Implementations that use `platform_token` as the sole or primary interoperability validation mechanism shall comply with all of the following constraints:
+
+- The platform shall be a co-designed, co-validated, or explicitly approved matched set in which the baseboard and OAC adapter have been tested together by the same organization or under an explicit approval agreement.
+- Multi-vendor interoperability — that is, the use of adapters from vendors other than the one that defined the token, or baseboards from vendors other than the one that validates the token — is not supported or guaranteed when this field is used as the primary compatibility check.
+- Multi-generation interoperability — that is, the use of a `platform_token` value defined for one adapter generation with a baseboard or adapter of a different generation — shall not be assumed without explicit re-validation by the platform owner.
+- The upstream management controller implementation shall treat an unrecognized `platform_token` value as if the field were absent and shall fall back to the full CID validation sequence defined in Section 8.3.
+- The `platform_token` field shall not be present in a CID unless `iana_pen` is also declared in the same `metadata` object. A CID containing `platform_token` without a corresponding `iana_pen` shall be treated as malformed; the upstream management controller shall log a warning and fall back to the full CID validation sequence.
+- The `platform_token` field shall not be used in open-market, multi-vendor, or multi-generation deployment scenarios where general OAC interoperability is required.
+
+The format and content of the token value are vendor-defined. Common implementations include a hash of validated platform identifiers, a platform model string, or a deployment-specific opaque string. The token value should be sufficiently specific to distinguish between distinct validated combinations and should not be reused across combinations that have not been jointly validated.
+
+### 7.3 power Object
+
+The `"power"` object shall be present. It contains one mandatory sub-object, `"primary"`, which declares the adapter's primary power requirements and Operational Power Level definitions.
+
+#### 7.3.1 power.primary Object
+
+The `"primary"` object shall be present within `"power"`. It declares the adapter's primary power requirements and the set of Operational Power Levels (OPLs) supported by the adapter, as defined in OCP OAC Base Specification v0.9 Section 9.1.2.
+
+The OAC primary power connector is defined in OCP OAC Base Specification v0.9 Section 9.3 in two variants that determine the maximum continuous current the busbar interface may carry:
+
+| Connector Variant | Rated Current | Derated Continuous Current (80%) | Compatible Form Factors |
+|-------------------|---------------|----------------------------------|-------------------------|
+| `"100A"` (4KW, BK100) | 100 A | 80 A | Single-wide, double-wide, double-wide offset |
+| `"125A"` (5KW, BK125) | 125 A | 100 A | Double-wide, double-wide offset only |
+
+The `connector_type` field declares which of these two variants is implemented on the adapter. The upstream management controller shall use this value, together with `input_voltage`, to determine the maximum power the adapter may draw at the busbar interface and to verify that the host slot can physically support the declared connector variant.
+
+**Table 7.3.1-1: power.primary Object Fields**
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `input_voltage` | string | Required | `"+12V"`, `"+50V"` | Nominal primary input voltage with sign prefix. Mechanical keying defined in OCP OAC v0.9 ensures that only compatible voltage pairs are physically matable; this field provides the software-visible declaration of the same attribute. |
+| `connector_type` | string | Required | `"100A"`, `"125A"` | Primary power connector variant implemented on the adapter, as defined in OCP OAC Base Specification v0.9 Section 9.3. `"100A"` corresponds to the 4KW BK100 variant (80 A derated continuous, compatible with all form factors). `"125A"` corresponds to the 5KW BK125 variant (100 A derated continuous, double-wide and double-wide offset form factors only). The upstream management controller shall verify that the host slot supports the declared connector variant before enabling primary power. |
+| `opl_max_w` | number | Required | > 0.0 | Maximum Performance Operational Power Level (OPL-MAX) in watts. Vendor-defined operating profile intended to deliver the maximum validated performance supported by the OAC. Power excursions above this sustained level are permitted per OCP OAC v0.9 Section 9.1.4. Shall not exceed the continuous power capacity implied by `connector_type` and `input_voltage`. |
+| `opl_emg_w` | number | Required | > 0.0, <= `opl_max_w` | Emergency Power Reduction Operational Power Level (OPL-EMG) in watts. The lowest validated operational power level supported by the OAC. The OAC shall transition to this level upon assertion of OAC_PWRBRK#. |
+| `opl_eff_w` | number | Optional | <= `opl_max_w`, >= `opl_emg_w` | Efficiency Optimized Operational Power Level (OPL-EFF) in watts. Vendor-defined operating profile intended to optimize performance-per-watt. If absent, no OPL-EFF profile is defined for this adapter. |
+| `opl_red_w` | number | Optional | <= `opl_eff_w` (if present) or <= `opl_max_w`, >= `opl_emg_w` | Reduced Power Operational Power Level (OPL-RED) in watts. Vendor-defined operating profile for operation under significant platform power constraints. If absent, no OPL-RED profile is defined for this adapter. |
+| `opl_set_min_w` | number | Optional | >= `opl_emg_w` | Minimum value in watts that may be configured for the user-configurable power level (OPL-SET). If absent, OPL-SET is not supported by this adapter. |
+| `opl_set_max_w` | number | Optional | <= `opl_max_w`, >= `opl_set_min_w` | Maximum value in watts that may be configured for OPL-SET. Required if `opl_set_min_w` is present. |
+
+The OPL hierarchy shall satisfy the following ordering constraint:
+
+```
+opl_max_w >= opl_eff_w >= opl_red_w >= opl_emg_w
+```
+
+Where optional OPL fields are absent, the ordering constraint applies only to those OPLs that are present. The upstream management controller shall use the declared OPL values to evaluate power budget feasibility before enabling primary power.
+
+### 7.4 connectors Array
+
+The value of `"connectors"` shall be a JSON array. Each element of the array shall be a JSON object describing one connector position. CONN0 shall always be present in the array with `populated` set to `true`. CONN1 through CONN6 and CABLE shall be listed in the array only if the corresponding physical connector is populated on the adapter. Connector positions absent from the array shall be treated as not populated by the upstream management controller. The order of elements within the array should follow the natural connector index order: CONN0, CONN1, CONN2, CONN3, CONN4, CONN5, CONN6, CABLE.
+
+#### 7.4.1 Connector Top-Level Fields
+
+**Table 7.4.1-1: Connector Object Top-Level Fields**
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `id` | string | Required | `"CONN0"` through `"CONN6"`, `"CABLE"` | Connector position identifier. Each value shall be unique within the `connectors` array. |
+| `populated` | boolean | Required | `true` or `false` | `true` if a physical connector is installed at this position on the adapter. An element with `populated` set to `false` may be included for informational purposes but shall convey no signaling or power information. |
+| `impedance_ohm` | integer | Required if `populated=true` | `85` or `92` | Target differential impedance in ohms. The value `85` corresponds to the black connector variant used for PCIe-class and USB-class high-speed standards. The value `92` corresponds to the white connector variant used for Ethernet-class standards. |
+| `connector_profile` | string | Optional | OCP-ratified profile identifier | References an OCP-ratified connector profile that defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for this connector position. When `connector_profile` is present, the `high_speed_lanes`, `clocking`, and `discrete_signals` sections shall not be present in the connector object. The use of `connector_profile` is mutually exclusive with explicit signal definitions on the same connector. When absent, signal sections follow their usual presence requirements. |
+
+#### 7.4.1.1 connector_profile Mutual Exclusivity
+
+When `connector_profile` is present on a connector object, the connector's signal definition is provided entirely by the referenced OCP-ratified profile. The `high_speed_lanes`, `clocking`, and `discrete_signals` sections shall not be present in the connector object. The use of `connector_profile` is mutually exclusive with explicit signal definitions on the same connector.
+
+If an adapter's connector configuration matches an OCP-ratified profile exactly, the adapter shall reference the profile by identifier and omit all explicit signal sections. If the adapter's connector configuration does not match any available OCP-ratified profile, the adapter shall define `high_speed_lanes`, `clocking`, and `discrete_signals` explicitly in the CID and shall not use `connector_profile`.
+
+The upstream management controller shall reject any CID connector object that contains both a `connector_profile` field and any of the `high_speed_lanes`, `clocking`, or `discrete_signals` sections. Such a connector object shall be treated as malformed and the slot shall not be energized.
+
+#### 7.4.1.2 OCP-Ratified Profile Identifiers
+
+Connector profiles are defined and maintained exclusively by the OCP OAC workstream. All profile identifiers shall use the prefix `OAC-PROF-` and follow the naming convention:
+
+```
+OAC-PROF-<CONN0|CONN>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
+```
+
+For example: `OAC-PROF-CONN0-PCIeGen6-x16-IN-v1`.
+
+
+The following abbreviations shall be used for protocol names within `OAC-PROF-` identifiers. The direction suffix shall be `IN` for `"INBOUND"` and `OUT` for `"OUTBOUND"`.
+
+**Table 7.4.1.2-1: Protocol Name Abbreviations for Profile Identifiers**
+
+| Protocol (CID `protocol` field) | Abbreviation |
+|----------------------------------|-------------|
+| PCIe Gen4 | PCIeGen4 |
+| PCIe Gen5 | PCIeGen5 |
+| PCIe Gen6 | PCIeGen6 |
+| PCIe Gen7 | PCIeGen7 |
+| UALink 1.0 | UALink1 |
+| UALink 2.0 | UALink2 |
+| UALink 3.0 | UALink3 |
+| UALoE 200G | UALoE200G |
+| CXL 1.1/2.0/3.0 | CXL3 |
+| CXL 4.0 | CXL4 |
+| NVLINK 6.0 | NVLink6 |
+| NVLink 4.0 | NVLink4 |
+| NVLink 5.0 | NVLink5 |
+| Ethernet 200G | Eth200G |
+| Ethernet 400G | Eth400G |
+| Ethernet 800G | Eth800G |
+| USB 2.0 | USB2 |
+| USB 3.2 Gen1 | USB3Gen1 |
+| USB 3.2 Gen2 | USB3Gen2 |
+| USB4 Gen2 | USB4Gen2 |
+| USB4 Gen3 | USB4Gen3 |
+
+**Examples:**
+- `OAC-PROF-CONN0-PCIeGen6-x16-IN-v1` — CONN0, single PCIe Gen6 group, 16 lanes, inbound
+- `OAC-PROF-CONN0-PCIeGen6-x8-IN-Eth200G-x8-OUT-v1` — CONN0, mixed PCIe and Ethernet
+- `OAC-PROF-CONN-Eth200G-x16-OUT-v1` — any CONN1–6, Ethernet 200G outbound
+
+The optional `-minified` suffix indicates the file contains minified JSON (all optional whitespace removed), suitable for direct firmware storage. A minified profile file shall be functionally equivalent to its expanded counterpart — only the whitespace encoding differs. Both forms may coexist in the repository; the minified form takes precedence for firmware integration.
+
+The connector segment shall be `CONN0` for profiles targeting CONN0 (9 assignable columns, `is_conn0: true`) and `CONN` for profiles applicable to any CONN1–6 position (8 assignable columns, `is_conn0: false`). No specific connector index (CONN1, CONN2, etc.) shall appear in the profile identifier.
+
+Connector profiles are published in the OAC CID project repository under `profiles/`. Baseboard management controllers that claim conformance with this specification shall have built-in knowledge of all OCP-ratified profiles published at or before the specification version declared in the CID `schema_version` field. No runtime fetch is required to resolve OCP-ratified profiles.
+
+If an adapter vendor determines that a new profile is necessary and will be broadly applicable, the vendor shall submit the proposed profile to the OCP OAC workstream for review and ratification before referencing it in a CID. A profile identifier that is not present in the OCP-ratified profile registry shall be treated as unrecognized.
+
+If a upstream management controller receives a CID that references an unrecognized `connector_profile` identifier, the upstream management controller shall log a compatibility warning and shall not enable primary busbar power to the adapter slot.
+
+#### 7.4.1.3 Profile Definition File Format
+
+The `high_speed_lanes`, `clocking`, and `discrete_signals` sections within a profile definition shall conform to the same schema as defined in Sections 7.4.3, 7.4.4, and 7.4.5 respectively. A profile is not required to define all three sections; sections omitted from the profile definition shall be treated as absent for that connector — the upstream management controller shall not apply any default signal definitions for omitted sections.
+
+Each OCP-ratified profile file includes an `is_conn0` field: when `true`, the profile targets CONN0 (nine assignable pin columns, columns 1–9); when `false`, it targets CONN1–CONN6 (eight assignable pin columns, columns 1–8). The upstream management controller shall reject a profile applied to a connector position inconsistent with its declared `is_conn0` value.
+
+#### 7.4.2 presence_detect Object
+
+The `"presence_detect"` object is optional. When present on a connector object where `populated` is `true`, it shall contain only the fields defined in this section.
+
+Presence detection for each connector is mechanically implemented by tying Pin A1 to GND on the adapter, which asserts the corresponding OAC_PRSNT[0:6]# signal as defined in OCP OAC Base Specification v0.9. The pin, signal name, and assertion method are statically defined by the base specification and are not required to be declared in the CID. The `"presence_detect"` object is therefore only required when M-PESTI capability must be declared.
+
+If `"presence_detect"` is absent, the upstream management controller shall assume that CONN0 Pin A1 is tied to GND (GND_TIE assertion) and that M-PESTI is not implemented.
+
+**Table 7.4.2-1: presence_detect Object Fields**
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `mpesti_capable` | boolean | Required | `true` or `false` | Applicable to CONN0 only. When `true`, Pin A1 on CONN0 is overloaded to support M-PESTI (Modular-Peripheral Sideband Tunneling Interface) functionality in addition to presence detect. When `false` (or when this object is absent entirely), Pin A1 is used solely for GND-tied presence detection per OCP OAC Base Specification v0.9. This field shall not appear on CONN1 through CONN6 or CABLE connector objects. |
+
+#### 7.4.3 high_speed_lanes Object
+
+The `"high_speed_lanes"` field is optional and shall be present within a connector object if and only if that connector carries high-speed differential signals. Its value is either a single protocol group object or an array of protocol group objects. An array shall be used when the connector carries lanes of more than one protocol (for example, 8 lanes of PCIe and 8 lanes of Ethernet on the same 16-lane physical connector). Each element of the array is a self-contained protocol group with its own protocol, lane assignments, and optional link subdivision. If the value is a single object, it is treated equivalently to a one-element array. If absent, the connector is presumed to carry only sideband, power, or discrete signals.
+
+The sum of `total_lanes` across all protocol group elements should not exceed the physical lane capacity of the connector. Additionally, the number of protocol groups within a single connector object shall not exceed 8. This limit ensures compatibility with the uint32 SCD effecter encoding used to communicate lane subdivision selections to the adapter, which reserves one 4-bit nibble per protocol group. No more than 8 protocol groups shall be declared on any connector, regardless of physical lane capacity.
+
+**Table 7.4.3-1: high_speed_lanes Protocol Group Object Fields**
+
+Each element of the `high_speed_lanes` array (or the single object when only one protocol is used) is a protocol group defined by the following fields:
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `name` | string | Required | snake_case: lowercase letters, digits, and underscores only (e.g. `"pcie_primary"`, `"eth_fabric"`) | Human-readable identifier for this protocol group within the connector. Allows upstream management controllers, diagnostic tools, and CID authoring software to reference specific protocol groups by a stable, descriptive label. The value shall follow snake_case convention: lowercase letters with underscores separating words. Group names shall be unique within a connector's `high_speed_lanes` array. |
+| `protocol` | string | Required | See Table 7.5-1 | Protocol and generation carried on the high-speed lanes of this connector. Allowed values include PCIe Gen4 through Gen7; UALink 1.0, 2.0, and 3.0; UALoE 200G; CXL 1.1/2.0/3.0 and CXL 4.0; NVLink 4.0, 5.0, and 6.0; Ethernet 200G, 400G, and 800G; USB 2.0, USB 3.2 Gen1, USB 3.2 Gen2, USB4 Gen2, and USB4 Gen3. |
+| `link_direction` | string | Required | `"INBOUND"`, `"OUTBOUND"` | Primary direction of data flow on this protocol group from the baseboard perspective. `"INBOUND"` — signal flows from the baseboard into the adapter (e.g. a PCIe endpoint or switch upstream port). `"OUTBOUND"` — signal flows from the adapter toward a fabric peer or downstream device (e.g. a PCIe root port or switch downstream port). |
+| `total_lanes` | integer | Required | 1 through 32 | Total number of high-speed lane positions allocated to this connector (one-directional count; the physical implementation includes both TX and RX for each lane). Each OAC connector supports a maximum of 16 lanes; a value up to 32 is reserved for future multi-connector aggregation definitions. |
+| `minimum_lanes` | integer | Optional | 1 through `total_lanes` | Vendor-declared minimum lane count required for the adapter to establish a functional link on this protocol group. When present, this field represents a vendor-imposed operational floor beyond the protocol baseline: the upstream management controller should block slot energization if the number of lanes electrically routed from the baseboard to the connector is less than this value. When absent, the adapter shall operate with any lane count the host negotiates, down to the protocol minimum. Vendors should only declare `minimum_lanes` when a specific minimum bandwidth is required for correct adapter operation. |------------|-----------|----------|-------------|-------------|
+| `lane_index` | integer | Required | 0 through (`total_lanes` minus 1) | Zero-based index of the lane. Lane indices restart at 0 for each direction within a given connector. |
+| `direction` | string | Required | `"TX"`, `"RX"`, or `"BI"` | Direction of this lane from the adapter's perspective. `"TX"` — adapter transmits; `"RX"` — adapter receives; `"BI"` — bidirectional, used for half-duplex protocols such as USB 2.0 whose single D+/D− differential pair carries traffic in both directions. |
+| `pin_positive` | string | Required | e.g. `"C1"` | Label of the physical pin carrying the positive differential signal for this lane. |
+| `pin_negative` | string | Required | e.g. `"D1"` | Label of the physical pin carrying the negative differential signal for this lane. |
+
+
+
+> **NOTE:** A lane's required status is implicitly defined by the `minimum_lanes` field of the enclosing protocol group. When `minimum_lanes` is present, required lanes always begin at lane index 0 and form a contiguous block: lanes 0 through (`minimum_lanes` − 1) are required, and all remaining lanes are optional. For example, if `minimum_lanes` = 4 on a 16-lane group, then lanes 0–3 (both RX and TX) must be connected for functional operation, while lanes 4–15 are negotiated performance lanes. When `minimum_lanes` is absent, no vendor-imposed floor applies and all lanes are treated as negotiated beyond the protocol baseline. No explicit `required` field is present on individual lane objects; the upstream management controller shall derive each lane's required status from `minimum_lanes` using this rule.
+
+
+#### 7.4.3.2 Protocol Generation Compatibility
+
+The `protocol` field declares the maximum operating speed or generation that the adapter is designed to support on a given protocol group. Many high-speed protocols support link speed negotiation, allowing a link to train to a lower generation when the baseboard or attached device does not support the declared maximum generation.
+
+The upstream management controller shall apply the compatibility hierarchy defined in Table 7.4.3.2-1 when evaluating whether a protocol group's `protocol` value is compatible with the platform's capabilities. Protocol backwards compatibility is bidirectional: a link negotiates to the highest generation supported by both the adapter and the platform. Therefore, an adapter protocol group shall be considered compatible with the platform if the platform supports **any generation within the same protocol family** as the declared `protocol` value — whether that generation is older or newer. The link will train to the highest common generation between the two endpoints. For example, a PCIe Gen6 adapter is compatible with a PCIe Gen4, Gen5, Gen6, or Gen7 platform: on a Gen4 or Gen5 platform the adapter negotiates down to the platform's generation; on a Gen7 platform the platform negotiates down to the adapter's generation. In all cases a functional link is established at the highest mutually supported speed.
+
+**Table 7.4.3.2-1: Protocol Backwards Compatibility Hierarchy**
+
+| Protocol Family | Compatibility Chain (highest to lowest) | Notes |
+|----------------|----------------------------------------|-------|
+| PCIe | Gen7 → Gen6 → Gen5 → Gen4 | Each generation negotiates down to the lower generation at the PHY level. A Gen6 adapter is compatible on a Gen7 platform (operates at Gen6). |
+| CXL | CXL 4.0 → CXL 3.0 → CXL 2.0 → CXL 1.1 | CXL is built on the PCIe physical layer and inherits PCIe link speed negotiation. |
+| UALink | UALink 3.0 → UALink 2.0 → UALink 1.0 | UALink generations are intended to be compatible within the family per the UALink specification. Implementors should verify interoperability against the applicable UALink specification for the specific generations involved. |
+| USB SuperSpeed | USB4 Gen3 → USB4 Gen2 → USB 3.2 Gen2 → USB 3.2 Gen1 | SuperSpeed differential pairs (SSTX+/SSTX−, SSRX+/SSRX−) used by USB 3.x and USB4. PHY-level speed negotiation within this family is well-defined. |
+| USB 2.0 | None | Electrically distinct single differential pair (D+/D−) operating at up to 480 Mbps. USB 2.0 lanes are not interchangeable with USB SuperSpeed lanes and shall not be treated as compatible with USB SuperSpeed protocol groups. An exact match is required. |
+| NVLink | None | NVLink generations are not backwards compatible. Each generation requires matching silicon on both ends of the link. |
+| Ethernet | None | Ethernet speed variants (200G, 400G, 800G) do not negotiate down at the PHY layer in the same manner. Link speed compatibility is managed by higher-layer configuration outside the scope of the CID. |
+| UALoE | None | UALoE 200G does not define a backwards compatibility fallback within the CID scope. |
+
+For protocol families with a defined compatibility chain in Table 7.4.3.2-1, the bidirectional rule above applies: any generation within the chain is considered compatible. For protocol families listed as **None** in the Compatibility Chain column (NVLink, Ethernet, UALoE), no cross-generation negotiation is defined within the scope of this specification. For these protocols, the upstream management controller shall require an exact match between the adapter's declared `protocol` value and the platform's supported protocol. If no match is found — either because the platform supports no generation of the declared protocol family (for chained protocols), or because the exact protocol string is not supported (for non-chained protocols) — the upstream management controller shall treat the protocol group as incompatible and shall not enable primary busbar power unless all mandatory protocol groups on the connector are otherwise satisfied.
+
+The compatibility information in Table 7.4.3.2-1 is provided as guidance to assist upstream management controller implementations in evaluating CID declarations. The definitive authority on protocol version negotiation, interoperability, and link training behavior for each protocol family is the respective protocol specification (e.g. PCI Express Base Specification, CXL Specification, USB Specification). In any case of conflict between Table 7.4.3.2-1 and the applicable protocol specification, the protocol specification shall take precedence.
+
+#### 7.4.4 clocking Array
+
+The `"clocking"` array is optional and shall be present within a connector object if and only if that connector carries reference clock signals. Each element of the array describes one reference clock. A connector object shall not declare more than **16** clock signals; implementations that encounter a `clocking` array with more than 16 elements shall treat the connector as malformed.
+
+**Table 7.4.4-1: clocking Array Element Fields**
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `clock_id` | string | Required | e.g. `"REFCLK0"` | Unique identifier for this clock within the connector. |
+| `clock_type` | string | Required | `"REFCLK_DIFF"` or `"REFCLK_SINGLE"` | Whether the reference clock is a differential pair or a single-ended signal. |
+| `frequency_mhz` | number | Required | > 0.0 | Nominal clock frequency in megahertz (e.g., `100.0` for PCIe and UALink, `156.25` for Ethernet). |
+| `pin_positive` | string | Required if `clock_type="REFCLK_DIFF"`, omit otherwise | e.g. `"E1"` | Positive pin of the differential clock pair. |
+| `pin_negative` | string | Required if `clock_type="REFCLK_DIFF"`, omit otherwise | e.g. `"F1"` | Negative pin of the differential clock pair. |
+| `pin` | string | Required if `clock_type="REFCLK_SINGLE"`, omit otherwise | e.g. `"G1"` | Signal pin for a single-ended reference clock. |
+| `direction` | string | Required | `"INPUT"` or `"OUTPUT"` | Direction of the reference clock from the adapter's perspective. `"INPUT"` indicates that the baseboard provides the clock to the adapter. `"OUTPUT"` indicates that the adapter sources the clock. |
+| `associated_lanes` | array of integers | Optional | Valid lane indices | Lane indices that this reference clock serves. An empty array (`[]`) indicates that the clock is not associated with specific lanes (e.g., a system reference). |
+| `required` | boolean | Required | `true` or `false` | `true` if this clock must be present and valid for the connector to operate. |
+| `ssc_supported` | boolean | Required | `true` or `false` | `true` if this clock supports Spread Spectrum Clocking (SSC). Applies to both `INPUT` and `OUTPUT` clocks. |
+| `description` | string | Optional | Free text | Informational description of the reference clock and its role. |
+
+
+#### 7.4.5 discrete_signals Array
+
+The `"discrete_signals"` array is optional and shall be present within a connector object if and only if that connector carries vendor-defined or protocol-defined discrete (non-differential, non-clock) signals. Each element of the array describes one discrete signal.
+
+Vendor-defined signal names shall use the prefix `"VENDOR_"`. Active-low signals shall use the suffix `"#"` in the signal name. Signal names that do not originate from vendor extension and that are defined in OCP OAC v0.9 shall use the signal name as specified in that document.
+
+**Table 7.4.5-1: discrete_signals Array Element Fields**
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `signal_name` | string | Required | Vendor-defined names shall use `VENDOR_` prefix; active-low signals shall end with `#` | Name of the discrete signal. |
+| `pin` | string | Required | e.g. `"H3"` | Physical pin carrying this signal. |
+| `direction` | string | Required | `"INPUT"` or `"OUTPUT"` | Direction from the adapter's perspective. `"INPUT"` indicates that the baseboard drives the signal into the adapter. `"OUTPUT"` indicates that the adapter drives the signal. |
+| `active_level` | string | Required | `"ACTIVE_LOW"` or `"ACTIVE_HIGH"` | Logic level at which the signal is considered asserted. |
+| `voltage_level_v` | number | Required | e.g. `1.8`, `3.3` | Nominal signal voltage level in volts. |
+| `driver_type` | string | Required | `"PUSH_PULL"` or `"OPEN_DRAIN"` | Output driver type for this signal. `"PUSH_PULL"` indicates a totem-pole driver that actively drives both logic levels. `"OPEN_DRAIN"` indicates an open-drain driver that pulls low when asserted and requires external pull-up termination when deasserted. |
+| `default_state` | string | Required | `"HIGH"`, `"LOW"`, `"HIZ"` | Default logic state of this signal when it is not actively asserted. `"HIGH"` indicates the signal rests at logic high. `"LOW"` indicates the signal rests at logic low. `"HIZ"` indicates the signal is high-impedance when not driven. |
+| `pullup_required` | boolean | Optional | `true` or `false` | `true` if the baseboard is required to provide an external pull-up resistor on this signal. Applicable when `driver_type` is `"OPEN_DRAIN"` or when the signal is an input that requires a defined high state. If absent, no pull-up is required. |
+| `pullup_voltage_v` | number | Required if `pullup_required=true` | > 0.0 | Pull-up voltage in volts that the baseboard shall apply. |
+| `pullup_kohm` | number | Optional | > 0.0 | Recommended pull-up resistance in kilohms. If absent and `pullup_required` is `true`, the baseboard shall select a pull-up value appropriate for the `voltage_level_v` and `pullup_voltage_v`. |
+| `pulldown_required` | boolean | Optional | `true` or `false` | `true` if the baseboard is required to provide an external pull-down resistor on this signal. Applicable when the signal is an input or output that requires a defined low state without active drive. If absent, no pull-down is required. |
+| `pulldown_voltage_v` | number | Required if `pulldown_required=true` | >= 0.0 | Pull-down voltage in volts (typically 0 V / GND) that the baseboard shall apply. |
+| `pulldown_kohm` | number | Optional | > 0.0 | Recommended pull-down resistance in kilohms. If absent and `pulldown_required` is `true`, the baseboard shall select a pull-down value appropriate for the `voltage_level_v`. |
+| `required` | boolean | Required | `true` or `false` | `true` if the baseboard must implement this signal for the adapter to operate correctly. |
+| `description` | string | Optional | Free text | Informational description of the signal and its function. |
+
+Note: `pullup_required` and `pulldown_required` are mutually exclusive. A single signal shall not require both a pull-up and a pull-down termination simultaneously.
+
+### 7.5 Enumerated Values Summary
+
+**Table 7.5-1: Enumerated String Field Values**
+
+| Field | Allowed Values |
+|-------|----------------|
+| `power.primary.input_voltage` | `"+12V"`, `"+50V"` |
+| `power.primary.connector_type` | `"100A"`, `"125A"` |
+| `connectors[].id` | `"CONN0"`, `"CONN1"`, `"CONN2"`, `"CONN3"`, `"CONN4"`, `"CONN5"`, `"CONN6"`, `"CABLE"` |
+| `connectors[].impedance_ohm` | `85`, `92` (integer, not string) |
+| `connectors[].high_speed_lanes.protocol` | `"PCIe Gen4"`, `"PCIe Gen5"`, `"PCIe Gen6"`, `"PCIe Gen7"`, `"UALink 1.0"`, `"UALink 2.0"`, `"UALink 3.0"`, `"UALoE 200G"`, `"CXL 1.1/2.0/3.0"`, `"CXL 4.0"`, `"NVLINK 6.0"`, `"NVLink 4.0"`, `"NVLink 5.0"`, `"Ethernet 200G"`, `"Ethernet 400G"`, `"Ethernet 800G"`, `"USB 2.0"`, `"USB 3.2 Gen1"`, `"USB 3.2 Gen2"`, `"USB4 Gen2"`, `"USB4 Gen3"` |
+| `connectors[].high_speed_lanes.link_direction` | `"INBOUND"`, `"OUTBOUND"` |
+| `connectors[].high_speed_lanes.lanes[].direction` | `"TX"`, `"RX"`, `"BI"` |
+| `connectors[].clocking[].clock_type` | `"REFCLK_DIFF"`, `"REFCLK_SINGLE"` |
+| `connectors[].clocking[].direction` | `"INPUT"`, `"OUTPUT"` |
+| `connectors[].discrete_signals[].direction` | `"INPUT"`, `"OUTPUT"` |
+| `connectors[].discrete_signals[].active_level` | `"ACTIVE_LOW"`, `"ACTIVE_HIGH"` |
+| `connectors[].discrete_signals[].driver_type` | `"PUSH_PULL"`, `"OPEN_DRAIN"` |
+| `connectors[].discrete_signals[].default_state` | `"HIGH"`, `"LOW"`, `"HIZ"` |
+
+### 7.6 Field Naming and Ordering Conventions
+
+The following ordering conventions shall be observed in all conformant CID documents:
+
+1. The section order within `"oac_cid"` shall be: `"metadata"`, then `"power"`, then `"connectors"`.
+2. `"CONN0"` shall always appear as the first element of the `"connectors"` array. Subsequent connectors should appear in ascending index order: CONN1, CONN2, CONN3, CONN4, CONN5, CONN6, CABLE.
+3. Within a connector's `"lanes"` array, all RX entries (in ascending `lane_index` order) shall precede all TX entries (in ascending `lane_index` order).
+4. Optional fields that are absent from a CID document shall be treated as absent (not as null or zero) by the upstream management controller. A JSON `null` value for a field defined in this specification is not equivalent to field absence and shall be treated as a malformed CID.
+5. JSON keys shall use snake_case (underscore-separated lowercase). CamelCase or hyphenated key names are not conformant.
+6. When `connector_profile` is present, explicitly declared sections shall appear in the connector object in the same order as if the profile were not used: `high_speed_lanes`, then `clocking`, then `discrete_signals`. Sections inherited entirely from the profile are simply absent from the object; their omission is not an error.
+
+---
+
+## 8. CID Retrieval and Validation
+
+### 8.1 Storage and Exposure
+
+The CID shall be stored in the OAC adapter's management controller and published as a FRU Data File per DSP0257. The OAC shall expose the CID via a File Descriptor PDR as specified in Section 6.3, and an upstream management controller shall locate and retrieve it through that record. No alternative access path is defined by this specification.
+
+Communication between the upstream upstream management controller and the OAC management controller shall occur over MCTP as defined in DMTF DSP0240, transported over the OAC Management USB 2.0 interface at CONN0 Columns 10 through 11 as specified in OCP Open Adapter Card Base Specification v0.9.
+
+### 8.2 Retrieval Sequence
+
+CID retrieval is performed while the OAC is in Operational State O3 (Management Initialized), as defined in OCP OAC Base Specification v0.9 Section 9.1.1. In O3, the OAC management controller has completed initialization and asserted OAC_MC_RDY, MCTP and PLDM services are available, and the management interface is active, but primary power has not yet been enabled. The OAC shall remain in Operational State O3 or a later state throughout the following retrieval steps. The baseboard shall not assert OAC_PWR_EN (and shall not transition the OAC beyond O3) until all steps in this section have completed successfully.
+
+The upstream management controller shall complete the following steps before enabling primary busbar power to any OAC adapter slot:
+
+1. Confirm that the OAC has reached Operational State O3 by detecting assertion of OAC_MC_RDY on CONN0 Column 11.
+2. Establish an MCTP session with the adapter management controller over the OAC Management USB 2.0 interface.
+3. Locate the CID File Descriptor PDR in the OAC's PDR repository by matching `FileName` equal to `OAC_CID.json` (per Section 6.3).
+4. Use the `FileIdentifier` from the matched PDR to open the file via `DfOpen` (DSP0242), specifying read access.
+5. Issue one or more `DfRead` commands to retrieve the CID payload, then issue `DfClose` to terminate the transfer session.
+8. Parse and validate the resulting JSON against the schema defined in Section 7.
+9. Evaluate the CID content for compatibility with the baseboard's available resources (power budget, connector impedance class, protocol support).
+
+If any step fails, the upstream management controller shall not enable primary busbar power to the adapter slot and shall log an error indicating the failure mode and slot identifier.
+
+### 8.3 Validation Requirements
+
+The upstream management controller shall perform at minimum the following validation checks on a retrieved CID:
+
+1. The JSON document is syntactically valid per ECMA-404.
+2. The root key `"oac_cid"` is present.
+3. The `"metadata"`, `"power"`, and `"connectors"` sections are all present.
+4. The `schema_version` value is a recognized CID schema version.
+5. CONN0 is present in the `"connectors"` array with `populated` set to `true`.
+6. The `input_voltage` value matches the mechanical keying configuration detected for the slot.
+7. The `connector_type` value is compatible with the host slot (e.g., a `"125A"` adapter shall not be enabled in a slot that only supports the `"100A"` variant).
+8. The `opl_max_w` value does not exceed the continuous power capacity implied by the declared `connector_type` and `input_voltage` (per OCP OAC v0.9 Section 9.3, Table 8).
+9. The `opl_emg_w` value is present and satisfies the OPL ordering constraint (`opl_emg_w` <= `opl_max_w`).
+10. For each populated connector that declares a `connector_profile`: the profile identifier is recognized as an OCP-ratified profile (`OAC-PROF-` prefix), and the connector object contains no `high_speed_lanes`, `clocking`, or `discrete_signals` sections. If the profile identifier is unrecognized, or if any signal section is present alongside `connector_profile`, the connector shall be treated as incompletely defined or malformed and the slot shall not be energized.
+
+A upstream management controller may perform additional validation beyond these minimum requirements. Validation failures shall be logged with sufficient detail to identify the specific field and the nature of the failure.
+
+### 8.4 Timeout Handling
+
+The upstream management controller shall apply a retrieval timeout to the CID file transfer sequence (DfOpen through DfClose per DSP0242). If the CID is not successfully retrieved within the timeout period, the upstream management controller shall not enable primary busbar power to the adapter slot. The specific timeout value is implementation-defined but should be no less than 5 seconds to accommodate adapters with management controllers that perform initialization at power-on.
+
+---
+
+## 9. Compliance
+
+### 9.1 Adapter Implementation Requirements
+
+An OAC adapter implementation that claims conformance with this specification shall satisfy the requirements in Table 10.1-1.
+
+**Table 10.1-1: OAC Adapter Compliance Requirements**
+
+| Requirement | Classification | Reference |
+|-------------|----------------|-----------|
+| CONN0 shall be populated (`populated=true`) | Mandatory | Section 7.4.1 |
+| CID shall be stored in the adapter management controller and accessible via PLDM for FRU Data over MCTP | Mandatory | Section 8.1 |
+| CID shall be accessible when the OAC is in Operational State O3 or later | Mandatory | Section 8.2 |
+| CID shall be a syntactically valid JSON document per ECMA-404 | Mandatory | Section 7.1 |
+| CID shall conform to the JSON schema defined in Section 7 | Mandatory | Section 7 |
+| The `"metadata"`, `"power"`, and `"connectors"` sections shall be present in the CID | Mandatory | Section 7.1 |
+| `connector_type`, `opl_max_w`, and `opl_emg_w` shall be declared in `power.primary` | Mandatory | Section 7.3.1 |
+| CONN1 through CONN6 connector positions may be populated | Optional | Section 7.4 |
+| CABLE connector position may be populated | Optional | Section 7.4 |
+| M-PESTI capability declaration on CONN0 | Optional | Section 7.4.2 |
+| `opl_eff_w` and `opl_red_w` OPL fields may be declared if supported | Optional | Section 7.3.1 |
+| `opl_set_min_w` and `opl_set_max_w` may be declared if OPL-SET is supported | Optional | Section 7.3.1 |
+| `connector_profile` may be declared on any populated connector to reference an OCP-ratified pinout profile | Optional | Section 7.4.1.1 |
+| When `connector_profile` is declared, `high_speed_lanes`, `clocking`, and `discrete_signals` shall not be present in the same connector object | Mandatory (if connector_profile present) | Section 7.4.1.1 |
+| `connector_profile` values shall use only OCP-ratified identifiers with the `OAC-PROF-` prefix | Mandatory (if connector_profile present) | Section 7.4.1.2 |
+
+### 9.2 Upstream Management Controller Requirements
+
+A upstream management controller implementation that claims conformance with this specification shall satisfy the requirements in Table 10.2-1.
+
+**Table 10.2-1: Upstream Management Controller Compliance Requirements**
+
+| Requirement | Classification | Reference |
+|-------------|----------------|-----------|
+| upstream management controller shall retrieve the CID after the OAC reaches Operational State O3, and before enabling primary busbar power | Mandatory | Section 8.2 |
+| upstream management controller shall locate the CID by FileName (OAC_CID.json) in the File Descriptor PDR, not by ordinal position | Mandatory | Section 6.3 |
+| upstream management controller shall perform all minimum validation checks defined in Section 8.3 | Mandatory | Section 8.3 |
+| upstream management controller shall not enable primary busbar power if CID retrieval or validation fails | Mandatory | Section 8.2 |
+| upstream management controller shall apply a retrieval timeout and handle timeout without enabling power | Mandatory | Section 8.4 |
+| upstream management controller shall evaluate `connector_type` against host slot capability and declared OPL values against provisioned slot power capacity | Mandatory | Section 8.3 |
+| upstream management controller shall recognize all OCP-ratified profile identifiers (`OAC-PROF-` prefix) published at or before the declared `schema_version` | Mandatory | Section 7.4.1.2 |
+| upstream management controller shall reject any connector object that contains both `connector_profile` and any of `high_speed_lanes`, `clocking`, or `discrete_signals` | Mandatory | Section 7.4.1.1 |
+| upstream management controller shall not enable primary power when `connector_profile` references an unrecognized profile identifier | Mandatory | Section 7.4.1.2 |
+| upstream management controller may perform additional validation beyond the minimum requirements in Section 8.3 | Optional | Section 8.3 |
+
+---
+
+## Annex A (informative) -- Example CID JSON Snippet
+
+The following is a representative abbreviated example of a CID document showing the `metadata` and `power` sections and a minimal CONN0 connector entry. This example is intended to illustrate the document structure and field naming conventions. It does not represent a complete adapter CID. Full examples with per-lane pin mappings, link subdivision configurations, and clocking entries are maintained in the OAC CID project repository under `examples/`.
+
+```json
+{
+  "oac_cid": {
+    "metadata": {
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "description": "Example adapter -- PCIe Gen6 x16 inbound on CONN0"
+    },
+    "power": {
+      "primary": {
+        "input_voltage": "+50V",
+        "connector_type": "125A",
+        "opl_max_w": 3000.0,
+        "opl_emg_w": 300.0,
+        "opl_eff_w": 2200.0,
+        "opl_red_w": 800.0
+      }
+    },
+    "connectors": [
+      {
+        "id": "CONN0",
+        "populated": true,
+        "impedance_ohm": 85
+      }
+    ]
+  }
+}
+```
+
+The `connectors` array in a complete CID for this adapter would include a `high_speed_lanes` object within the CONN0 entry, with a fully populated `lanes` array listing all RX and TX lane entries and their physical pin assignments, followed by a `clocking` array declaring the 100 MHz differential reference clock. A `presence_detect` object would only be needed if M-PESTI is implemented on CONN0 Pin A1.
+
+When an OCP-ratified connector profile covers the adapter's pinout, the CID can be substantially reduced. The following example shows an adapter that uses two ratified profiles for its signal connectors but declares one vendor-specific discrete signal on CONN0 as an explicit override:
+
+```json
+{
+  "oac_cid": {
+    "metadata": {
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "description": "Example adapter using connector profiles with one discrete signal override"
+    },
+    "power": {
+      "primary": {
+        "input_voltage": "+50V",
+        "connector_type": "125A",
+        "opl_max_w": 3000.0,
+        "opl_emg_w": 300.0
+      }
+    },
+    "connectors": [
+      {
+        "id": "CONN0",
+        "populated": true,
+        "impedance_ohm": 85,
+        "connector_profile": "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1",
+        "discrete_signals": [
+          {
+            "signal_name": "VENDOR_ALERT#",
+            "pin": "N9",
+            "direction": "OUTPUT",
+            "active_level": "ACTIVE_LOW",
+            "voltage_level_v": 3.3,
+            "driver_type": "OPEN_DRAIN",
+            "default_state": "HIGH",
+            "pullup_required": true,
+            "pullup_voltage_v": 3.3,
+            "pullup_kohm": 10.0,
+            "pulldown_required": false,
+            "required": false
+          }
+        ]
+      },
+      {
+        "id": "CONN1",
+        "populated": true,
+        "impedance_ohm": 92,
+        "connector_profile": "OAC-PROF-CONN1-UALink-2.0-x16-OUTBOUND-v1"
+      }
+    ]
+  }
+}
+```
+
+In this example, `high_speed_lanes` and `clocking` for CONN0 are resolved entirely from the referenced profile. The `discrete_signals` section is explicitly declared, overriding the profile's discrete signal definitions for CONN0 in full. CONN1 inherits all three sections from its profile with no overrides.
+
+---
+
+## Annex C (informative) -- PLDM Protocol Field Value Reference
+
+This annex collects the PLDM field values this specification constrains. It lists only those fields; every other field of each record is governed by the referenced DMTF specification and is an implementation matter. Byte offsets and field widths are not reproduced here — see DSP0248 for the File Descriptor PDR and the sensor PDR formats, DSP0242 for the file sensor requirements and the transfer commands, DSP0249 for entity type codes and State Set 68, and DSP0257 for FRU Data File structure.
+
+### C.1 CID
+
+**Table C-1: PLDM FRU Record Fields for the CID**
+
+| Field | Value |
+|-------|-------|
+| FRU Record Type | OEM (per DSP0257) |
+| Access context | FRU Data File, per DSP0257 |
+| Storage | Persistent, non-volatile storage recommended; on-demand generation permitted |
+| Access | Read-only |
+| File characteristic | Fixed Length File, per DSP0242 |
+
+**Table C-2: CID File Descriptor PDR**
+
+| Field | Value | Note |
+|-------|-------|------|
+| `EntityType` | 9 (Device File) | |
+| `FileClassification` | `FRUDataFile` | The file content is FRU data per DSP0257. |
+| `FileName` | `OAC_CID.json` (`strASCII`) | The discriminator an upstream management controller matches on. Not PDR order. |
+| `FileIdentifier` | Implementation-chosen `uint16` | What `DfOpen` takes. A controller matches `FileName`, then opens with this value. |
+| `FileCapabilities` | `FcWritesPermitted` = 0, `ExWriteOpen` = 0, `DataType` = 0 | The CID is read-only from the upstream management controller's perspective. `DataType` = 0 declares a regular file rather than a streaming FIFO. |
+| `FileMaximumSize` | The exact transferred size of the CID, not greater than the applicable size limit | For a fixed-length file DSP0242 equates file size to this field, so it is exact rather than an upper bound. The OAC shall update this field whenever the CID is replaced by a firmware update. |
+| `SuperiorDirectoryFileIdentifier` | `0xFFFF` | The CID is a flat file; no directory is required. |
+| `ContainerID` | Implementation-chosen, one value per OAC | The same value appears on every File Descriptor PDR and associated sensor PDR published by the OAC management controller. It identifies the OAC. |
+| `EntityInstanceNumber` | Implementation-chosen, unique within the `ContainerID` | This value is repeated on both sensor PDRs below, per Section 6.3. |
+
+**Table C-3: CID File Size Monitoring Sensor**
+
+| Field | Value | Note |
+|-------|-------|------|
+| Sensor kind | Compact or Numeric sensor (DSP0242 File Size Monitoring Sensor) | |
+| `EntityType` | 9 (Device File) | Matches Table C-2. |
+| `EntityInstanceNumber`, `ContainerID` | As in Table C-2 | This match is what associates the sensor with the file. |
+| Reading | Current CID size in bytes, as transferred | The minified byte count. Changes when a firmware update replaces the CID. |
+| Units | `BaseUnit` Bytes, `UnitModifier` 0 | Per DSP0242. Numeric: `RateUnit` None, `Offset` 0, `Resolution` 1.00. Compact: `OccurrenceRate` No Occurrence Rate. |
+| Thresholds | Should not be set | DSP0242 advises against thresholds on a fixed-length file. |
+| Requirement | Shall, per this specification | DSP0242 makes it a *should* for a Fixed Length File; Section 6.3 tightens it. The sensor allows the upstream management controller to detect a change in CID size without a second PDR lookup. |
+
+**Table C-4: CID Device File State Sensor**
+
+| Field | Value | Note |
+|-------|-------|------|
+| Sensor kind | State sensor | |
+| State set | 68 (Device File), per DSP0249 | |
+| `EntityType` | 9 (Device File) | Matches Table C-2. |
+| `EntityInstanceNumber`, `ContainerID` | As in Table C-2 | |
+| States reported | 1 (File has Not Changed), 2 (File is Updated) | State 3 (File is at Maximum Size) shall not be reported — a fixed-length file is always at its maximum size, so the state carries no information. States 4 and 5 are not applicable to a file published whole and never appended to. |
+| Requirement | Shall, per DSP0242 | Mandatory for a Fixed Length File. |
+| Interpretation | File state, including modification signalling | State 2 indicates the CID has changed, typically following a firmware update. The upstream management controller shall re-retrieve the CID when State 2 is observed before the next slot energization evaluation. |
+

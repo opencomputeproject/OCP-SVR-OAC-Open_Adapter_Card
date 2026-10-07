@@ -1,0 +1,92 @@
+{
+  "oac_cid": {
+    "metadata": {
+      "$comment": "schema_version tracks the CID JSON schema revision. oac_spec_revision tracks the OAC Base Specification revision this adapter was designed against.",
+      "schema_version": "0.9",
+      "oac_spec_revision": "<spec_revision>",
+      "description": "<Human-readable description of this OAC CID instance>",
+      "$comment_pct": "platform_token: optional. Vendor-defined interoperability validation token for co-designed/co-validated closed platform deployments. Requires iana_pen to also be present \u2014 platform_token shall not appear without iana_pen. See spec Section 7.2.1.",
+      "platform_token": "<vendor-defined-tag | omit if not used>",
+      "$comment_pen": "iana_pen: optional integer. IANA Private Enterprise Number of the organization responsible for this CID. Required when platform_token is used. May be declared independently of platform_token. See spec Section 7.2.2.",
+      "iana_pen": 0
+    },
+    "power": {
+      "primary": {
+        "$comment": "input_voltage: nominal primary rail. Allowed values: '+12V', '+50V'. connector_type: primary power connector variant per OCP OAC Base Spec v0.9 Section 9.3 -- '100A' (BK100, 80A derated, all form factors) or '125A' (BK125, 100A derated, double-wide only). OPL fields define Operational Power Levels per OCP OAC Base Spec v0.9 Section 10.1.2. opl_max_w and opl_emg_w are required. opl_eff_w, opl_red_w, opl_set_min_w, and opl_set_max_w are optional. Ordering constraint: opl_max_w >= opl_eff_w >= opl_red_w >= opl_emg_w.",
+        "input_voltage": "<+12V|+50V>",
+        "connector_type": "<100A|125A>",
+        "opl_max_w": 0.0,
+        "opl_emg_w": 0.0,
+        "opl_eff_w": 0.0,
+        "opl_red_w": 0.0,
+        "opl_set_min_w": 0.0,
+        "opl_set_max_w": 0.0
+      }
+    },
+    "connectors": [
+      {
+        "$comment": "Populated connector template. 'id' must be unique and one of: CONN0-CONN6, CABLE. CONN0 must always appear first with populated=true. connector_profile is optional: when present, high_speed_lanes, clocking, and discrete_signals become optional -- any section explicitly declared overrides the profile for that section in full; any section omitted is inherited from the profile. Use an OCP-ratified profile identifier (prefix 'OAC-PROF-'). When connector_profile is set, high_speed_lanes, clocking, and discrete_signals must be omitted from this connector object -- they are defined entirely by the profile. Omit connector_profile entirely to define signals explicitly.",
+        "id": "<CONNx>",
+        "populated": true,
+        "impedance_ohm": 0,
+        "connector_profile": "<OAC-PROF-...-v1 | omit if defining signals explicitly>",
+        "presence_detect": {
+          "$comment": "Optional. Include this object only when mpesti_capable is true on CONN0. Presence detection (GND-tie on Pin A1) is statically defined by the OAC Base Specification and does not need to be declared when M-PESTI is not implemented.",
+          "mpesti_capable": false
+        },
+        "high_speed_lanes": {
+          "lanes": [
+            {
+              "$comment": "One object per physical lane-direction pair. List all RX entries (ascending lane_index) first, then all TX entries.",
+              "lane_index": 0,
+              "direction": "<RX|TX>",
+              "pin_positive": "<pin_id>",
+              "pin_negative": "<pin_id>"
+            }
+          ],
+          "link_direction": "<INBOUND|OUTBOUND>"
+        },
+        "clocking": [
+          {
+            "$comment": "One entry per reference clock signal. Use pin_positive and pin_negative for REFCLK_DIFF; use pin for REFCLK_SINGLE. ssc_supported is required.",
+            "clock_id": "<CLOCKx>",
+            "clock_type": "<REFCLK_DIFF|REFCLK_SINGLE>",
+            "frequency_mhz": 100.0,
+            "pin_positive": "<pin_id>",
+            "pin_negative": "<pin_id>",
+            "direction": "<INPUT|OUTPUT>",
+            "associated_lanes": [],
+            "required": true,
+            "ssc_supported": true,
+            "description": "<optional description>"
+          }
+        ],
+        "discrete_signals": [
+          {
+            "$comment": "One entry per discrete sideband signal. Vendor-defined signals must use the VENDOR_ prefix. Active-low signals must end with #. pullup_required and pulldown_required are mutually exclusive.",
+            "signal_name": "<VENDOR_SIGNAL_NAME#>",
+            "pin": "<pin_id>",
+            "direction": "<INPUT|OUTPUT>",
+            "active_level": "<ACTIVE_LOW|ACTIVE_HIGH>",
+            "voltage_level_v": 3.3,
+            "driver_type": "<PUSH_PULL|OPEN_DRAIN>",
+            "default_state": "<HIGH|LOW|HIZ>",
+            "pullup_required": false,
+            "pullup_voltage_v": 3.3,
+            "pullup_kohm": 10.0,
+            "pulldown_required": false,
+            "pulldown_voltage_v": 0.0,
+            "pulldown_kohm": 10.0,
+            "required": false,
+            "description": "<optional description>"
+          }
+        ]
+      },
+      {
+        "$comment": "Unpopulated connector stub. Use this pattern for any connector position that is physically absent on this adapter variant. Only 'id' and 'populated' are needed.",
+        "id": "<CONNx>",
+        "populated": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "oac_scdd": {
+    "metadata": {
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "definition_revision": 3,
+      "description": "Example C SCD Definition: two subdividable groups on two different connectors, both named pcie_primary in the CID. The field identifiers differ only in their connector segment, which is the whole reason that segment exists. Also exercises applies_when. definition_revision is 3 to show that the value is an opaque counter, not tied to the schema version.",
+      "iana_pen": 32473
+    },
+    "fields": [
+      {
+        "id": "ocp.slot_id",
+        "display_name": "Slot Identifier",
+        "description": "Logical slot identifier of the position this OAC occupies.",
+        "type": "integer",
+        "response": "required",
+        "default": 255,
+        "sentinel_default": true,
+        "min": 0,
+        "max": 15
+      },
+      {
+        "id": "ocp.max_power_w",
+        "display_name": "Platform Power Budget",
+        "description": "Sustained power the platform can supply to this slot.",
+        "type": "integer",
+        "response": "required",
+        "default": 625,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "id": "ocp.initial_power_level_set_w",
+        "display_name": "Initial OPL-SET Wattage",
+        "description": "Power cap applied when the OAC enters Operational State O5.",
+        "type": "integer",
+        "response": "optional",
+        "default": 1200,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "id": "ocp.link_subdivision.conn0.pcie_primary",
+        "display_name": "Link Subdivision, CONN0 Primary PCIe Group",
+        "description": "Partitioning of the CONN0 inbound PCIe group into independent links.",
+        "type": "enumeration",
+        "response": "required",
+        "default": "x8",
+        "cid_binding": {
+          "cid_object": "protocol_group",
+          "cid_connector": "CONN0",
+          "cid_group_name": "pcie_primary"
+        },
+        "values": [
+          { "value": "x8", "description": "Single x8 link, lanes 0-7" },
+          { "value": "x4x4", "description": "Two x4 links, lanes 0-3 and 4-7" }
+        ]
+      },
+      {
+        "id": "ocp.link_subdivision.conn2.pcie_primary",
+        "display_name": "Link Subdivision, CONN2 Primary PCIe Group",
+        "description": "Partitioning of the CONN2 outbound PCIe downstream port into independent links.",
+        "type": "enumeration",
+        "response": "required",
+        "default": "x16",
+        "cid_binding": {
+          "cid_object": "protocol_group",
+          "cid_connector": "CONN2",
+          "cid_group_name": "pcie_primary"
+        },
+        "values": [
+          { "value": "x16", "description": "Single x16 link, lanes 0-15" },
+          { "value": "x8x8", "description": "Two x8 links, lanes 0-7 and 8-15" }
+        ]
+      },
+      {
+        "id": "pen.32473.boot_source",
+        "display_name": "OAC Boot Source",
+        "description": "Where the OAC loads its operational firmware image from.",
+        "type": "enumeration",
+        "response": "required",
+        "default": "local_flash",
+        "values": [
+          { "value": "local_flash", "description": "Boot from flash on the OAC" },
+          { "value": "stream", "description": "Boot from an image streamed by the platform" }
+        ]
+      },
+      {
+        "id": "pen.32473.stream_image_slot",
+        "display_name": "Streamed Image Slot",
+        "description": "Which of the platform's staged firmware images the OAC should request.",
+        "type": "integer",
+        "response": "optional",
+        "default": 0,
+        "min": 0,
+        "max": 3,
+        "applies_when": {
+          "field": "pen.32473.boot_source",
+          "equals": "stream"
+        }
+      }
+    ]
+  }
+}
