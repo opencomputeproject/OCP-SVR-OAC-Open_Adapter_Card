@@ -821,18 +821,23 @@
             <button class="btn btn-secondary btn-sm" onclick="suggestProfileId()" title="Auto-generate profile_id from current configuration" style="white-space:nowrap;flex-shrink:0;">✦ Suggest ID</button>
           </div>
           <div class="profile-id-hint">
-            OCP-ratified profiles only: <code>OAC-PROF-&lt;CONN0|CONN|CABLE&gt;-&lt;proto1&gt;-x&lt;lanes1&gt;-&lt;dir1&gt;[-&lt;proto2&gt;-x&lt;lanes2&gt;-&lt;dir2&gt;]-v&lt;n&gt;</code><br/><code>CONN0</code> = applicable_conns [&quot;CONN0&quot;] (9 cols) &nbsp;|&nbsp; <code>CONN</code> = [&quot;CONN1-6&quot;] (8 cols, any CONN1–6) &nbsp;|&nbsp; <code>CABLE</code> = [&quot;CABLE&quot;] (8 cols)<br/>Direction: IN=INBOUND, OUT=OUTBOUND. Protocol abbreviations: PCIeGen6, Eth200G, UALink2, CXL3, etc.<br/>
+            OCP-ratified profiles only: <code>OAC-PROF-&lt;CONN0|CONN1..CONN6|CONN|CABLE&gt;-&lt;proto1&gt;-x&lt;lanes1&gt;-&lt;dir1&gt;[-&lt;proto2&gt;-x&lt;lanes2&gt;-&lt;dir2&gt;]-v&lt;n&gt;</code><br/><code>CONN0</code> = [&quot;CONN0&quot;] (9 cols) &nbsp;|&nbsp; <code>CONN1</code>…<code>CONN6</code> = that one position (8 cols) &nbsp;|&nbsp; <code>CONN</code> = more than one of CONN1–6, incl. [&quot;CONN1-6&quot;] (8 cols) &nbsp;|&nbsp; <code>CABLE</code> = [&quot;CABLE&quot;] (8 cols)<br/>Direction: IN=INBOUND, OUT=OUTBOUND. Protocol abbreviations: PCIeGen6, Eth200G, UALink2, CXL3, etc.<br/>
           </div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label>applicable_conns <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">The connector position class this profile is ratified against. CONN0 has 9 assignable columns (col 1&ndash;9); CONN1&ndash;CONN6 and CABLE have 8 (col 1&ndash;8). Determines the pin map layout.</span></span> <span class="req">*</span></label>
-            <select id="pf-applicable-conns" onchange="onApplicableConnsChange(this)" style="margin-top:6px;">
-              <option value="CONN0" selected>CONN0 &mdash; CONN0 only (9 columns, col 1&ndash;9)</option>
-              <option value="CONN1-6">CONN1-6 &mdash; any of CONN1&ndash;CONN6 (8 columns, col 1&ndash;8)</option>
-              <option value="CABLE">CABLE &mdash; cable connector position (8 columns, col 1&ndash;8)</option>
-            </select>
-            <div class="hint">Emitted as a single-token array, e.g. <code>"applicable_conns": ["CONN0"]</code>. Exactly one token is permitted in this revision.</div>
+            <label>applicable_conns <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">The connector position or positions this profile is ratified against. CONN0 has 9 assignable columns (col 1&ndash;9); CONN1&ndash;CONN6 and CABLE have 8 (col 1&ndash;8). Positions from different column counts cannot be combined, so selecting CONN0 or CABLE clears the others. Drives the pin map layout and the connector segment of the suggested profile_id.</span></span> <span class="req">*</span></label>
+            <div id="pf-ac-group" style="display:flex; flex-wrap:wrap; margin-top:6px;">
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CONN0" value="CONN0" checked onchange="onApplicableConnsChange(this)" /> CONN0</label>
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CONN1" value="CONN1" onchange="onApplicableConnsChange(this)" /> CONN1</label>
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CONN2" value="CONN2" onchange="onApplicableConnsChange(this)" /> CONN2</label>
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CONN3" value="CONN3" onchange="onApplicableConnsChange(this)" /> CONN3</label>
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CONN4" value="CONN4" onchange="onApplicableConnsChange(this)" /> CONN4</label>
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CONN5" value="CONN5" onchange="onApplicableConnsChange(this)" /> CONN5</label>
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CONN6" value="CONN6" onchange="onApplicableConnsChange(this)" /> CONN6</label>
+              <label class="checkbox-label" style="margin:0 10px 0 0; white-space:nowrap;"><input type="checkbox" id="pf-ac-CABLE" value="CABLE" onchange="onApplicableConnsChange(this)" /> CABLE</label>
+            </div>
+            <div class="hint">Select every position the profile is ratified for. All six of CONN1&ndash;CONN6 collapse to the <code>"CONN1-6"</code> shorthand on output; a single position emits that position alone, e.g. <code>"applicable_conns": ["CONN6"]</code>.</div>
           </div>
           <div class="field">
             <label>schema_version <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">CID schema version this profile conforms to. Must match the schema_version of any CID that references this profile.</span></span> <span class="req">*</span></label>
@@ -1312,8 +1317,7 @@
       // In profile mode derive column count from the applicable_conns selector
       let maxCol;
       if (connId === 'PROFILE') {
-        const sel = document.getElementById('pf-applicable-conns');
-        maxCol = (!sel || sel.value === 'CONN0') ? 9 : 8;
+        maxCol = (acClass(acSelected()) === 'CONN0') ? 9 : 8;
       } else {
         maxCol = connId === 'CONN0' ? 9 : 8;
       }
@@ -1935,19 +1939,31 @@
         if (!p) { E('Missing root key: oac_connector_profile'); return { errors, warnings }; }
         if (!p.profile_id) E('profile_id is required');
         if (!p.schema_version) E('schema_version is required');
-        if (!Array.isArray(p.applicable_conns)) {
+        const AC_OK = ['CONN0','CONN1','CONN2','CONN3','CONN4','CONN5','CONN6','CONN1-6','CABLE'];
+        const AC_SIG = ['CONN1','CONN2','CONN3','CONN4','CONN5','CONN6'];
+        const ac = p.applicable_conns;
+        if (!Array.isArray(ac) || !ac.length) {
           if (p.is_conn0 !== undefined)
             W('is_conn0 is superseded by applicable_conns; re-save to update this profile');
-          else E('applicable_conns is required');
-        } else if (p.applicable_conns.length !== 1) {
-          E('applicable_conns shall contain exactly one token in this revision');
-        } else if (!['CONN0','CONN1-6','CABLE'].includes(p.applicable_conns[0])) {
-          E('applicable_conns token must be CONN0, CONN1-6, or CABLE');
-        } else if (p.profile_id) {
-          const seg = p.applicable_conns[0] === 'CONN0' ? 'CONN0'
-                    : p.applicable_conns[0] === 'CABLE' ? 'CABLE' : 'CONN';
-          if (p.profile_id.indexOf('OAC-PROF-' + seg + '-') !== 0)
-            E('profile_id connector segment must be "' + seg + '" to agree with applicable_conns (Section 8.3)');
+          else E('applicable_conns is required and shall be a non-empty array');
+        } else {
+          const bad = ac.filter(t => AC_OK.indexOf(t) < 0);
+          if (bad.length) E('applicable_conns: unrecognized token(s) ' + bad.join(', '));
+          if (new Set(ac).size !== ac.length)
+            E('applicable_conns: each token shall appear at most once');
+          if (ac.indexOf('CONN1-6') >= 0 && ac.some(t => AC_SIG.indexOf(t) >= 0))
+            E('applicable_conns: CONN1-6 already names all six positions and shall not be combined with an individual CONN1-CONN6 token');
+          const classes = new Set(ac.map(t => t === 'CONN0' ? 'CONN0'
+                                           : t === 'CABLE' ? 'CABLE' : 'CONN'));
+          if (classes.size > 1)
+            E('applicable_conns: tokens shall be drawn from a single geometry class — CONN0 (9 columns), CONN1-CONN6 (8 columns), or CABLE — otherwise the assignable column count is undefined (Section 8.4)');
+          if (!bad.length && classes.size === 1 && p.profile_id) {
+            const cls = [...classes][0];
+            const sig = ac.indexOf('CONN1-6') >= 0 ? AC_SIG : ac;
+            const seg = cls !== 'CONN' ? cls : (sig.length === 1 ? sig[0] : 'CONN');
+            if (p.profile_id.indexOf('OAC-PROF-' + seg + '-') !== 0)
+              E('profile_id connector segment must be "' + seg + '" to agree with applicable_conns (Section 8.3)');
+          }
         }
         validateSignals(p, E, W, 'Profile');
         return { errors, warnings };
@@ -1991,6 +2007,24 @@
           E(c.id + ' must not declare mpesti_capable — the M-PESTI overload is defined only for CONN0');
         if (c.presence_detect)
           W(c.id + ': the presence_detect object is superseded by a flat mpesti_capable field on CONN0');
+      });
+
+      // Section 8.5: a profile shall be referenced only by a connector position its
+      // connector segment names. The segment is derivable from the identifier alone.
+      connectors.filter(c => c.connector_profile).forEach(c => {
+        const m = /^OAC-PROF-(CONN0|CONN[1-6]|CONN|CABLE)-/.exec(c.connector_profile);
+        if (!m) {
+          W(c.id + ': connector_profile "' + c.connector_profile +
+            '" does not parse as an OCP-ratified profile identifier (Section 8.3)');
+          return;
+        }
+        const seg = m[1];
+        const ok = seg === 'CONN'  ? /^CONN[1-6]$/.test(c.id)
+                 : seg === c.id;
+        if (!ok)
+          E(c.id + ' references ' + c.connector_profile + ', whose connector segment "' + seg +
+            '" does not name this position — a profile shall be referenced only by a connector ' +
+            'position it was ratified against (Section 8.5)');
       });
 
       connectors.filter(c => c.populated && !c.connector_profile).forEach(c => {
@@ -2249,9 +2283,7 @@
 
     function suggestProfileId() {
       const s = connState['PROFILE'];
-      const connClass = (document.getElementById('pf-applicable-conns') || {value:'CONN0'}).value;
-      const connPart = connClass === 'CONN0' ? 'CONN0'
-                     : connClass === 'CABLE' ? 'CABLE' : 'CONN';
+      const connPart = acSegment();
       const groups = (s.hs.groups || []).filter(g => g.protocol || (g.lanes && g.lanes.length));
 
       if (!groups.length) {
@@ -2287,9 +2319,66 @@
       showToast('Profile ID suggested: ' + suggested, 3000);
     }
 
-    function onApplicableConnsChange(sel) {
-      if (sel.value !== 'CONN0') {
-        // Warn and clear any column-9 pin assignments (col 9 exists only on CONN0)
+    // ── applicable_conns selection helpers ────────────────────────────────────
+    const AC_POSITIONS = ['CONN0','CONN1','CONN2','CONN3','CONN4','CONN5','CONN6','CABLE'];
+    const AC_SIGNAL    = ['CONN1','CONN2','CONN3','CONN4','CONN5','CONN6'];
+    let acPrev = ['CONN0'];
+
+    function acBox(p) { return document.getElementById('pf-ac-' + p); }
+
+    function acSelected() {
+      return AC_POSITIONS.filter(p => { const b = acBox(p); return b && b.checked; });
+    }
+
+    // Geometry class of a selection: 'CONN0' (9 columns), 'CONN' (8), 'CABLE' (8).
+    function acClass(sel) {
+      if (!sel || !sel.length) return null;
+      if (sel.indexOf('CONN0') >= 0) return 'CONN0';
+      if (sel.indexOf('CABLE') >= 0) return 'CABLE';
+      return 'CONN';
+    }
+
+    // The array emitted into the profile document. All six signal positions
+    // collapse to the CONN1-6 shorthand, which is the canonical form.
+    function acTokens() {
+      const sel = acSelected();
+      const cls = acClass(sel);
+      if (cls === 'CONN0' || cls === 'CABLE') return [cls];
+      return sel.length === AC_SIGNAL.length ? ['CONN1-6'] : sel;
+    }
+
+    // The connector segment of the profile identifier, derived per Section 8.3.
+    function acSegment() {
+      const sel = acSelected();
+      const cls = acClass(sel);
+      if (cls === 'CONN0' || cls === 'CABLE') return cls;
+      return sel.length === 1 ? sel[0] : 'CONN';
+    }
+
+    function acSetFromTokens(tokens) {
+      const want = new Set();
+      (tokens || []).forEach(t => {
+        if (t === 'CONN1-6') AC_SIGNAL.forEach(x => want.add(x));
+        else want.add(t);
+      });
+      AC_POSITIONS.forEach(p => { const b = acBox(p); if (b) b.checked = want.has(p); });
+      if (!acSelected().length) { const b = acBox('CONN0'); if (b) b.checked = true; }
+      acPrev = acSelected();
+    }
+
+    function onApplicableConnsChange(cb) {
+      // Enforce the Section 8.4 rule that one array may not mix geometry classes.
+      if (cb.checked) {
+        if (cb.value === 'CONN0' || cb.value === 'CABLE') {
+          AC_POSITIONS.forEach(p => { if (p !== cb.value) { const o = acBox(p); if (o) o.checked = false; } });
+        } else {
+          ['CONN0','CABLE'].forEach(p => { const o = acBox(p); if (o) o.checked = false; });
+        }
+      }
+      if (!acSelected().length) cb.checked = true;   // the field is required and non-empty
+
+      if (acClass(acSelected()) !== 'CONN0' && acPrev.indexOf('CONN0') >= 0) {
+        // Leaving CONN0: warn and clear any column-9 pin assignments (col 9 exists only on CONN0)
         const s = connState['PROFILE'];
         const col9Pins = [];
         const allSections = [
@@ -2300,8 +2389,8 @@
 
         if (allSections.length) {
           const list = [...new Set(allSections)].join(', ');
-          if (!confirm(`Switching to ${sel.value} (8 columns) will clear all pin assignments on column 9:\n${list}\n\nProceed?`)) {
-            sel.value = 'CONN0'; // revert
+          if (!confirm(`Switching to ${acSelected().join(', ')} (8 columns) will clear all pin assignments on column 9:\n${list}\n\nProceed?`)) {
+            acSetFromTokens(acPrev); // revert
             return;
           }
           // Clear all column-9 assignments
@@ -2321,6 +2410,7 @@
           });
         }
       }
+      acPrev = acSelected();
       updatePreview();
       renderProfilePanel();
       refreshPinMap('PROFILE');
@@ -2359,7 +2449,7 @@
           profile_id:          v('pf-profile-id')           || '',
           schema_version:      v('pf-schema-version')       || '0.9',
           profile_version:     v('pf-profile-version')     || '1.0',
-          applicable_conns: [ (document.getElementById('pf-applicable-conns') || {value:'CONN0'}).value ],
+          applicable_conns: acTokens(),
         }
       };
       const desc = v('pf-desc');
@@ -2409,15 +2499,12 @@
       setVal('pf-profile-id',         p.profile_id          || '');
       setVal('pf-schema-version',     p.schema_version      || '0.9');
       setVal('pf-profile-version',     p.profile_version     || '1.0');
-      const acSel = document.getElementById('pf-applicable-conns');
-      if (acSel) {
-        let cls = null;
-        if (Array.isArray(p.applicable_conns) && p.applicable_conns.length)
-          cls = p.applicable_conns[0];
-        else if (p.is_conn0 !== undefined)
-          cls = p.is_conn0 ? 'CONN0' : 'CONN1-6';   // pre-revision profile document
-        acSel.value = (cls === 'CONN1-6' || cls === 'CABLE') ? cls : 'CONN0';
-      }
+      if (Array.isArray(p.applicable_conns) && p.applicable_conns.length)
+        acSetFromTokens(p.applicable_conns);
+      else if (p.is_conn0 !== undefined)
+        acSetFromTokens(p.is_conn0 ? ['CONN0'] : ['CONN1-6']);   // pre-revision profile
+      else
+        acSetFromTokens(['CONN0']);
       setVal('pf-desc',               p.description         || '');
 
       const s = freshProfileState();
@@ -2795,7 +2882,7 @@
       // Profile
       {f:'profile_id',        s:'Profile',   t:'string',  r:true,  d:'OCP-ratified profile identifier. Format: OAC-PROF-<CONN0|CONN>-<proto>-x<lanes>-<dir>-v<n>[-minified].'},
       {f:'profile_version',   s:'Profile',   t:'string',  r:true,  d:'Semantic version of this specific profile definition (e.g. "1.0"). Incremented when pin assignments change.'},
-      {f:'applicable_conns',  s:'Profile',   t:'array',   r:true,  d:'Connector position class the profile is ratified against: ["CONN0"] (9 assignable columns), ["CONN1-6"] (8 columns, any of CONN1–CONN6), or ["CABLE"]. Exactly one token in this revision. Must agree with the connector segment of profile_id.'},
+      {f:'applicable_conns',  s:'Profile',   t:'array',   r:true,  d:'Connector position or positions the profile is ratified against. Tokens: "CONN0" (9 assignable columns), "CONN1"–"CONN6" (8 columns each), "CONN1-6" (shorthand for all six), "CABLE". No duplicates, and all tokens must come from one geometry class — CONN0, the CONN1–CONN6 set, or CABLE — since mixing leaves the column count undefined. Must agree with the connector segment of profile_id.'},
     ];
 
     function buildHelpRefTable() {

@@ -35,7 +35,7 @@ The editor operates in two distinct modes selectable from the header:
 
 **CID Mode** — for authoring a complete OAC CID. Covers the full schema: metadata, power (input voltage, connector type, all OPL levels), and per-connector signal definitions for up to seven connectors (CONN0–CONN6). Each connector can reference an OCP-ratified Connector Profile by identifier, or define its signals explicitly — but not both.
 
-**Connector Profile Mode** — for authoring a reusable, OCP-ratified connector profile. A profile defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for a specific connector position class and protocol configuration. The `applicable_conns` selector chooses that class — `CONN0` (9 assignable columns), `CONN1-6` (8 columns, any of CONN1 through CONN6), or `CABLE` (8 columns) — and drives both the pin map layout and the connector segment of the suggested identifier. Once ratified by the OCP OAC workstream, OACs can reference a profile by its identifier rather than repeating full pin-level declarations in every CID. This keeps CIDs compact and consistent across vendors.
+**Connector Profile Mode** — for authoring a reusable, OCP-ratified connector profile. A profile defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for one or more connector positions and a protocol configuration. The `applicable_conns` control is a row of checkboxes, one per position: `CONN0`, `CONN1` through `CONN6`, and `CABLE`. Select every position the profile is ratified for. The editor enforces the rule that one array may not mix geometry classes, so checking `CONN0` or `CABLE` clears the others and checking any of `CONN1` through `CONN6` clears `CONN0` and `CABLE`; the selection can never be emptied. Selecting all six of `CONN1` through `CONN6` emits the `"CONN1-6"` shorthand, and any other selection emits the positions it names. The selection drives the pin map column count — nine columns for `CONN0`, eight otherwise — and the connector segment of the suggested identifier, which is the position itself when exactly one of `CONN1` through `CONN6` is selected and `CONN` when more than one is. Once ratified by the OCP OAC workstream, OACs can reference a profile by its identifier rather than repeating full pin-level declarations in every CID. This keeps CIDs compact and consistent across vendors.
 
 ### Guided and Manual Editing — Live Two-Way Sync
 
@@ -63,7 +63,8 @@ Validation covers:
 - Power field ordering constraints (OPL hierarchy)
 - connector_profile mutual exclusivity with explicit signal sections
 - `mpesti_capable` present on CONN0 and absent everywhere else
-- `applicable_conns` present, single-token, and in agreement with the `profile_id` segment
+- `applicable_conns` present and non-empty, free of duplicate and unrecognized tokens, not mixing geometry classes, not combining `"CONN1-6"` with an individual `"CONN1"` through `"CONN6"` token, and in agreement with the `profile_id` connector segment
+- A referenced `connector_profile` identifier parses as an OCP-ratified identifier, and its connector segment names the position it is applied to — `OAC-PROF-CONN6-…` only on CONN6, `OAC-PROF-CONN-…` on any of CONN1 through CONN6, `OAC-PROF-CONN0-…` only on CONN0, `OAC-PROF-CABLE-…` only on CABLE
 - High-speed lane protocol compatibility, lane count limits, link_subdivision applicability
 - Clock count maximum (16 per connector), required clock fields, ssc_supported presence
 - Pin assignment validity and conflict detection
@@ -83,7 +84,7 @@ Validation covers:
 The Connector Profile panel includes a **✦ Suggest ID** button that auto-generates a standards-compliant profile identifier from the currently defined protocol groups, lane counts, and signal direction. The generated identifier follows the OCP-ratified naming convention:
 
 ```
-OAC-PROF-<CONN0|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>
+OAC-PROF-<CONN0|CONN1..CONN6|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>
 ```
 
 ### Help System

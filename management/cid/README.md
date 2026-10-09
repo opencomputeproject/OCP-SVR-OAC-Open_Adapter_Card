@@ -253,8 +253,8 @@ numbers cited elsewhere in this repository refer to the revised document.
 
 It was revised again on **2026-10-09**: `opl_set_max_w` was removed in favour of bounding the
 configurable OPL-SET range by `opl_max_w`, the connector profile field `is_conn0` was replaced by
-the class-token array `applicable_conns` (which also extends the profile identifier grammar to
-`CABLE`), and the single-field `presence_detect` object was flattened into a `mpesti_capable`
+the position-token array `applicable_conns` (which also extends the profile identifier grammar
+to `CABLE` and to per-position segments such as `OAC-PROF-CONN6-…`), and the single-field `presence_detect` object was flattened into a `mpesti_capable`
 field required on CONN0 and prohibited elsewhere. Section numbering is unchanged by that
 revision. See [CHANGELOG.md](CHANGELOG.md).
 

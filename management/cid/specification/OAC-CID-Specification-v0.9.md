@@ -570,16 +570,28 @@ Connector profiles are defined and maintained exclusively by the OCP OAC workstr
 identifiers shall use the prefix `OAC-PROF-` and follow the naming convention:
 
 ```
-OAC-PROF-<CONN0|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
+OAC-PROF-<CONN0|CONN1..CONN6|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
 ```
 
-The connector segment shall be `CONN0` for profiles targeting CONN0 (9 assignable columns), `CONN`
-for profiles applicable to any CONN1–6 position (8 assignable columns), and `CABLE` for profiles
-targeting the CABLE connector position. The segment shall agree with the profile's
-`applicable_conns` field as defined in Table 8.4-1: `CONN0` corresponds to `["CONN0"]`, `CONN` to
-`["CONN1-6"]`, and `CABLE` to `["CABLE"]`. A profile whose connector segment and `applicable_conns`
-value disagree shall be treated as unrecognized. No specific connector index (CONN1, CONN2, etc.)
-shall appear in the profile identifier.
+The connector segment names the connector position or positions the profile targets. It shall
+be `CONN0` for a profile targeting CONN0, which has nine assignable pin columns; `CONN1`
+through `CONN6` for a profile targeting one specific position among CONN1 through CONN6, each
+of which has eight assignable pin columns; `CONN` for a profile applicable to more than one of
+the CONN1 through CONN6 positions; and `CABLE` for a profile targeting the CABLE connector
+position.
+
+The segment is not independent information. It shall be derived from the profile's
+`applicable_conns` field as defined in Table 8.4-1. Where `applicable_conns` is `["CONN0"]`
+the segment shall be `CONN0`. Where it is a single-token array naming one position among CONN1
+through CONN6, the segment shall be that position — `["CONN6"]` yields `CONN6`. Where it
+names more than one of the CONN1 through CONN6 positions, including by the `"CONN1-6"`
+shorthand, the segment shall be `CONN`. Where it is `["CABLE"]` the segment shall be `CABLE`.
+A profile whose connector segment and `applicable_conns` value disagree shall be treated as
+unrecognized.
+
+A profile ratified against one specific position carries that position in its identifier even
+though CONN1 through CONN6 share a pin field and would each accept it physically. The
+identifier records what the profile was ratified for, not everything it would fit.
 
 The following abbreviations shall be used for protocol names within `OAC-PROF-` identifiers. The
 direction suffix shall be `IN` for `"INBOUND"` and `OUT` for `"OUTBOUND"`.
@@ -644,7 +656,7 @@ registry shall be treated as unrecognized.
 
 | Field Name | JSON Type | Required | Constraints | Description |
 |------------|-----------|----------|-------------|-------------|
-| `applicable_conns` | array of strings | Required | Non-empty array drawn from `"CONN0"`, `"CONN1-6"`, `"CABLE"`, each token appearing at most once | Declares the connector position class or classes the profile was ratified against. `"CONN0"` — the CONN0 position, which has nine assignable pin columns (columns 1–9). `"CONN1-6"` — any of CONN1 through CONN6, which have eight assignable pin columns (columns 1–8) and which are interchangeable for profile purposes. `"CABLE"` — the CABLE connector position. In this revision the array shall contain exactly one token; a multi-token array is reserved for a future revision and shall be treated as unrecognized. See Section 8.5. |
+| `applicable_conns` | array of strings | Required | Non-empty array drawn from `"CONN0"`, `"CONN1"` through `"CONN6"`, `"CONN1-6"`, and `"CABLE"`; each token appearing at most once; all tokens drawn from a single geometry class | Declares the connector position or positions the profile was ratified against. `"CONN0"` — the CONN0 position, which has nine assignable pin columns (columns 1–9). `"CONN1"` through `"CONN6"` — one specific position among CONN1 through CONN6, each of which has eight assignable pin columns (columns 1–8). `"CONN1-6"` — shorthand that shall be interpreted as exactly equivalent to naming all six of CONN1 through CONN6, and that shall not be combined with any individual `"CONN1"` through `"CONN6"` token. `"CABLE"` — the CABLE connector position. The three geometry classes are CONN0, the CONN1 through CONN6 set, and CABLE; an array naming positions from more than one class shall be treated as unrecognized, because the assignable column count of the profile would be undefined. See Section 8.5. |
 | `high_speed_lanes` | object or array of objects | Optional | Per Section 7.4.3 | High-speed differential lane definition for the connector position. |
 | `clocking` | array of objects | Optional | Per Section 7.4.4 | Reference clock definition for the connector position. |
 | `discrete_signals` | array of objects | Optional | Per Section 7.4.5 | Discrete signal definition for the connector position. |
@@ -673,22 +685,30 @@ Three differences from Section 7 apply, and are the only differences:
 
 CONN0, CONN1 through CONN6, and CABLE are not interchangeable. CONN0 has nine assignable pin
 columns, with columns 10 and 11 reserved for the management USB 2.0 interface and `OAC_MC_RDY`;
-CONN1 through CONN6 have eight. A profile's `applicable_conns` field declares which position class
-or classes it was ratified against.
+CONN1 through CONN6 have eight. A profile's `applicable_conns` field declares which position or
+positions it was ratified against.
 
-The upstream management controller shall reject a profile applied to a connector position that is
-not covered by the profile's `applicable_conns` value. A profile declaring `["CONN0"]` shall be
-referenced only by the CONN0 connector object; a profile declaring `["CONN1-6"]` shall be referenced
-only by a CONN1 through CONN6 connector object; and a profile declaring `["CABLE"]` shall be
-referenced only by the CABLE connector object. A CID that violates this rule shall be treated as
-malformed and the slot shall not be energized.
+The upstream management controller shall reject a profile applied to a connector position that
+the profile's `applicable_conns` value does not name. A profile declaring `["CONN0"]` shall
+be referenced only by the CONN0 connector object; a profile declaring `["CABLE"]` shall be
+referenced only by the CABLE connector object; and a profile naming one or more of the CONN1
+through CONN6 positions shall be referenced only by a connector object whose `id` is among
+those named, with `"CONN1-6"` naming all six. A CID that violates this rule shall be treated
+as malformed and the slot shall not be energized.
 
-The field is an array, and its vocabulary is expressed in terms of position classes rather than
-individual connector indices. CONN1 through CONN6 are electrically equivalent for profile purposes,
-so enumerating them individually would admit subsets such as `["CONN2", "CONN5"]` that carry no
-meaning. The array form reserves room for a profile ratified against more than one class without a
-further change to the profile document schema; in this revision, per Table 8.4-1, exactly one token
-shall be present.
+The field is an array and its vocabulary is per position, so a profile may be ratified against
+one specific position, against an arbitrary subset of CONN1 through CONN6, or against all six
+by the `"CONN1-6"` shorthand. CONN1 through CONN6 share a pin field and are electrically
+equivalent, so a subset such as `["CONN2", "CONN5"]` is not an electrical statement. It is a
+statement about where the profile was ratified for use, which is a property of the baseboard
+the profile was drawn up against — what that platform routes to which position — rather than a
+property of the connector. Both facts are real, they are not the same fact, and this field
+records the second. A profile that is genuinely position-agnostic says so with `["CONN1-6"]`.
+
+What the array shall not do is mix geometry classes. CONN0, the CONN1 through CONN6 set, and
+CABLE differ in assignable column count, so an array naming positions from more than one of
+them would leave the column count of the profile undefined. Such an array shall be treated as
+unrecognized.
 
 > **WORK IN PROGRESS — subject to change by the OCP OAC workstream.**
 >
@@ -700,7 +720,8 @@ shall be present.
 > rule above rejects the combination outright. Whether to permit it instead, and if so how the ninth
 > column is to be declared, has not been decided. The `applicable_conns` array can express the
 > resolution directly, as `["CONN0", "CONN1-6"]`, once the workstream settles the ninth column; the
-> single-token restriction of Table 8.4-1 is what holds the case closed in the meantime.
+> prohibition in Table 8.4-1 on mixing geometry classes within one array is what holds the case
+> closed in the meantime.
 >
 > The second is supplementation and partial override more generally — a CID that references a profile
 > and adds to, or amends, what the profile declares. Section 8.2 forbids this today, which is what

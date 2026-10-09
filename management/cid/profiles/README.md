@@ -11,12 +11,12 @@ The use of `connector_profile` in a CID is **mutually exclusive** with explicit 
 All profile identifiers use the prefix `OAC-PROF-` and follow this pattern:
 
 ```
-OAC-PROF-<CONN0|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
+OAC-PROF-<CONN0|CONN1..CONN6|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
 ```
 
 | Token | Values | Description |
 |-------|--------|-------------|
-| `CONN0` \| `CONN` \| `CABLE` | `CONN0`, `CONN`, or `CABLE` | The connector position class the profile is ratified against. `CONN0` = CONN0 only (9 assignable columns); `CONN` = any of CONN1–CONN6 (8 assignable columns); `CABLE` = the CABLE position. Shall agree with the profile's `applicable_conns` field |
+| `CONN0` \| `CONN1`..`CONN6` \| `CONN` \| `CABLE` | `CONN0`, `CONN1` through `CONN6`, `CONN`, or `CABLE` | The connector position or positions the profile is ratified against. `CONN0` = CONN0 only (9 assignable columns); `CONN1` through `CONN6` = that one position (8 assignable columns); `CONN` = more than one of CONN1 through CONN6, including all six; `CABLE` = the CABLE position. Derived from the profile's `applicable_conns` field, with which it shall agree |
 | `<proto>` | e.g. `PCIeGen6`, `Eth200G` | Protocol abbreviation per Table 8.3-1 of the specification |
 | `x<lanes>` | e.g. `x16`, `x4` | Total high-speed lane count for this protocol segment |
 | `<dir>` | `IN` or `OUT` | Signal direction: `IN` = INBOUND (host→OAC), `OUT` = OUTBOUND (OAC→host) |
@@ -62,7 +62,13 @@ If an OAC's connector configuration does not match any available OCP-ratified pr
 }
 ```
 
-`applicable_conns` declares the connector position class or classes the profile was ratified against. It is a non-empty array drawn from `"CONN0"` (9 assignable columns, col 1–9), `"CONN1-6"` (8 assignable columns, col 1–8, interchangeable for profile purposes), and `"CABLE"`, with each token appearing at most once. In this revision the array shall contain exactly one token, and it shall agree with the connector segment of `profile_id`: `CONN0` corresponds to `["CONN0"]`, `CONN` to `["CONN1-6"]`, and `CABLE` to `["CABLE"]`. A profile is not required to define all three signal sections.
+`applicable_conns` declares the connector position or positions the profile was ratified against. It is a non-empty array drawn from `"CONN0"` (9 assignable columns, col 1–9), `"CONN1"` through `"CONN6"` (8 assignable columns each, col 1–8), the shorthand `"CONN1-6"` (exactly equivalent to naming all six of those positions, and not to be combined with any individual one of them), and `"CABLE"`, with each token appearing at most once.
+
+All tokens in one array shall be drawn from a single geometry class — CONN0, the CONN1 through CONN6 set, or CABLE. The three classes differ in assignable column count, so an array that mixes them leaves the column count of the profile undefined and shall be treated as unrecognized.
+
+The connector segment of `profile_id` is derived from this field and shall agree with it. `["CONN0"]` gives `CONN0`; a single-token array naming one of CONN1 through CONN6 gives that position, so `["CONN6"]` gives `CONN6`; any array naming more than one of CONN1 through CONN6, including `["CONN1-6"]`, gives `CONN`; and `["CABLE"]` gives `CABLE`.
+
+CONN1 through CONN6 share a pin field and would each accept any profile drawn for that field, so naming one position is not an electrical claim. It records where the profile was ratified for use, which is a property of the baseboard the profile was drawn up against rather than of the connector. A profile that is genuinely position-agnostic says so with `["CONN1-6"]`. A profile is not required to define all three signal sections.
 
 ---
 

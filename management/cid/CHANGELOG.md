@@ -18,16 +18,26 @@ workstream review of 2026-10-09. The version identifier is unchanged.
   support. Section 7.3.1 and the Section 10.1 compliance table were reworded accordingly.
 - **Connector profile `is_conn0` replaced by `applicable_conns`** — a boolean naming one connector
   position could not express a CABLE profile at all, and it stated the answer rather than the
-  question. `applicable_conns` is an array of class tokens drawn from `"CONN0"`, `"CONN1-6"`, and
-  `"CABLE"`. The tokens are position *classes*, not indices: CONN1 through CONN6 are electrically
-  interchangeable for profile purposes, so `["CONN2", "CONN5"]` would carry no meaning that
-  `["CONN1-6"]` does not already carry. In this revision the array shall contain exactly one token;
-  a multi-token array is reserved for a future revision and shall be treated as unrecognized.
-- **Profile identifier grammar extended to `CABLE`** — the connector segment of a profile identifier
-  is now `CONN0`, `CONN`, or `CABLE`. Section 8.3 adds a normative agreement rule: `CONN0`
-  corresponds to `["CONN0"]`, `CONN` to `["CONN1-6"]`, and `CABLE` to `["CABLE"]`, and a profile
-  whose segment and `applicable_conns` value disagree shall be treated as unrecognized. The existing
-  namespace is unaffected — no ratified identifier changes.
+  question. `applicable_conns` is a non-empty array of position tokens drawn from `"CONN0"`,
+  `"CONN1"` through `"CONN6"`, the all-six shorthand `"CONN1-6"`, and `"CABLE"`, each token
+  appearing at most once. A profile may therefore be ratified against one specific position, against
+  an arbitrary subset of CONN1 through CONN6, or against all six. CONN1 through CONN6 share a pin
+  field, so naming one of them is not an electrical claim; it records where the profile was ratified
+  for use, which is a property of the baseboard the profile was drawn up against rather than of the
+  connector. What the array shall not do is mix geometry classes: CONN0 has nine assignable columns,
+  CONN1 through CONN6 have eight, and CABLE is its own case, so an array spanning more than one of
+  them would leave the assignable column count of the profile undefined and shall be treated as
+  unrecognized.
+- **Profile identifier grammar extended to `CABLE` and to per-position segments** — the connector
+  segment of a profile identifier is now `CONN0`, one of `CONN1` through `CONN6`, `CONN`, or
+  `CABLE`. Section 8.3 makes the segment derived rather than independent information: `["CONN0"]`
+  yields `CONN0`; a single-token array naming one of CONN1 through CONN6 yields that position, so
+  `["CONN6"]` yields `OAC-PROF-CONN6-…`; an array naming more than one of them, including by the
+  `"CONN1-6"` shorthand, yields `CONN`; and `["CABLE"]` yields `CABLE`. A profile whose segment
+  and `applicable_conns` value disagree shall be treated as unrecognized. Per-position segments
+  fragment the namespace by design — the identifier records what the profile was ratified for, not
+  every position that would accept it physically. The existing namespace is unaffected — no ratified
+  identifier changes.
 - **`presence_detect` object flattened to the `mpesti_capable` field** — the wrapper object held one
   field, and its optionality made the absent case ambiguous to tooling. `mpesti_capable` is now a
   direct member of the connector object, defined in Table 7.4.1-1 alongside the other top-level
@@ -42,8 +52,9 @@ workstream review of 2026-10-09. The version identifier is unchanged.
   the signal sections in the order `high_speed_lanes`, `clocking`, `discrete_signals`.
 - **Section 8.5 open case restated** — the first work-in-progress case is now expressed in terms of
   `["CONN1-6"]`. `applicable_conns` can express the resolution directly, as `["CONN0", "CONN1-6"]`,
-  once the workstream settles the ninth column; the single-token restriction of Table 8.4-1 is what
-  holds the case closed in the meantime. The case itself remains open.
+  once the workstream settles the ninth column; the prohibition in Table 8.4-1 on mixing geometry
+  classes within one array is what holds the case closed in the meantime. The case itself remains
+  open.
 
 ### Revisited from the 2026-10-08 revision
 
@@ -66,9 +77,20 @@ workstream review of 2026-10-09. The version identifier is unchanged.
 - **CID template and examples** — `opl_set_max_w` removed; `mpesti_capable` added to every CONN0
   connector object in the CID examples, the SCD examples, and both Annex A documents.
 - **`OAC-CID-Editor.html`** — the `opl_set_max_w` input removed, the `is_conn0` checkbox replaced by
-  an `applicable_conns` selector offering CONN0, CONN1-6, and CABLE, and `mpesti_capable` emitted as
-  a flat field in Section 7.6 order. The loader still reads pre-revision documents: `is_conn0` and
-  `presence_detect` are accepted on input and reported as superseded, so existing work is not lost.
+  an `applicable_conns` control, and `mpesti_capable` emitted as a flat field in Section 7.6 order.
+  The `applicable_conns` control is a row of per-position checkboxes — CONN0, CONN1 through CONN6,
+  and CABLE — that enforces the no-mixed-class rule interactively and can never be left empty.
+  Selecting all six of CONN1 through CONN6 emits the `"CONN1-6"` shorthand. The selection drives the
+  pin map column count and the connector segment of the suggested identifier, so a profile ratified
+  against one position is offered `OAC-PROF-CONN6-…` rather than `OAC-PROF-CONN-…`. Switching away
+  from CONN0 still prompts before clearing column-9 pin assignments, and declining the prompt now
+  restores the previous selection rather than snapping back to CONN0. The loader still reads
+  pre-revision documents: `is_conn0` and `presence_detect` are accepted on input and reported as
+  superseded, so existing work is not lost.
+- **`OAC-CID-Editor.html` CID-mode placement check** — now that a profile identifier can name one
+  specific position, the editor verifies in CID mode that a referenced `connector_profile` is
+  applied to a position its connector segment names, per the Section 8.5 rejection rule. The segment
+  is derivable from the identifier alone, so no profile document is needed to make the check.
 
 ---
 
