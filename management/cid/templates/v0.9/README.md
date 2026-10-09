@@ -23,7 +23,7 @@ schema version 0.9.
 5. Delete optional fields that do not apply.
 6. Validate that the JSON is well-formed per ECMA-404. Comments are not permitted — a `//` or
    `/* */` sequence outside a string literal makes the document malformed.
-7. Minify before publishing. Production OACs serve minified UTF-8 with no byte order mark.
+7. Publish as UTF-8 with no byte order mark. Expanded and minified are both valid; minifying first is recommended for production, to reduce the transferred payload.
 
 The [CID Editor](../../tools/interactive/oac-cid-editor/) does all of this interactively, with a
 visual pin map and live JSON preview, and is usually faster than editing the template by hand.

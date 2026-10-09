@@ -5,12 +5,12 @@
 
 ## Purpose
 
-An animated simulation of inserting an OAC adapter into a baseboard slot and running the CID compliance evaluation sequence. Load two JSON files (baseboard capabilities and adapter CID), then click Insert to watch the compliance checks run in real time with a sequenced event log.
+An animated simulation of inserting an OAC into a baseboard slot and running the CID compliance evaluation sequence. Load two JSON files (baseboard capabilities and the OAC CID), then click Insert to watch the compliance checks run in real time with a sequenced event log.
 
 ## How to Use
 
 1. Click **Baseboard JSON** to load a file describing the baseboard slot's capabilities
-2. Click **Adapter CID JSON** to load the adapter's CID
+2. Click **Adapter CID JSON** to load the OAC's CID
 3. Click **Insert Adapter** to run the simulation
 4. Watch the hardware animation and event log
 5. Review the verdict (BLOCKED / DEGRADED / NORMAL) and any issues listed
@@ -19,7 +19,7 @@ An animated simulation of inserting an OAC adapter into a baseboard slot and run
 
 ## Baseboard JSON Format
 
-The baseboard file uses the same `oac_cid` JSON structure as an adapter CID, but represents what the slot supports rather than what the adapter requires. Any undeclared field generates a WARN rather than a FAIL. See the interactive tools README for an example baseboard file.
+The baseboard file uses the same `oac_cid` JSON structure as an OAC CID, but represents what the slot supports rather than what the OAC requires. Any undeclared field generates a WARN rather than a FAIL. See the interactive tools README for an example baseboard file.
 
 ## Compliance Checks
 
@@ -38,9 +38,9 @@ The emulator runs 10 compliance checks:
 
 ## Verdict States
 
-- **BLOCKED** — Any FAIL. OAC_PWR_EN remains de-asserted. Adapter does not power on.
+- **BLOCKED** — Any FAIL. OAC_PWR_EN remains de-asserted. The OAC does not power on.
 - **DEGRADED** — No FAIL, one or more WARN. OAC_PWR_EN asserted with reduced capability.
-- **NORMAL** — All checks pass. OAC_PWR_EN asserted. Adapter powers on at full capability.
+- **NORMAL** — All checks pass. OAC_PWR_EN asserted. The OAC powers on at full capability.
 
 ## Power-Up Narrative
 

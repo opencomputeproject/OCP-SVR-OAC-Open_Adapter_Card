@@ -4,7 +4,7 @@
 **Specification Reference:** [OAC-CID-Specification-v0.9.md](../../specification/OAC-CID-Specification-v0.9.md)
 
 Reference OAC Connector Interface Definition documents for CID schema version 0.9. Both are shown in
-expanded form for readability; a production OAC publishes the minified equivalent.
+expanded form for readability. A production OAC may publish either form; the minified equivalent is recommended, and is the same document with optional whitespace removed.
 
 | File | Form Factor | Power | Connectors |
 |------|-------------|-------|-----------|

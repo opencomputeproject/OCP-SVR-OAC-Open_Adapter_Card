@@ -99,7 +99,7 @@ The following documents are normative references for this specification. For dat
 | DSP0242 | DMTF, "PLDM for File Transfer Specification" |
 | DSP0248 | DMTF, "PLDM for Platform Monitoring and Control Specification," Version 1.3.1 |
 | DSP0249 | DMTF, "PLDM State Set Specification," Version 1.4.0 |
-| DSP0257 | DMTF, "PLDM for FRU Data Specification," Version 1.0 |
+| DSP0257 | DMTF, "PLDM for FRU Data Specification," Version 2.0 |
 | ECMA-404 | ECMA International, "JSON Data Interchange Syntax," 2nd Edition |
 | OAC-CID-SPEC | OCP, "OAC Connector Interface Definition (CID) Specification," Version 0.9 |
 | OCP OAC | OCP, "Open Adapter Card Base Specification," Version 0.9 |

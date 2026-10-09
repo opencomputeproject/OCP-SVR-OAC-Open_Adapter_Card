@@ -162,7 +162,7 @@ document never raises a hardware limit.
 4. Remove optional fields that do not apply.
 5. Validate that the JSON is well-formed per ECMA-404. No comments: `//` and `/* */` outside a
    string literal make the document malformed.
-6. **Minify.** Production OACs publish minified JSON, UTF-8, no byte order mark.
+6. **Choose an encoding.** Publish UTF-8 with no byte order mark, in expanded or minified form. Both are valid and a controller shall accept either; minified is recommended for production, purely to reduce the transferred payload.
 7. Set `FileMaximumSize` in the File Descriptor PDR to the exact transferred size.
 
 Or use the [CID Editor](tools/interactive/oac-cid-editor/) and skip steps 1 through 5 — it does
@@ -220,11 +220,13 @@ dependencies, no server, and no build step. Open them directly in a browser.
 
 | Reference | Document |
 |-----------|----------|
+| DSP0220 | DMTF, "FRU Data Specification," Version 1.0.1 |
+| DSP0236 | DMTF, "Management Component Transport Protocol (MCTP) Base Specification" |
 | DSP0240 | DMTF, "PLDM Base Specification," Version 1.2 |
 | DSP0242 | DMTF, "PLDM for File Transfer Specification" |
-| DSP0248 | DMTF, "PLDM for Platform Monitoring and Control Specification" |
-| DSP0249 | DMTF, "PLDM State Set Specification" |
-| DSP0257 | DMTF, "PLDM for FRU Data Specification" |
+| DSP0248 | DMTF, "PLDM for Platform Monitoring and Control Specification," Version 1.3.1 |
+| DSP0249 | DMTF, "PLDM State Set Specification," Version 1.4.0 |
+| DSP0257 | DMTF, "PLDM for FRU Data Specification," Version 2.0 |
 | ECMA-404 | ECMA International, "JSON Data Interchange Syntax," 2nd Edition |
 | OCP OAC | OCP, "Open Adapter Card Base Specification," Version 0.9 |
 
@@ -237,7 +239,14 @@ The authoritative list is Section 2 of the specification itself.
 See [CHANGELOG.md](CHANGELOG.md). Headline changes at v0.9: `link_subdivision` moved out to the SCD;
 `link_role`, `sris_capable`, and the `ssc_capable`/`ssc_default` pair removed; a required `name`
 added to every protocol group; `connector_profile` introduced; and the compression section removed
-entirely — a CID is minified JSON and nothing else.
+entirely — a CID is plain UTF-8 JSON and nothing else.
+
+The v0.9 document was revised in place on **2026-10-08** following the OAC workstream review.
+Connector profiles became their own Section 8, which renumbered CID Retrieval and Validation to 9,
+Compliance to 10, and Annex C to Annex B. `presence_detect`, `high_speed_lanes` presence, and the
+relationship between the CID and mechanical keying were rewritten, Annex A was replaced with two
+complete examples, and the document standardized on "the OAC". Section numbers cited elsewhere in
+this repository refer to the revised document.
 
 ---
 
@@ -249,10 +258,18 @@ Open items against the shipped v0.9 content, recorded so they are not rediscover
 |-------|----------|
 | Both reference examples omit `schema_version` and `oac_spec_revision`, which Table 7.2-1 marks **Required**. Their `metadata` objects carry only `description` | `examples/v0.9/*.json` |
 | Both example descriptions read "645W OPL-EMG" while the declared `opl_emg_w` is 625 | `examples/v0.9/*.json` |
-| Section 2 still lists DSP0220, MessagePack, and RFC 1952, none of which the current Section 6 uses; and the `OCP OAC v0.9` row cites "Version 0.8" | `specification/`, Section 2 |
-| The Contents block numbers Compliance as Section 10 and omits a Section 9; the body has it as Section 9 | `specification/`, Contents |
-| Section 7.4.3 justifies the eight-protocol-group limit by "the uint32 SCD effecter encoding … one 4-bit nibble per protocol group" — a rationale inherited from a superseded SCD draft that no longer describes how SCD works | `specification/`, Section 7.4.3 |
-| The specification and tooling say "adapter" throughout; the SCD specification standardized on "the OAC" at v0.9 | `specification/`, `tools/` |
+| Section 7.4.3 justifies the eight-protocol-group limit by "the uint32 SCD effecter encoding … one 4-bit nibble per protocol group" — a rationale inherited from a superseded SCD draft that no longer describes how SCD works. The limit itself is correct; only the justification is stale | `specification/`, Section 7.4.3 |
+| The three interactive HTML tools still say "adapter" where the specification now says "the OAC", and the compliance logic diagram labels the validation clause 8.3, which the 2026-10-08 revision renumbered to 9.3. The tool READMEs record this; the tools themselves have not been regenerated | `tools/interactive/` |
+
+Two mechanisms are additionally annotated **WORK IN PROGRESS** inside the specification itself and
+are expected to change before v0.9 is published as final — Section 6.3 in its entirety, and the
+Section 8.5 profile applicability cases. See
+[specification/README.md](specification/README.md#open-items).
+
+Resolved in the 2026-10-08 revision and recorded here so they are not re-reported: the Section 2
+reference list (MessagePack and RFC 1952 removed, DSP0236/DSP0248/DSP0249 added, DSP0242 cited
+undated, the `OCP OAC v0.9` row corrected from "Version 0.8"), the Contents block numbering, and the
+"adapter" / "the OAC" divergence within `specification/`. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

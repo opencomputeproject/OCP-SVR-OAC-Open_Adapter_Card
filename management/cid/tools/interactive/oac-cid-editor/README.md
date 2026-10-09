@@ -7,9 +7,9 @@
 
 ## Overview
 
-The OAC CID Editor is a browser-based authoring tool for creating and editing OAC Connector Interface Definition (CID) documents. A CID is a machine-readable JSON file stored in OAC adapter firmware that declares everything a baseboard management controller (BMC) needs to know about an adapter before energizing its slot: power requirements, connector configuration, high-speed signaling assignments, reference clocking, and discrete sideband signals.
+The OAC CID Editor is a browser-based authoring tool for creating and editing OAC Connector Interface Definition (CID) documents. A CID is a machine-readable JSON file stored in OAC firmware that declares everything an upstream management controller needs to know about an OAC before energizing its slot: power requirements, connector configuration, high-speed signaling assignments, reference clocking, and discrete sideband signals.
 
-Authoring a well-formed CID from scratch — especially for multi-connector adapters with complex lane assignments — is time-consuming and error-prone when done by hand. The CID Editor provides a structured, validated environment that guides the user through every field of the schema, enforces constraints at entry time, and produces standards-compliant JSON output ready for integration into adapter firmware.
+Authoring a well-formed CID from scratch — especially for multi-connector OACs with complex lane assignments — is time-consuming and error-prone when done by hand. The CID Editor provides a structured, validated environment that guides the user through every field of the schema, enforces constraints at entry time, and produces standards-compliant JSON output ready for integration into OAC firmware.
 
 ---
 
@@ -33,9 +33,9 @@ Tracking these rules manually while editing raw JSON is impractical. The editor 
 
 The editor operates in two distinct modes selectable from the header:
 
-**CID Mode** — for authoring a complete adapter CID. Covers the full schema: metadata, power (input voltage, connector type, all OPL levels), and per-connector signal definitions for up to seven connectors (CONN0–CONN6). Each connector can reference an OCP-ratified Connector Profile by identifier, or define its signals explicitly — but not both.
+**CID Mode** — for authoring a complete OAC CID. Covers the full schema: metadata, power (input voltage, connector type, all OPL levels), and per-connector signal definitions for up to seven connectors (CONN0–CONN6). Each connector can reference an OCP-ratified Connector Profile by identifier, or define its signals explicitly — but not both.
 
-**Connector Profile Mode** — for authoring a reusable, OCP-ratified connector profile. A profile defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for a specific connector position and protocol configuration. Once ratified by the OCP OAC workstream, adapters can reference a profile by its identifier rather than repeating full pin-level declarations in every CID. This keeps CIDs compact and consistent across vendors.
+**Connector Profile Mode** — for authoring a reusable, OCP-ratified connector profile. A profile defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for a specific connector position and protocol configuration. Once ratified by the OCP OAC workstream, OACs can reference a profile by its identifier rather than repeating full pin-level declarations in every CID. This keeps CIDs compact and consistent across vendors.
 
 ### Guided and Manual Editing — Live Two-Way Sync
 
@@ -74,7 +74,7 @@ Validation covers:
 **Export JSON** offers two formats:
 
 - **Formatted JSON** — human-readable with indentation, suitable for documentation and review
-- **Minified JSON** — all optional whitespace removed, suitable for direct firmware storage. For large CIDs, minified output should be further compressed using MessagePack or Gzip per DMTF DSP0220 before embedding in firmware.
+- **Minified JSON** — all optional whitespace removed, suitable for direct firmware storage. Minification is the only size reduction the CID defines; compression was removed from the specification at v0.9, and a CID shall be served as UTF-8 JSON per Section 6.2.
 
 ### Connector Profile Naming Assistance
 

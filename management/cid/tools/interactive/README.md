@@ -11,14 +11,14 @@ All tools use JSON format per the CID v0.9 schema and reflect the current OCP OA
 | Tool | File | Purpose |
 |------|------|---------|
 | [CID Editor](#cid-editor) | `oac-cid-editor/OAC-CID-Editor.html` | Guided form editor for authoring and exporting JSON CID documents |
-| [Insertion Emulator](#insertion-emulator) | `oac-cid-insertion-emulator/OAC-CID-Insertion-Emulator.html` | Animated simulation of adapter insertion with live compliance checking |
+| [Insertion Emulator](#insertion-emulator) | `oac-cid-insertion-emulator/OAC-CID-Insertion-Emulator.html` | Animated simulation of OAC insertion with live compliance checking |
 | [Compliance Logic](#compliance-logic) | `oac-cid-compliance-logic/OAC-CID-Compliance-Logic.html` | Static reference diagram of the BMC CID compliance check sequence |
 
 ---
 
 ## CID Editor
 
-A multi-panel editor for authoring OAC CID documents and OCP-ratified Connector Profiles. Operates in two top-level modes — **CID** (full adapter document) and **Connector Profile** (reusable pinout definition) — each with **Guided** (form-based) and **Manual** (raw JSON with syntax highlighting) editing sub-modes. All modes stay in two-way sync.
+A multi-panel editor for authoring OAC CID documents and OCP-ratified Connector Profiles. Operates in two top-level modes — **CID** (full OAC document) and **Connector Profile** (reusable pinout definition) — each with **Guided** (form-based) and **Manual** (raw JSON with syntax highlighting) editing sub-modes. All modes stay in two-way sync.
 
 **Sections covered:** metadata, power (input voltage, connector type, all OPL fields), connectors (impedance, connector_profile reference, M-PESTI, high-speed lanes with protocol groups and link subdivision, clocking, discrete signals).
 
@@ -36,7 +36,7 @@ No external dependencies. See [oac-cid-editor/README.md](oac-cid-editor/README.m
 
 ## Insertion Emulator
 
-Load a baseboard capability JSON and an adapter CID JSON, then click Insert to run a sequenced simulation. An animated card-insertion visualization plays while the compliance engine evaluates the two schemas against each other. The event log on the right panel records every check in real time.
+Load a baseboard capability JSON and an OAC CID JSON, then click Insert to run a sequenced simulation. An animated card-insertion visualization plays while the compliance engine evaluates the two schemas against each other. The event log on the right panel records every check in real time.
 
 **Compliance checks:** input voltage, connector type (100A/125A), OPL-MAX power budget, OPL-EMG declaration, connector impedance, high-speed lane parameters, lane pin assignments, reference clocking, required discrete signals, spec revision.
 
@@ -56,7 +56,7 @@ No external dependencies.
 
 ## Baseboard Schema Format
 
-The Insertion Emulator requires a **baseboard capability JSON** in addition to the adapter CID. The baseboard file uses the same `oac_cid` structure as an adapter CID but describes the slot's capabilities rather than an adapter's requirements. Any field the baseboard does not populate is treated as undeclared (generating a WARN rather than a FAIL where applicable).
+The Insertion Emulator requires a **baseboard capability JSON** in addition to the OAC CID. The baseboard file uses the same `oac_cid` structure as an OAC CID but describes the slot's capabilities rather than the OAC's requirements. Any field the baseboard does not populate is treated as undeclared (generating a WARN rather than a FAIL where applicable).
 
 Example minimal baseboard file:
 

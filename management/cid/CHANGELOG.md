@@ -4,7 +4,152 @@ All notable changes to the OAC Connector Interface Definition (CID) specificatio
 
 ---
 
-## [0.8] — Current
+## [0.9] — 2026-10-08 — Workstream review revision
+
+Revision of the published v0.9 document in response to the OAC workstream review recorded in
+`OAC_WS_CID_Feedback_20261008.docx`. The version identifier is unchanged; v0.9 was edited in place.
+
+### Added
+
+- **Section 8, Connector Profile JSON Document Structure** — connector profiles are no longer a
+  subsection of the `connectors` array. The former Sections 7.4.1.1 (mutual exclusivity), 7.4.1.2
+  (profile identifiers), and 7.4.1.3 (profile file format) are now Sections 8.2, 8.3, and 8.4, joined
+  by a new 8.1 General and a new 8.5 Profile Applicability to Connector Positions. Section 8 is
+  written to reference Section 7 for shared field definitions and to state its differences from it
+  explicitly. CID Retrieval and Validation moved from Section 8 to Section 9, and Compliance from
+  Section 9 to Section 10; Annex C became Annex B.
+- **Table 7.4.3-2, lanes Array Element Fields** — the lane-level fields `lane_index`, `direction`,
+  `pin_positive`, and `pin_negative` are now a table of their own. Table 7.4.3-1 gains an explicit
+  `lanes` row and describes the protocol group alone. The two had previously been run together into
+  a single malformed table, which made it look as though lane counts and individual pin assignments
+  were fields of the same object.
+- **Section 9.3 validation item 11** — a connector that carries high-speed signals but declares
+  neither a profile nor explicit lane definitions is incompletely defined, and the slot shall not be
+  energized.
+- **Normative references DSP0236, DSP0248, and DSP0249** — all three were cited normatively in the
+  body without appearing in Section 2.
+
+### Changed
+
+- **Mechanical keying and the CID** (Sections 1 and 5) — rewritten. Keying discriminates on exactly
+  one attribute, the +12 V / +50 V primary input voltage class, per Base Specification Section
+  7.9.3.1. For every other class of incompatibility the CID *is* the enforcement mechanism and is
+  intended to be, which is safe because the primary busbar is not energized until interoperability
+  has been determined from the CID and configuration applied through the SCD. The previous claim that
+  the CID "shall not be used as a substitute for hardware mechanical keying" is withdrawn.
+- **Section 6.3 Fixed Length File semantics** — the CID's size is fixed for as long as a given CID is
+  being served, not across firmware updates. A firmware update may replace the CID with one of a
+  different size, and `FileMaximumSize` is updated accordingly. The previous "size unchanged between
+  firmware updates" wording was incorrect.
+- **Section 7.2.2 `platform_token`** — "closed platform" replaced throughout by "tightly coupled" and
+  "validated pairings", with a new paragraph stating that a validated pairing is defined by the act
+  of validation and not by who owns the two parts. Three of the six constraints — multi-vendor,
+  multi-generation, and open-market use — are demoted from *shall* to advisory notes; the matched-set
+  requirement, the unrecognized-token fallback, and the `iana_pen` dependency remain *shall*.
+- **Section 7.4.2 `presence_detect`** — rewritten. Presence detection is neither optional nor
+  negotiable; every populated connector ties Pin A1 to GND per Base Specification Section 9.4.8.2.12,
+  and that is never declared in the CID. The object exists for exactly one purpose, to declare the
+  M-PESTI overload on CONN0 Pin A1 permitted by Base Specification Section 9.4.8.2.12.1. Its absence
+  is complete information, not missing information.
+- **Section 7.4.3 `high_speed_lanes` presence** — stated as three explicit rules keyed on whether the
+  connector declares a `connector_profile`, replacing "optional … if and only if". The section now
+  says plainly that the field is optional only in the sense that a conformant connector object may
+  omit it, never in the sense of a free choice.
+- **Section 8.3 profile knowledge requirement** — a conformant upstream management controller carries
+  built-in knowledge of the ratified profiles *its baseboard can support*, not of every ratified
+  profile, and handles every other identifier robustly rather than treating it as a parse failure.
+  The previous text required knowledge of all ratified profiles and said "baseboard management
+  controllers".
+- **Section 6.2** — the `-minified` suffix paragraph relocated here from the connector profile
+  identifier section, generalized to cover profile files as well as the CID.
+- **Section 6.2 encoding is no longer a mandate.** The relocated text had hardened into a
+  requirement that production OACs publish minified JSON, with expanded format merely
+  tolerated. That was never the intent. Expanded and minified are now both stated to be
+  valid encodings of the CID; an upstream management controller shall accept either and
+  shall not reject a CID, or treat it as malformed, over its whitespace encoding. Minified
+  is **recommended** for production CID files as a size and retrieval-latency optimization,
+  and the clause says so explicitly. Section 3.5 no longer restricts expanded format to
+  authoring and debugging "only", Section 3.6 no longer calls minified "the normative
+  encoding", and the Annex B file-size sensor reading is no longer described as the
+  minified byte count. For profile files, the minified form is now the *recommended* choice
+  for firmware integration rather than one that "takes precedence". Matching corrections
+  were made in `README.md`, `specification/README.md`, `templates/v0.9/README.md`, and
+  `examples/v0.9/README.md`, each of which had restated the mandate.
+- **Section 9.1 storage and exposure** — the CID is stored in non-volatile memory on the OAC and
+  *exposed* by the OAC management controller. Storage and exposure are now distinguished explicitly.
+  "the OAC adapter's management controller" is gone, as is a duplicated "upstream upstream".
+- **Section 9.4 retrieval timeout** — the ≥ 5 s floor is retained; the justification "to accommodate
+  adapters with management controllers that perform initialization at power-on" is deleted, since
+  `OAC_MC_RDY` is already asserted before retrieval begins.
+- **Annex A** — replaced. Two complete, labelled, schema-valid documents: A.1 Profile-Referencing CID
+  and A.2 Explicitly Defined CID, with the prose between them reworked. The previous second example
+  combined `connector_profile` with an explicit `discrete_signals` override on the same connector,
+  which Section 8.2 prohibits and the CID editor already rejects, and referenced a malformed profile
+  identifier. The first example declared no signal definitions of any kind.
+- **Terminology** — the document now says "the OAC" throughout, matching the SCD specification.
+  "adapter" is reserved for the proper name *Open Adapter Card*. "Baseboard management controller"
+  is gone in favour of "upstream management controller".
+- **Base Specification cross-references** — Sections 9.1.1, 9.1.2, and 9.1.4 corrected to 10.1.1,
+  10.1.2, and 10.1.4 against the v0.9-Final numbering.
+- **Section 2** — the `OCP OAC v0.9` row cited "Version 0.8"; corrected. The MessagePack and
+  RFC 1952 rows are removed, orphaned when compression was dropped at v0.9. DSP0242 is now cited
+  undated, matching the SCD specification's convention.
+- **Contents block** — rebuilt. It had numbered the Section 7 subsections one lower than the body and
+  listed Compliance as Section 10 while the body numbered it 9.
+- **Numbering gaps closed** — Section 7.4.3.2 became 7.4.3.1 (there was no 7.4.3.1), and Annex C
+  became Annex B (there was no Annex B). The Section 9.2 retrieval steps ran 1–5 then 8, 9.
+
+### Annotated as work in progress
+
+- **Section 6.3 in its entirety** — the hard-coded `FileName`, the match-on-name-then-open-by-
+  identifier discovery sequence, and the File Descriptor PDR and sensor PDR field constraints that
+  follow from them. An alternative has been raised in which an OAC publishes a metadata file
+  enumerating the files it exposes together with their identifiers and roles. Annex B carries a note
+  scoping it to the same annotation.
+- **Section 8.5** — whether an `is_conn0: false` profile may be applied to CONN0, which would leave
+  CONN0's ninth assignable column undefined; and whether a CID may supplement or partially override a
+  referenced profile at all. Section 8.2 forbids both today. The normative rule is unchanged: a
+  profile applied to an inconsistent connector position is rejected.
+
+### Considered and declined
+
+Three review items were declined by the workstream and should not be re-proposed:
+
+- Renaming OPL-EMG to drop "Operational". The Base Specification defines it as an Operational Power
+  Level and the OAC is operational at it; the change would propagate back into the Base Specification.
+- Collapsing `opl_set_min_w` and `opl_set_max_w` as redundant with OPL-EMG and OPL-MAX. They are
+  optional, and they let a vendor enforce a configurable floor above OPL-EMG so that a platform
+  cannot throttle the OAC into uselessness.
+- Dropping the Section 7.6 section-order and CONN0-first ordering rules. They are retained
+  deliberately, as a defense against implementations that index into the arrays positionally.
+
+### Associated artifacts
+
+- `profiles/README.md` — the protocol abbreviation table reference updated from Table 7.4.1.2-1 to
+  Table 8.3-1. The "BMC Support Requirement" clause is retitled "Controller Support Requirement"
+  and rewritten: it required built-in knowledge of *all* OCP-ratified profiles, where Section 8.3
+  now requires knowledge only of those the baseboard supports, plus robust handling of an
+  unrecognized reference.
+- README terminology — the sweep that renamed "adapter" to "OAC" and "baseboard management
+  controller" to "upstream management controller" was extended across the CID README set
+  (`examples/`, `profiles/`, `templates/`, `tools/`, and the three `tools/interactive/` tool
+  READMEs). Literal UI labels that the interactive HTML renders — the **Adapter CID JSON** and
+  **Insert Adapter** buttons — are quoted verbatim and deliberately unchanged, because the HTML
+  itself is out of scope for this revision and a README that renamed its own buttons would
+  misdescribe the tool.
+- `tools/interactive/oac-cid-compliance-logic/README.md` — annotated to record that the diagram
+  was authored against the original Section 8.3 numbering and has not been regenerated.
+- `tools/interactive/oac-cid-editor/README.md` — the minified-output description no longer directs
+  implementers to compress with MessagePack or Gzip per DSP0220; compression was removed from the
+  CID at v0.9.
+- `specification/README.md` — section coverage map, key normative points, and open items rebuilt.
+- `../scd/README.md` and `../scd/specification/OAC-SCD-Specification-v0.9.md` — DSP0257 corrected
+  from Version 1.0 to Version 2.0, and the SCD README's DSP0242 row brought in line with the
+  undated-reference convention the SCD specification already follows.
+
+---
+
+## [0.9] — 2026-10-06 — Initial publication
 
 ### Added
 

@@ -1,6 +1,6 @@
 # Examples
 
-This folder contains reference OAC Connector Interface Definition (CID) JSON documents. These files represent complete CID implementations for specific adapter configurations and serve as authoritative references for adapter vendors and baseboard designers.
+This folder contains reference OAC Connector Interface Definition (CID) JSON documents. These files represent complete CID implementations for specific OAC configurations and serve as authoritative references for OAC vendors and baseboard designers.
 
 Files are organized by CID specification revision.
 

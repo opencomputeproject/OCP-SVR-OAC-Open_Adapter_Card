@@ -160,10 +160,10 @@ These are the normative references of Specification Section 2.
 | DSP0236 | DMTF, "Management Component Transport Protocol (MCTP) Base Specification," v1.3 |
 | DSP0240 | DMTF, "PLDM Base Specification," v1.2 |
 | DSP0241 | DMTF, "PLDM over MCTP Binding Specification," v1.0 |
-| DSP0242 | DMTF, "PLDM for File Transfer Specification," v1.0 |
+| DSP0242 | DMTF, "PLDM for File Transfer Specification" |
 | DSP0248 | DMTF, "PLDM for Platform Monitoring and Control Specification," v1.3.1 |
 | DSP0249 | DMTF, "PLDM State Set Specification," v1.4.0 |
-| DSP0257 | DMTF, "PLDM for FRU Data Specification," v1.0 |
+| DSP0257 | DMTF, "PLDM for FRU Data Specification," v2.0 |
 | ECMA-404 | ECMA International, "JSON Data Interchange Syntax," 2nd Ed. |
 | OAC-CID-SPEC | OCP, "OAC Connector Interface Definition (CID) Specification," v0.9 |
 | OCP OAC | OCP, "Open Adapter Card Base Specification," v0.9 |

@@ -7,8 +7,14 @@
 
 A visual reference card showing the complete sequence of CID compliance checks that the upstream
 management controller performs after retrieving an OAC's JSON-encoded Connector Interface
-Definition. Covers all 12 validation steps defined in
-[OAC-CID-Specification-v0.9.md](../../../specification/OAC-CID-Specification-v0.9.md) Section 8.3.
+Definition. The 12 checks shown expand on the minimum validation requirements of
+[OAC-CID-Specification-v0.9.md](../../../specification/OAC-CID-Specification-v0.9.md) Section 9.3.
+
+> **NOTE:** The diagram was authored against the v0.9 document as first published, where the
+> validation requirements were Section 8.3. The 2026-10-08 revision renumbered that clause to 9.3 and
+> added a requirement that a connector carrying high-speed signals without a `connector_profile`
+> declare `high_speed_lanes` explicitly. Check 8 covers the same ground informally; the diagram has
+> not been regenerated. See [CHANGELOG.md](../../../CHANGELOG.md).
 
 ## Checks Shown
 
