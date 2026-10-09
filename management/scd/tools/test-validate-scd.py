@@ -188,10 +188,45 @@ def run_negative(rep):
     rep.expect_code("subdivision mode not in the enumeration",
                     V.validate(scddB, scda, cidB, {}), 0x09)
 
+    # The echo is informational. A differing value is not a rejection and
+    # 0x0D is retired to Reserved, so this case exists to fail loudly if the
+    # comparison is ever reintroduced.
     scda = copy.deepcopy(scdaB)
     scda["oac_scda"]["metadata"]["definition_revision"] = 99
-    rep.expect_code("Assignment echoes a stale definition_revision",
-                    V.validate(scddB, scda, cidB, {}), 0x0D)
+    rep.expect_accept("ECHO_NOT_CHECKED: a differing definition_revision accepted",
+                      V.validate(scddB, scda, cidB, {}))
+
+    scda = copy.deepcopy(scdaB)
+    del scda["oac_scda"]["metadata"]["definition_revision"]
+    rep.expect_accept("Assignment omitting definition_revision entirely",
+                      V.validate(scddB, scda, cidB, {}))
+
+    scda = copy.deepcopy(scdaB)
+    scda["oac_scda"]["metadata"]["iana_pen"] = 32473
+    rep.expect_code("Assignment metadata key outside Table 9.2-1",
+                    V.validate(scddB, scda, cidB, {}), 0x04)
+
+    # Cross-field power feasibility, Section 11.3.1 check 8. Both values below
+    # sit inside their own declared min/max, so only the relation between them
+    # is defective -- which is exactly what 0x10 is for.
+    scda = copy.deepcopy(scdaB)
+    scda["oac_scda"]["assignments"]["ocp.initial_power_max_w"] = 2200
+    rep.expect_code("power set point above the assigned budget",
+                    V.validate(scddB, scda, cidB, {}), 0x10)
+
+    scda = copy.deepcopy(scdaB)
+    scda["oac_scda"]["assignments"]["ocp.initial_power_min_w"] = 2000
+    rep.expect_code("power floor above the power ceiling",
+                    V.validate(scddB, scda, cidB, {}), 0x10)
+
+    # ... and the defaulting case Section 10.4 calls out explicitly: the
+    # Assignment names only the floor, and the ceiling it is compared against
+    # is the one the omitted field fell back to.
+    scda = copy.deepcopy(scdaB)
+    del scda["oac_scda"]["assignments"]["ocp.initial_power_max_w"]
+    scda["oac_scda"]["assignments"]["ocp.initial_power_min_w"] = 1500
+    rep.expect_code("power floor above a defaulted ceiling",
+                    V.validate(scddB, scda, cidB, {}), 0x10)
 
     scda = copy.deepcopy(scdaB)
     scda["oac_scda"]["metadata"]["schema_version"] = "0.7"
@@ -244,10 +279,41 @@ def run_negative(rep):
     rep.expect_code("field id outside the ocp. and pen. namespaces",
                     V.validate(scdd, None, None, {}), 0x04)
 
+    # Section 7.4 reserves the ocp. prefix for fields Section 10 defines, so
+    # an ocp. identifier outside that registry is undefined -- which covers the
+    # identifiers withdrawn drafts used without needing a list of them.
     scdd = copy.deepcopy(scddB)
     field(scdd, "ocp.slot_id")["id"] = "ocp.slot_label"
-    rep.expect_code("a retired identifier reused",
-                    V.validate(scdd, None, None, {}), 0x10)
+    rep.expect_code("an ocp. identifier outside the Section 10 registry",
+                    V.validate(scdd, None, None, {}), 0x04)
+
+    scdd = copy.deepcopy(scddB)
+    scdd["oac_scdd"]["metadata"]["iana_pen"] = 32473
+    rep.expect_code("Definition metadata key outside Table 7.2-1",
+                    V.validate(scdd, None, None, {}), 0x04)
+
+    # The string type and the max_length key it bounded were retired together.
+    scdd = copy.deepcopy(scddB)
+    field(scdd, "pen.32473.boot_source")["type"] = "string"
+    rep.expect_code("a descriptor declaring the retired string type",
+                    V.validate(scdd, None, None, {}), 0x06)
+
+    scdd = copy.deepcopy(scddB)
+    field(scdd, "pen.32473.boot_source")["max_length"] = 32
+    rep.expect_code("a descriptor declaring the retired max_length key",
+                    V.validate(scdd, None, None, {}), 0x06)
+
+    # Section 13.1. Padded with well-formed filler descriptors, so size is the
+    # only thing wrong with the document.
+    scdd = copy.deepcopy(scddB)
+    filler = copy.deepcopy(field(scdd, "pen.32473.boot_source"))
+    filler["description"] = "x" * 1000
+    for i in range(100):
+        one = copy.deepcopy(filler)
+        one["id"] = "pen.32473.filler_%d" % i
+        scdd["oac_scdd"]["fields"].append(one)
+    rep.expect_code("a Definition exceeding the transferred size limit",
+                    V.validate(scdd, None, None, {}), 0x0E)
 
     scdd = copy.deepcopy(scddB)
     field(scdd, "ocp.max_power_w")["min"] = 1

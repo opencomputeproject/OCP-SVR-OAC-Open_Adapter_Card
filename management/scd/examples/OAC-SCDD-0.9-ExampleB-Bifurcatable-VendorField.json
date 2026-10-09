@@ -4,8 +4,7 @@
       "schema_version": "0.9",
       "oac_spec_revision": "0.9",
       "definition_revision": 1,
-      "description": "Example B SCD Definition: five fields covering both response classes, both cid_binding kinds, the sentinel default, and both namespaces. One subdividable PCIe group on CONN0. IANA PEN 32473 is the number reserved for documentation use; a real OAC substitutes its own.",
-      "iana_pen": 32473
+      "description": "Example B SCD Definition: six fields covering both response classes, both cid_binding kinds, the sentinel default, and both namespaces. One subdividable PCIe group on CONN0. The pen.32473 field identifiers use 32473, the IANA PEN reserved for documentation; a real OAC substitutes its own."
     },
     "fields": [
       {
@@ -25,7 +24,7 @@
         "description": "Sustained power the platform can supply to this slot.",
         "type": "integer",
         "response": "required",
-        "default": 625,
+        "default": 2500,
         "units": "watts",
         "min": 625,
         "max": 2500,
@@ -35,12 +34,27 @@
         }
       },
       {
-        "id": "ocp.initial_power_level_set_w",
-        "display_name": "Initial OPL-SET Wattage",
-        "description": "Power cap applied when the OAC enters Operational State O5.",
+        "id": "ocp.initial_power_max_w",
+        "display_name": "Initial Power Maximum",
+        "description": "Upper power set point applied when the OAC enters Operational State O5.",
+        "type": "integer",
+        "response": "required",
+        "default": 1200,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "id": "ocp.initial_power_min_w",
+        "display_name": "Initial Power Minimum",
+        "description": "Lower power set point applied when the OAC enters Operational State O5.",
         "type": "integer",
         "response": "optional",
-        "default": 1200,
+        "default": 625,
         "units": "watts",
         "min": 625,
         "max": 2500,

@@ -23,16 +23,15 @@ That structure is what lets a generic controller and an unfamiliar OAC still agr
 
 SCD is a replacement for hardware strapping. A strapped interface commits its width at board layout: *n* inputs distinguish at most 2^*n* states, the encoding is positional and untyped, and both ends must agree on its meaning out of band. Extending it means an additional pin, its pull network, a board revision, and re-qualification — which is why strapping in practice carries a few coarse values, slot identity and link width among them, and leaves everything else to be fixed in firmware per platform.
 
-SCD carries the same information as typed, named, self-describing fields, bounded by the 32 KiB transferred Definition limit rather than by pin count. An added attribute costs a schema revision and a `definition_revision` increment shipped by firmware update, not an electrical respin. Because identifiers are namespaced, a vendor adds fields under its own `pen.<IANA PEN>.` prefix with no OCP registration and no risk of collision, and a controller that has never heard of them omits them and lets the declared defaults stand. The fixed handful of strapped bits becomes an extensible configuration surface that each OAC describes for itself.
+SCD carries the same information as typed, named, self-describing fields, bounded by the 64 KB transferred Definition limit rather than by pin count. An added attribute costs a schema revision shipped by firmware update, not an electrical respin. Because identifiers are namespaced, a vendor adds fields under its own `pen.<IANA PEN>.` prefix with no OCP registration and no risk of collision, and a controller that has never heard of them omits them and lets the declared defaults stand. The fixed handful of strapped bits becomes an extensible configuration surface that each OAC describes for itself.
 
-### The placement rule
+### How this relates to the CID
 
-The line between the two OAC-published documents is a single question:
+The OAC Base Specification states the relationship directly: the CID describes the characteristics, requirements, and capabilities of the OAC to the platform, whereas SCD describes the platform environment and operational configuration provided to the OAC. The two are not halves of one schema — they have different subjects. A platform reads the CID to learn what it has been handed. An OAC reads SCD to learn where it has been installed.
 
-> **Does the platform need this to decide whether to power the OAC at all?**
-> **Yes → CID. No → SCD.**
+The platform environment an OAC needs falls into three kinds, and the OCP-defined registry of Specification Section 10 is organized around them: platform identity the OAC cannot infer, slot identity being the canonical case; the conditions the slot provides, such as the sustained power this position can supply; and the operational configuration the platform selects, such as how a subdividable protocol group is to be partitioned and what power set points the OAC starts from.
 
-Power envelopes stay in the CID, because the platform must know them before `OAC_PWR_EN`. The subdivision *menu* lives in the Definition, because the platform does not need it to make the power decision.
+Content describing the OAC itself stays in the CID and is not restated here — connector population, lane counts, pin maps, reference clocking, discrete signals, and the Operational Power Level menu. SCD's power fields describe the slot and are bounded by the CID's, which is the general shape of the relationship: SCD selects within what the CID declares, and never beyond it.
 
 ### Transport and timing
 
@@ -95,9 +94,9 @@ Five rules carry most of the weight:
 
 - **Every field descriptor carries a default.** This is what makes a sparse Assignment safe, and it is not optional.
 - **The Assignment is sparse.** Omission means "use the default," which is a decision, not an oversight.
-- **`required` is advisory, not mandatory.** A controller that does not recognize a `required` field omits it and the OAC proceeds on the default. Without this, one unknown vendor field would brick an otherwise working pair.
+- **`response` classifies the value, not the document.** A controller that does not recognize a `required` field omits it and the OAC proceeds on the default; the OAC reports the under-configured case rather than refusing it. Without this, one unknown vendor field would brick an otherwise working pair.
 - **Group names are unique within a connector, not across the document.** The binding key is the pair `(cid_connector, cid_group_name)`. Two connectors may both declare a group named `pcie_primary`, and that is conformant.
-- **Conflicting power values clamp, they do not reject.** The applied cap is `min(ocp.initial_power_level_set_w, ocp.max_power_w, opl_max_w)`.
+- **Contradictory power values are rejected, not reconciled.** `ocp.initial_power_max_w` shall not exceed `ocp.max_power_w`, and `ocp.initial_power_min_w` shall not exceed `ocp.initial_power_max_w`. Either violation is rejection code `0x10`.
 
 ---
 
@@ -106,10 +105,10 @@ Five rules carry most of the weight:
 1. Read the OAC's CID over PLDM for FRU Data. Decide whether to power it at all.
 2. Read the OAC's SCD Definition, also over PLDM for FRU Data, and resolve any `connector_profile` references in the CID.
 3. Copy `templates/OAC-SCDA-TEMPLATE.json` and compose an Assignment. Set only the fields you recognize and want to change; omit everything else, including `required` fields you have no opinion about.
-4. Echo the Definition's `definition_revision` in your Assignment metadata. A mismatch means you composed against a stale Definition and must re-read.
+4. Echo the Definition's `definition_revision` in your Assignment metadata if you like. It is informational provenance; the OAC does not check it, and a cached Definition is instead discarded when `OAC_MC_RDY` deasserts.
 5. Delete every `$comment` key — ECMA-404 permits no comments, so the annotations are an authoring convenience only.
 6. Validate with `tools/validate-scd.py`.
-7. Minify. The transferred size limits are 32 KiB for a Definition and 8 KiB for an Assignment.
+7. Minify. The transferred size limit is 64 KB for a Definition and 64 KB for an Assignment — the same figure, because an Assignment composed against a Definition cannot be larger than it.
 8. Transfer with `DfOpen`/`DfWrite`/`DfClose` while the OAC is in O3, before asserting `OAC_PWR_EN`.
 
 To author a Definition rather than an Assignment — that is, if you are building an OAC — start from `templates/OAC-SCDD-TEMPLATE.json` and read `templates/README.md`.
@@ -122,8 +121,8 @@ Three matched triples ship here. Full write-ups are in [examples/README.md](exam
 
 | Triple | Exercises |
 |--------|-----------|
-| **A** | The smallest legal pair. CONN0 by profile reference, no subdividable group, no OPL-SET band, so the Definition declares two fields and no `protocol_group` binding at all |
-| **B** | The common case. One subdividable group, both response classes, both `cid_binding` kinds, the sentinel default, both namespaces — and a sparse Assignment whose *omissions* are the instructive half |
+| **A** | The smallest legal pair. CONN0 by profile reference, no subdividable group, no settable power band, so the Definition declares two fields and no `protocol_group` binding at all |
+| **B** | The common case. One subdividable group, both response classes, both `cid_binding` kinds, the sentinel default, both namespaces, the cross-field power relation — and a sparse Assignment whose *omissions* are the instructive half |
 | **C** | **The conformance triple.** Two connectors each declare a group named `pcie_primary`. That duplicate is deliberate and conformant; a validator enforcing document-wide name uniqueness will reject this CID, which is exactly the failure this triple exists to catch |
 
 The size asymmetry is the point. A CID carries per-lane pin maps and runs to tens of kilobytes. A Definition is dominated by prose descriptions and runs to a few kilobytes. An Assignment is a handful of scalars and stays under a kilobyte.

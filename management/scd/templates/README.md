@@ -17,24 +17,24 @@ Both templates carry `$comment` keys for authoring guidance. **Every `$comment` 
 
 ## Authoring a Definition
 
-1. Enumerate what is genuinely configurable about the OAC. Apply the placement rule: if the platform needs the value to decide whether to power the OAC at all, it belongs in the **CID**, not here.
+1. Enumerate what is genuinely configurable about the OAC. Keep the subjects apart: a value that describes the *card* belongs in the **CID**, and only a value that describes the *slot* — the platform identity, conditions, and operational configuration of Specification Section 5.2.1 — belongs here.
 2. Copy `OAC-SCDD-TEMPLATE.json` and delete the descriptors that do not apply.
 3. Give every field a `default`. There is no such thing as a field without one — it is what makes a sparse Assignment safe. Where no correct value exists, use a sentinel default per Specification Section 7.6 and flag it with `"sentinel_default": true`.
-4. Set the power field bounds from the OAC's own CID `power.primary` object. `ocp.max_power_w` takes `opl_emg_w` / `opl_max_w`; `ocp.initial_power_level_set_w` takes `opl_set_min_w` / `opl_max_w` — the CID declares no separate OPL-SET ceiling, because the configurable range is always bounded above by the OAC's maximum validated operating point.
+4. Set the power field bounds from the OAC's own CID `power.primary` object. `ocp.max_power_w` takes `opl_emg_w` / `opl_max_w` and defaults to `opl_max_w`; `ocp.initial_power_max_w` and `ocp.initial_power_min_w` both take `opl_set_min_w` / `opl_max_w` — the CID declares no separate set-point ceiling, because the configurable range is always bounded above by the OAC's maximum validated operating point. The minimum defaults to `opl_set_min_w`; the maximum takes an OAC-declared default inside the range.
 5. Declare one `ocp.link_subdivision.<connector>.<group>` field per subdividable protocol group, with the connector segment lowercased in the `id` and canonical in the `cid_binding`.
 6. Put anything outside the `ocp.` registry under `pen.<your IANA PEN>.`. No OCP registration is needed.
-7. Set `definition_revision`, and increment it on every subsequent content change including firmware updates.
-8. Delete every `$comment`, validate with [`tools/validate-scd.py`](../tools/), minify, and publish as a FRU Data File named `OAC_SCDD.json`. The minified result shall not exceed 32 KiB.
+7. Declare `definition_revision` if you find it useful. It is optional and informational — nothing validates it, and an OAC whose firmware update changes Definition content signals that by resetting its management controller, which deasserts `OAC_MC_RDY`.
+8. Delete every `$comment`, validate with [`tools/validate-scd.py`](../tools/), minify, and publish as a FRU Data File named `OAC_SCDD.json`. The minified result shall not exceed 64 KB.
 
 ## Authoring an Assignment
 
 1. Read and evaluate the OAC's **CID** first. If the platform cannot supply `opl_emg_w`, stop — do not power the OAC and do not read its Definition.
 2. Read the OAC's **Definition** and resolve every `cid_binding` against the CID you just evaluated.
-3. Copy `OAC-SCDA-TEMPLATE.json` and echo `definition_revision` from the Definition.
-4. Add a key only for a field you actually want to set. **Delete every other line.** Omitted fields take their declared defaults, and that is a normal, expected outcome — including for fields marked `required`, which is advisory.
+3. Copy `OAC-SCDA-TEMPLATE.json`. Echo `definition_revision` from the Definition if you want the provenance recorded; it is optional and the OAC will not check it.
+4. Add a key only for a field you actually want to set. **Delete every other line.** Omitted fields take their declared defaults, and that is a normal, expected outcome — including for fields marked `required`, since the class describes the value rather than obliging the document. Expect the OAC to report the omission as State Set 15 state 4, Missing Configuration; that is a reading, not a refusal.
 5. **Omit any field you do not recognize.** A vendor field you have never heard of self-handles; the OAC applies its default.
 6. Do not assign a sentinel value, and do not use `null` anywhere.
-7. Do not try to reconcile `ocp.initial_power_level_set_w` against `ocp.max_power_w` — the OAC clamps to the lower of the two, bounded above by the CID `opl_max_w`. No combination you can assign is unsafe.
+7. Reconcile the power fields before you transfer. `ocp.initial_power_max_w` shall not exceed `ocp.max_power_w`, and `ocp.initial_power_min_w` shall not exceed `ocp.initial_power_max_w`. The OAC rejects a contradictory pair with code `0x10` rather than reducing one of the values to fit; a field you omit is compared at the default it falls back to.
 8. Delete every `$comment`, validate, minify, and transfer with `DfOpen` / `DfWrite` / `DfClose` while the OAC is in O3, before `OAC_PWR_EN` is asserted.
 
 ## Schema Structure
@@ -49,14 +49,14 @@ Both templates carry `$comment` keys for authoring guidance. **Every `$comment` 
 
 | Section | Required | Description |
 |---------|----------|-------------|
-| `metadata` | Yes | `schema_version`, `oac_spec_revision`, `definition_revision` required; `description`, `iana_pen` optional |
+| `metadata` | Yes | `schema_version` and `oac_spec_revision` required; `definition_revision` and `description` optional. No other key is permitted |
 | `fields` | Yes | Array of field descriptors, at least one element |
 
 **Assignment sections**
 
 | Section | Required | Description |
 |---------|----------|-------------|
-| `metadata` | Yes | `schema_version`, `definition_revision` required; `description` optional |
+| `metadata` | Yes | `schema_version` required; `definition_revision` and `description` optional. No other key is permitted |
 | `assignments` | Yes | Object keyed by field identifier. May be empty |
 
 ## Field Descriptor Constraints
@@ -65,12 +65,11 @@ Both templates carry `$comment` keys for authoring guidance. **Every `$comment` 
 |-----|------------|
 | `id` | Prefixed `ocp.` or `pen.<PEN>.`; lowercase snake_case segments; unique within the document; max 128 characters |
 | `display_name` | String, 1–64 characters |
-| `type` | One of `integer`, `string`, `boolean`, `enumeration` |
-| `response` | `required` or `optional`. `required` is advisory — never a hard gate |
+| `type` | One of `integer`, `boolean`, `enumeration`. There is no text type — a value the OAC cannot validate is a value it cannot act on |
+| `response` | `required` or `optional`. The class describes the value, not the document — never a hard gate |
 | `default` | Mandatory on every descriptor. Inside `[min, max]` unless `sentinel_default` is true |
 | `sentinel_default` | Boolean. When true, `default` must lie **outside** `[min, max]` |
 | `min` / `max` | Integer fields only. Supply both or neither |
-| `max_length` | String fields only |
 | `values` | Enumeration fields only. Each element carries `value` and `description`; `value` unique within the array |
 | `cid_binding.cid_object` | `protocol_group` or `power.primary` |
 | `cid_binding.cid_connector` | Required for `protocol_group`, forbidden for `power.primary`. Canonical CID casing, e.g. `CONN0` |

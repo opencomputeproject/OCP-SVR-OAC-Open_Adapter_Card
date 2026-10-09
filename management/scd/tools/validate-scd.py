@@ -4,7 +4,7 @@ OAC SCD validator.
 
 Validates an SCD Definition and, optionally, an SCD Assignment composed
 against it, applying the checks of OAC-SCD-Specification-v0.9 Sections 7, 9
-and 11 and reporting the rejection codes of Table 11.4-1.
+and 11 and reporting the rejection codes of Table 11.5-1.
 
 A Definition may be checked on its own. Supplying --cid additionally resolves
 every cid_binding against the OAC's Connector Interface Definition, and
@@ -103,7 +103,7 @@ def find_nulls(node, f, path="oac_scdd", code=0x0B, name="NULL_VALUE"):
 # Validation
 # ---------------------------------------------------------------------------
 
-VALID_TYPES = {"integer", "string", "boolean", "enumeration"}
+VALID_TYPES = {"integer", "boolean", "enumeration"}
 VALID_RESPONSE = {"required", "optional"}
 VALID_CID_OBJECTS = {"protocol_group", "power.primary"}
 
@@ -112,22 +112,37 @@ PEN_RE = re.compile(r"^pen\.[1-9][0-9]*\.")
 MODE_RE = re.compile(r"^(x[0-9]+)+$")
 SUBDIV_PREFIX = "ocp.link_subdivision."
 
-# Specification Section 10.5 -- identifiers that were defined in earlier drafts
-# and must not be used.
-RETIRED_IDS = {
-    "ocp.config_apply_timeout_ms",
-    "ocp.power_level_set_granularity_w",
-    "ocp.slot_label",
-    "ocp.initial_power_level",
-    "ocp.secure_boot_enforce",
+# Specification Tables 7.2-1 and 9.2-1 -- the complete metadata vocabulary of
+# each document. Both tables close the set: "An OAC shall not declare a metadata
+# key this table does not define." A key outside these sets is reported rather
+# than ignored, which is what catches a document still carrying a field a
+# previous revision defined.
+SCDD_METADATA_KEYS = {"schema_version", "oac_spec_revision",
+                      "definition_revision", "description"}
+SCDA_METADATA_KEYS = {"schema_version", "definition_revision", "description"}
+
+# Specification Section 10 -- the complete ocp. registry. Section 7.4 reserves
+# the ocp. prefix for fields this specification defines, so an ocp. identifier
+# outside this set and outside the link subdivision family is not defined by
+# anything. That subsumes the identifiers of withdrawn drafts, which is why no
+# separate retired-identifier list is kept here.
+OCP_REGISTRY = {
+    "ocp.slot_id",
+    "ocp.max_power_w",
+    "ocp.initial_power_max_w",
+    "ocp.initial_power_min_w",
 }
 
 # Specification Section 10 -- registry fields whose bounds derive from the CID.
 # field id -> (min source, max source, default source or None)
 POWER_REGISTRY = {
-    "ocp.max_power_w": ("opl_emg_w", "opl_max_w", "opl_emg_w"),
-    "ocp.initial_power_level_set_w": ("opl_set_min_w", "opl_max_w", None),
+    "ocp.max_power_w": ("opl_emg_w", "opl_max_w", "opl_max_w"),
+    "ocp.initial_power_max_w": ("opl_set_min_w", "opl_max_w", None),
+    "ocp.initial_power_min_w": ("opl_set_min_w", "opl_max_w", "opl_set_min_w"),
 }
+
+# Specification Sections 13.1 and 13.2 -- the same limit for both documents.
+MAX_TRANSFERRED_BYTES = 65536
 
 
 def _is_int(v):
@@ -213,20 +228,23 @@ def check_descriptor(d, i, f, declared_ids):
         f.add(0x05, "DUPLICATE_KEY",
               "%s is declared more than once; field identifiers are the "
               "Assignment's keys and must be unique" % where)
-    if fid in RETIRED_IDS:
-        f.add(0x10, "CONSTRAINT_CONFLICT",
-              "%s is a retired identifier (Specification Section 10.5) and must "
-              "not be used" % where)
     if not (fid.startswith("ocp.") or PEN_RE.match(fid)):
         f.add(0x04, "UNKNOWN_FIELD_ID",
               "%s uses an unrecognized namespace prefix; expected 'ocp.' or "
               "'pen.<IANA PEN>.'" % where)
+    elif fid.startswith("ocp.") and fid not in OCP_REGISTRY and \
+            not fid.startswith(SUBDIV_PREFIX):
+        f.add(0x04, "UNKNOWN_FIELD_ID",
+              "%s is not defined by the ocp. registry of Specification Section 10; "
+              "the ocp. prefix is reserved for fields this specification defines, "
+              "so a vendor field belongs under 'pen.<IANA PEN>.' instead" % where)
     if not ID_RE.match(fid):
         f.add(0x04, "UNKNOWN_FIELD_ID",
               "%s contains characters outside lowercase snake_case segments" % where)
     if len(fid) > 128:
-        f.add(0x08, "LENGTH_EXCEEDED",
-              "%s is %d characters; the limit is 128" % (where, len(fid)))
+        f.add(0x04, "UNKNOWN_FIELD_ID",
+              "%s is %d characters; Specification Section 7.4 limits an identifier "
+              "to 128" % (where, len(fid)))
 
     dn = d.get("display_name")
     if not isinstance(dn, str) or not 1 <= len(dn) <= 64:
@@ -256,9 +274,10 @@ def check_descriptor(d, i, f, declared_ids):
     if ftype != "integer" and (has_min or has_max):
         f.add(0x06, "TYPE_MISMATCH",
               "%s declares min/max but is not an integer field" % where)
-    if ftype != "string" and "max_length" in d:
+    if "max_length" in d:
         f.add(0x06, "TYPE_MISMATCH",
-              "%s declares max_length but is not a string field" % where)
+              "%s declares max_length, which was retired in this revision together "
+              "with the string type it bounded; see Specification Section 7.5" % where)
 
     default = d.get("default")
     sentinel = d.get("sentinel_default", False)
@@ -294,9 +313,6 @@ def check_descriptor(d, i, f, declared_ids):
     if ftype == "boolean" and "default" in d and not isinstance(default, bool):
         f.add(0x06, "TYPE_MISMATCH",
               "%s is a boolean field but its default is %r" % (where, default))
-    if ftype == "string" and "default" in d and not isinstance(default, str):
-        f.add(0x06, "TYPE_MISMATCH",
-              "%s is a string field but its default is %r" % (where, default))
 
     if ftype == "enumeration":
         values = d.get("values")
@@ -419,10 +435,17 @@ def check_scdd(scdd, f):
                   % (md.get("schema_version"), sorted(SCHEMA_VERSIONS)))
         if "oac_spec_revision" not in md:
             f.add(0x03, "MISSING_SECTION", "metadata.oac_spec_revision is required")
-        dr = md.get("definition_revision")
-        if not _is_int(dr) or dr < 1:
-            f.add(0x0D, "DEFINITION_REVISION_MISMATCH",
-                  "metadata.definition_revision is %r; expected an integer >= 1" % (dr,))
+        if "definition_revision" in md:
+            dr = md.get("definition_revision")
+            if not _is_int(dr) or dr < 1:
+                f.add(0x06, "TYPE_MISMATCH",
+                      "metadata.definition_revision is %r; the field is optional, but "
+                      "where it is declared it is an integer >= 1" % (dr,))
+        for key in sorted(set(md) - SCDD_METADATA_KEYS - {"__duplicate_keys__"}):
+            f.add(0x04, "UNKNOWN_FIELD_ID",
+                  "metadata.%s is not a key Specification Table 7.2-1 defines; the "
+                  "table closes the set, and vendor metadata belongs in a "
+                  "'pen.<IANA PEN>.' prefixed top-level key" % key)
 
     fields = scdd.get("fields")
     if not isinstance(fields, list) or not fields:
@@ -510,9 +533,8 @@ def check_bindings(declared, cid, profiles, f):
                           % (fid, declared_key, d.get(declared_key), key, primary[key]))
             if def_key and def_key in primary and d.get("default") != primary[def_key]:
                 f.add(0x07, "OUT_OF_RANGE",
-                      "field %s declares default %r but must default to CID "
-                      "power.primary.%s (%r) so that an omitted budget throttles the "
-                      "OAC rather than assuming one"
+                      "field %s declares default %r but Specification Section 10 fixes "
+                      "its default at CID power.primary.%s (%r)"
                       % (fid, d.get("default"), def_key, primary[def_key]))
 
 
@@ -538,14 +560,6 @@ def check_value(fid, d, value, f):
         if not isinstance(value, bool):
             f.add(0x06, "TYPE_MISMATCH",
                   "%s is %r; the Definition declares type boolean" % (fid, value))
-    elif ftype == "string":
-        if not isinstance(value, str):
-            f.add(0x06, "TYPE_MISMATCH",
-                  "%s is %r; the Definition declares type string" % (fid, value))
-        elif "max_length" in d and len(value) > d["max_length"]:
-            f.add(0x08, "LENGTH_EXCEEDED",
-                  "%s is %d characters; the Definition declares max_length %r"
-                  % (fid, len(value), d["max_length"]))
     elif ftype == "enumeration":
         literals = [v.get("value") for v in (d.get("values") or [])
                     if isinstance(v, dict)]
@@ -564,13 +578,18 @@ def check_scda(scda, declared, scdd, f):
             f.add(0x0C, "UNSUPPORTED_SCHEMA_VERSION",
                   "metadata.schema_version is %r; recognized versions are %s"
                   % (md.get("schema_version"), sorted(SCHEMA_VERSIONS)))
-        want = (scdd.get("metadata") or {}).get("definition_revision")
-        got = md.get("definition_revision")
-        if want is not None and got != want:
-            f.add(0x0D, "DEFINITION_REVISION_MISMATCH",
-                  "the Assignment echoes definition_revision %r but the Definition "
-                  "publishes %r; the controller composed against a stale Definition "
-                  "and must re-read and recompose" % (got, want))
+        if "definition_revision" in md:
+            got = md.get("definition_revision")
+            if not _is_int(got) or got < 1:
+                f.add(0x06, "TYPE_MISMATCH",
+                      "metadata.definition_revision is %r; the field is optional, but "
+                      "where it is declared it is an integer >= 1" % (got,))
+        # Deliberately no comparison against the Definition. The echo is
+        # informational per Specification Section 6.4, a mismatch is not a
+        # rejection, and code 0x0D is retired to Reserved.
+        for key in sorted(set(md) - SCDA_METADATA_KEYS - {"__duplicate_keys__"}):
+            f.add(0x04, "UNKNOWN_FIELD_ID",
+                  "metadata.%s is not a key Specification Table 9.2-1 defines" % key)
 
     assignments = scda.get("assignments")
     if not isinstance(assignments, dict):
@@ -597,6 +616,60 @@ def check_scda(scda, declared, scdd, f):
             continue
         check_value(fid, d, value, f)
 
+    check_power_relations(assignments, declared, f)
+
+
+def check_power_relations(assignments, declared, f):
+    """Specification Section 11.3.1 check 8. The two relations hold over the
+    values the OAC will operate on, so a field omitted from the Assignment is
+    compared at the default it falls back to -- Section 10.4 states that
+    explicitly for the minimum, and the same reading governs the maximum."""
+
+    def effective(fid):
+        d = declared.get(fid)
+        if d is None:
+            return None
+        v = assignments.get(fid, d.get("default"))
+        return v if _is_int(v) else None
+
+    def where(fid):
+        return "assigned" if fid in assignments else "defaulted"
+
+    budget = effective("ocp.max_power_w")
+    pmax = effective("ocp.initial_power_max_w")
+    pmin = effective("ocp.initial_power_min_w")
+
+    if budget is not None and pmax is not None and pmax > budget:
+        f.add(0x10, "CONSTRAINT_CONFLICT",
+              "ocp.initial_power_max_w is %d W (%s) but ocp.max_power_w is %d W "
+              "(%s); the set point shall not exceed the platform's budget, per "
+              "Specification Section 10.3"
+              % (pmax, where("ocp.initial_power_max_w"),
+                 budget, where("ocp.max_power_w")))
+    if pmin is not None and pmax is not None and pmin > pmax:
+        f.add(0x10, "CONSTRAINT_CONFLICT",
+              "ocp.initial_power_min_w is %d W (%s) but ocp.initial_power_max_w is "
+              "%d W (%s); the floor shall not exceed the ceiling, per Specification "
+              "Section 10.4"
+              % (pmin, where("ocp.initial_power_min_w"),
+                 pmax, where("ocp.initial_power_max_w")))
+
+
+def check_size(doc, label, section, f):
+    """Specification Section 13. The limit is measured on the minified byte
+    sequence as transferred, not on the indented source file, so the document is
+    re-serialized with separators carrying no whitespace before it is measured."""
+    try:
+        minified = json.dumps(doc, separators=(",", ":"),
+                              ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return
+    if len(minified) > MAX_TRANSFERRED_BYTES:
+        f.add(0x0E, "SIZE_EXCEEDED",
+              "the %s minifies to %d bytes; Specification Section %s sets the "
+              "transferred limit at %d bytes (64 KB)"
+              % (label, len(minified), section, MAX_TRANSFERRED_BYTES))
+
 
 def validate(scdd_doc, scda_doc, cid_doc, profiles):
     f = Findings()
@@ -607,6 +680,7 @@ def validate(scdd_doc, scda_doc, cid_doc, profiles):
         return f
 
     find_nulls(scdd, f, "oac_scdd", 0x0B, "NULL_VALUE")
+    check_size(scdd_doc, "Definition", "13.1", f)
     declared = check_scdd(scdd, f)
 
     if cid_doc is not None:
@@ -621,6 +695,7 @@ def validate(scdd_doc, scda_doc, cid_doc, profiles):
         if not isinstance(scda, dict):
             f.add(0x02, "WRONG_ROOT_KEY", "Assignment root key 'oac_scda' is absent")
         else:
+            check_size(scda_doc, "Assignment", "13.2", f)
             check_scda(scda, declared, scdd, f)
 
     return f

@@ -63,7 +63,7 @@ configuration document never raises a hardware limit.
 | Transport | PLDM for FRU Data (DSP0257) | PLDM for FRU Data (DSP0257) | PLDM for File Transfer (DSP0242) |
 | File kind | Fixed Length File | Fixed Length File | Regular File |
 | Writable by controller | No | No | Yes — this is the only one |
-| Size limit | — | 32 KiB transferred | 8 KiB transferred |
+| Size limit | — | 64 KB transferred | 64 KB transferred |
 | Density | Complete | Complete | **Sparse** |
 | Retention | Persistent | Persistent | Volatile, bounded by +12V Aux |
 
@@ -82,7 +82,7 @@ good and the MCTP session is up, but **before `OAC_PWR_EN` is asserted**.
   2.  Controller evaluates compatibility and power feasibility
           └─ incompatible?  stop here. The busbar is never energized.
   3.  Controller reads OAC_SCDD.json         (PLDM for FRU Data)
-  4.  Controller composes a sparse Assignment, echoing definition_revision
+  4.  Controller composes a sparse Assignment from the Definition
   5.  Controller writes OAC_SCDA.json        (PLDM for File Transfer)
           DfOpen (write, exclusive) → DfWrite → DfClose
   6.  OAC validates: accepted whole, or rejected whole. Never partially.
@@ -138,18 +138,22 @@ configuration. Each exists because removing it breaks that case.
   safe. Without it, an omitted field would have undefined behavior.
 - **The Assignment is sparse, and omission is a decision.** Omitting a field means "use the
   default," which is a complete and valid outcome, not an oversight.
-- **`required` is advisory, not a hard gate.** A controller that does not recognize a `required`
-  field omits it and the OAC proceeds on the default. The consequence surfaces through the
-  Configuration State Sensor, not by rejecting the document. Without this, one unknown vendor field
-  would brick an otherwise working pair.
+- **`response` classifies the value, not the document.** A `required` field is one the OAC needs a
+  value for in order to operate as intended; it is not a statement that the field shall appear in an
+  Assignment. A controller that does not recognize a `required` field omits it and the OAC proceeds
+  on the default. The consequence surfaces through the Configuration State Sensor, not by rejecting
+  the document. Without this, one unknown vendor field would brick an otherwise working pair.
 - **Vendor fields are namespaced, not registered.** `ocp.` is the OCP registry; a vendor uses
   `pen.<IANA PEN>.<field_name>` and needs no OCP registration to do so.
 - **Protocol group names are unique within a connector, not across the document.** The binding key
   is the pair `(cid_connector, cid_group_name)`. Two connectors may each declare a group named
   `pcie_primary`, and a conformant validator must accept that. The expected implementation error
   here is over-enforcement.
-- **Conflicting power values clamp, they do not reject.**
-  `applied_cap = min(initial_power_level_set_w, max_power_w, opl_max_w)`.
+- **Contradictory power values are rejected, not reconciled.** `ocp.initial_power_max_w` shall
+  not exceed `ocp.max_power_w`, and `ocp.initial_power_min_w` shall not exceed
+  `ocp.initial_power_max_w`. Either violation is rejection code `0x10`. A controller that has
+  composed a set point above the budget it declared in the same document has made an error, and
+  absorbing it silently would leave that controller believing something false.
 - **Controllers carry built-in knowledge of ratified connector profiles.** A CID may reference a
   profile by identifier instead of repeating a pin map; there is no runtime fetch.
 

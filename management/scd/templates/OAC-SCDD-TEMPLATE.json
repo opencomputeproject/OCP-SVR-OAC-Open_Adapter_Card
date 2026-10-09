@@ -2,12 +2,11 @@
   "$comment": "OAC SCD Definition (SCDD) authoring template, schema v0.9. Published BY THE OAC as a non-resident, dynamically generated FRU file and read by the upstream management controller via PLDM for FRU Data (DSP0257). This is the template of settable fields -- it declares what the OAC will accept, not what it is currently set to. Replace every <placeholder>, delete every $comment key, delete every field descriptor that does not apply, and minify before publication. See OAC-SCD-Specification-v0.9.md Sections 6 and 7.",
   "oac_scdd": {
     "metadata": {
-      "$comment": "schema_version, oac_spec_revision and definition_revision are required. definition_revision is a monotonically increasing integer that MUST be incremented whenever the content of this Definition changes, including across firmware updates -- it is the sole mechanism by which a controller holding a stale Definition is detected. iana_pen is provenance only and is never an authorization mechanism; it must be a positive integer, and the 32473 shown here is the PEN reserved for documentation -- substitute your own.",
+      "$comment": "schema_version and oac_spec_revision are required; definition_revision and description are optional. Declare no metadata key beyond these four -- vendor metadata belongs in a pen.<IANA PEN>. prefixed top-level key. definition_revision is informational only and carries no normative weight: the controller does not validate it, and an OAC is not obliged to maintain it. Definition currency is established instead by the management controller reset model of Specification Section 6.4 -- an OAC whose firmware update changes Definition content resets its management controller, deasserting OAC_MC_RDY, and the controller re-reads the Definition when it comes back.",
       "schema_version": "0.9",
       "oac_spec_revision": "0.9",
       "definition_revision": 1,
-      "description": "<free text -- human-readable summary of this OAC's configurable surface; never used for any configuration decision>",
-      "iana_pen": 32473
+      "description": "<free text -- human-readable summary of this OAC's configurable surface; never used for any configuration decision>"
     },
     "fields": [
       {
@@ -23,13 +22,13 @@
         "max": 15
       },
       {
-        "$comment": "PLATFORM POWER BUDGET. This field runs opposite to every other field in the Definition: it is the platform describing ITSELF to the OAC. min MUST equal the CID power.primary.opl_emg_w and max MUST equal opl_max_w, and the default MUST be opl_emg_w so that a controller which omits the field leaves the OAC throttled rather than assuming a budget the platform may not have. Substitute this OAC's real CID wattages for the values shown. See Specification Section 10.2.",
+        "$comment": "PLATFORM POWER BUDGET. This field runs opposite to every other field in the Definition: it is the platform describing ITSELF to the OAC. min MUST equal the CID power.primary.opl_emg_w and max MUST equal opl_max_w, and the default MUST be opl_max_w -- an OAC that receives no assignment behaves as though the slot can supply everything the card is rated to draw. A default at the emergency level would throttle every OAC in every conforming slot unless the controller spoke up, making the field mandatory in all but name. The obligation falls on the platform instead: a slot that cannot supply opl_max_w MUST assign this field. Substitute this OAC's real CID wattages for the values shown. See Specification Section 10.2.",
         "id": "ocp.max_power_w",
         "display_name": "Platform Power Budget",
         "description": "Sustained power the platform can supply to this slot.",
         "type": "integer",
         "response": "required",
-        "default": 625,
+        "default": 2500,
         "units": "watts",
         "min": 625,
         "max": 2500,
@@ -39,12 +38,12 @@
         }
       },
       {
-        "$comment": "INITIAL OPL-SET WATTAGE. min MUST equal the CID power.primary.opl_set_min_w and max MUST equal power.primary.opl_max_w; the default MUST lie inside that range. The CID declares no separate OPL-SET ceiling. Do NOT add a cross-field constraint against ocp.max_power_w -- the OAC clamps to min(this, ocp.max_power_w, opl_max_w), so no assignable combination is unsafe. Delete this whole descriptor if the OAC does not support OPL-SET. See Specification Section 10.3.",
-        "id": "ocp.initial_power_level_set_w",
-        "display_name": "Initial OPL-SET Wattage",
-        "description": "Power cap applied when the OAC enters Operational State O5.",
+        "$comment": "INITIAL POWER MAXIMUM. The upper power set point the OAC starts from; it seeds the PLDM power maximum effecter at the point the OAC enters Operational State O5 and is modifiable at runtime thereafter. min MUST equal the CID power.primary.opl_set_min_w and max MUST equal power.primary.opl_max_w; the default MUST lie inside that range. The CID declares no separate OPL-SET ceiling. The assigned value MUST NOT exceed ocp.max_power_w -- the OAC rejects a contradictory pair with code 0x10 rather than clamping. Delete this whole descriptor if the OAC does not support a settable power band. See Specification Section 10.3.",
+        "id": "ocp.initial_power_max_w",
+        "display_name": "Initial Power Maximum",
+        "description": "Upper power set point applied when the OAC enters Operational State O5.",
         "type": "integer",
-        "response": "optional",
+        "response": "required",
         "default": 1200,
         "units": "watts",
         "min": 625,
@@ -55,7 +54,23 @@
         }
       },
       {
-        "$comment": "LINK SUBDIVISION. Declare ONE descriptor per subdividable PCIe or CXL protocol group, and none for groups that cannot be subdivided. The id embeds the CID connector identifier LOWERCASED followed by the group name; the cid_binding carries the connector in canonical CID casing. Both segments are required -- a two-segment id collides as soon as two connectors reuse a group name, which per-connector scoping explicitly permits. Every mode's segments must sum to the bound CID group's total_lanes, in positional order over ascending lane indices. See Specification Section 10.4.",
+        "$comment": "INITIAL POWER MINIMUM. The lower power set point, seeding the PLDM power minimum effecter alongside the maximum above. Declared optional because most platforms have no reason to set it: the default is the CID's own configurable floor, which is correct wherever the platform imposes no minimum draw of its own. min, max and cid_binding are as for the maximum, and the default MUST be power.primary.opl_set_min_w. An assigned value MUST NOT exceed ocp.initial_power_max_w. Delete this descriptor alongside the maximum if the OAC does not support a settable power band. See Specification Section 10.4.",
+        "id": "ocp.initial_power_min_w",
+        "display_name": "Initial Power Minimum",
+        "description": "Lower power set point applied when the OAC enters Operational State O5.",
+        "type": "integer",
+        "response": "optional",
+        "default": 625,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "$comment": "LINK SUBDIVISION. Declare ONE descriptor per subdividable PCIe or CXL protocol group, and none for groups that cannot be subdivided. The id embeds the CID connector identifier LOWERCASED followed by the group name; the cid_binding carries the connector in canonical CID casing. Both segments are required -- a two-segment id collides as soon as two connectors reuse a group name, which per-connector scoping explicitly permits. Every mode's segments must sum to the bound CID group's total_lanes, in positional order over ascending lane indices. See Specification Section 10.5.",
         "id": "ocp.link_subdivision.<connector lowercased, e.g. conn0>.<CID group name, e.g. pcie_primary>",
         "display_name": "<short human label, 1-64 chars>",
         "description": "<human-facing explanation; must not restate min/max/values>",
@@ -74,11 +89,11 @@
         ]
       },
       {
-        "$comment": "VENDOR-DEFINED FIELD. Any field outside the ocp. registry uses the pen.<IANA PEN>. prefix, where <IANA PEN> is the vendor's decimal Private Enterprise Number. No OCP registration is required. A vendor field is as much a first-class SCD field as an OCP one; a controller that does not recognize it simply omits it from the Assignment and the OAC applies this declared default. Copy this descriptor once per vendor field, or delete it if the OAC defines none.",
+        "$comment": "VENDOR-DEFINED FIELD. Any field outside the ocp. registry uses the pen.<IANA PEN>. prefix, where <IANA PEN> is the vendor's decimal Private Enterprise Number. No OCP registration is required. A vendor field is as much a first-class SCD field as an OCP one; a controller that does not recognize it simply omits it from the Assignment and the OAC applies this declared default. There are three types and no more -- integer, boolean, enumeration -- because a value the OAC cannot validate is a value it cannot act on; text that labels rather than configures belongs in display_name and description. Copy this descriptor once per vendor field, or delete it if the OAC defines none.",
         "id": "pen.<IANA PEN>.<field_name in snake_case>",
         "display_name": "<short human label, 1-64 chars>",
         "description": "<human-facing explanation; must not restate machine-readable constraints>",
-        "type": "<integer|string|boolean|enumeration>",
+        "type": "<integer|boolean|enumeration>",
         "response": "<required|optional>",
         "default": "<value satisfying this descriptor's own type and constraints>",
         "values": [

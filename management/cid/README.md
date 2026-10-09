@@ -23,14 +23,17 @@ assignments, protocol groups, reference clocking, discrete sideband signals, and
 and nothing about how the card should be configured once the answer is yes. Configuration is the
 job of the companion [Slot Configuration Data](../scd/) specification.
 
-The placement rule that divides the two:
+The OAC Base Specification divides the two by subject:
 
-> **Does the platform need this to decide whether to power the OAC at all?**
-> **Yes → CID. No → SCD.**
+> **CID describes the characteristics, requirements, and capabilities of the OAC to the platform,
+> whereas SCD describes the platform environment and operational configuration provided to the OAC.**
 
-Power envelopes live here, because the platform weighs them before `OAC_PWR_EN`. The link
-subdivision *menu* lives in the SCD Definition, because the platform does not need it to make the
-power decision.
+So anything that describes the card lives here — connector population, lane counts, pin maps,
+reference clocking, discrete signals, and the Operational Power Level menu. Anything that describes
+the slot the card has been installed in lives in the SCD: which slot it is, what power that position
+can supply, and how a subdividable protocol group is to be partitioned there. The link subdivision
+*menu* is in the SCD Definition for that reason, and the SCD's power fields select within the
+envelopes declared here and never beyond them.
 
 ### Why it exists
 

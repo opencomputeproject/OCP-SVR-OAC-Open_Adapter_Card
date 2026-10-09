@@ -4,7 +4,7 @@
       "schema_version": "0.9",
       "oac_spec_revision": "0.9",
       "definition_revision": 1,
-      "description": "Example A SCD Definition: minimal OAC. Two fields. CONN0 is defined by a connector profile and carries no subdividable group, so no protocol_group binding appears. The CID declares only opl_max_w and opl_emg_w, so there is no OPL-SET band and ocp.initial_power_level_set_w is not declared."
+      "description": "Example A SCD Definition: minimal OAC. Two fields. CONN0 is defined by a connector profile and carries no subdividable group, so no protocol_group binding appears. The CID declares only opl_max_w and opl_emg_w, so there is no settable power band and neither ocp.initial_power_max_w nor ocp.initial_power_min_w is declared. The budget field defaults to the OAC's own opl_max_w, so an Assignment that sets nothing leaves this OAC at full rating rather than throttled."
     },
     "fields": [
       {
@@ -24,7 +24,7 @@
         "description": "Sustained power the platform can supply to this slot.",
         "type": "integer",
         "response": "required",
-        "default": 625,
+        "default": 2500,
         "units": "watts",
         "min": 625,
         "max": 2500,

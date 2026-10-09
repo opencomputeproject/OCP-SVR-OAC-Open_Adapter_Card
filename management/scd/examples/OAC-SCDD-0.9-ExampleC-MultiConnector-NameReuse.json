@@ -4,8 +4,7 @@
       "schema_version": "0.9",
       "oac_spec_revision": "0.9",
       "definition_revision": 3,
-      "description": "Example C SCD Definition: two subdividable groups on two different connectors, both named pcie_primary in the CID. The field identifiers differ only in their connector segment, which is the whole reason that segment exists. Also exercises applies_when. definition_revision is 3 to show that the value is an opaque counter, not tied to the schema version.",
-      "iana_pen": 32473
+      "description": "Example C SCD Definition: two subdividable groups on two different connectors, both named pcie_primary in the CID. The field identifiers differ only in their connector segment, which is the whole reason that segment exists. Also exercises applies_when. definition_revision is 3 to show that the value, where an OAC chooses to declare it, is an opaque counter and not a restatement of the schema version; it is informational and the OAC does not validate what an Assignment echoes back."
     },
     "fields": [
       {
@@ -25,7 +24,7 @@
         "description": "Sustained power the platform can supply to this slot.",
         "type": "integer",
         "response": "required",
-        "default": 625,
+        "default": 2500,
         "units": "watts",
         "min": 625,
         "max": 2500,
@@ -35,12 +34,27 @@
         }
       },
       {
-        "id": "ocp.initial_power_level_set_w",
-        "display_name": "Initial OPL-SET Wattage",
-        "description": "Power cap applied when the OAC enters Operational State O5.",
+        "id": "ocp.initial_power_max_w",
+        "display_name": "Initial Power Maximum",
+        "description": "Upper power set point applied when the OAC enters Operational State O5.",
+        "type": "integer",
+        "response": "required",
+        "default": 1200,
+        "units": "watts",
+        "min": 625,
+        "max": 2500,
+        "cid_binding": {
+          "cid_object": "power.primary",
+          "constraint": "opl_range"
+        }
+      },
+      {
+        "id": "ocp.initial_power_min_w",
+        "display_name": "Initial Power Minimum",
+        "description": "Lower power set point applied when the OAC enters Operational State O5.",
         "type": "integer",
         "response": "optional",
-        "default": 1200,
+        "default": 625,
         "units": "watts",
         "min": 625,
         "max": 2500,

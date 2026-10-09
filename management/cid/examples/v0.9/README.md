@@ -26,7 +26,8 @@ per-lane pin map need not be repeated — the controller already has built-in kn
 profile ratified at or before the declared `schema_version`, so there is no runtime fetch.
 
 The card declares only the two mandatory power fields, `opl_max_w` and `opl_emg_w`, and no
-`opl_set_min_w`, so OPL-SET is not supported. A corresponding SCD Definition therefore has no `ocp.initial_power_level_set_w` to offer. For
+`opl_set_min_w`, so OPL-SET is not supported. A corresponding SCD Definition therefore has no settable power band, and offers neither
+`ocp.initial_power_max_w` nor `ocp.initial_power_min_w`. For
 that worked through end to end, see Triple A in [`../../../scd/examples/`](../../../scd/examples/).
 
 ### Mixed definition — both approaches in one document
@@ -38,9 +39,10 @@ This is the common real-world shape: a card's management and host connector is u
 vendor-specific enough to need explicit declaration, while its fabric connectors follow a ratified
 standard pinout. The two approaches are exclusive *per connector*, not per document.
 
-It also declares `opl_set_min_w` of 625 W, which makes `ocp.initial_power_level_set_w` available
-to the SCD Definition. The configurable range runs from that floor up to `opl_max_w`, 2500 W;
-the ceiling is not declared separately.
+It also declares `opl_set_min_w` of 625 W, which makes the SCD power set points
+`ocp.initial_power_max_w` and `ocp.initial_power_min_w` available to the SCD Definition. The
+configurable range runs from that floor up to `opl_max_w`, 2500 W; the ceiling is not declared
+separately.
 
 ---
 

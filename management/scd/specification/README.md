@@ -30,20 +30,21 @@ The Assignment is transferred using PLDM for File Transfer (DSP0242) over MCTP o
 | 2. Normative References | DSP0236, DSP0240, DSP0241, DSP0242, DSP0248, DSP0249, DSP0257, ECMA-404, OAC-CID-SPEC v0.9, OCP OAC v0.9 |
 | 3. Terms and Definitions | Definition, Assignment, field descriptor, response class, sentinel default, protocol group, link subdivision mode, OPL, latch |
 | 4. Symbols and Abbreviated Terms | SCD, SCDD, SCDA, CID, OPL, PLDM, MCTP, PEN |
-| 5. SCD Overview | The two artifacts, why the Definition is a separate document, and the placement rule that divides CID from SCD |
+| 5. SCD Overview | The two artifacts and where they sit on the power enablement path; the relationship to the CID — what SCD carries, what remains in the CID, and how vendor extension works |
 | 6. SCD Definition as a FRU File | DSP0257 FRU Data File access, `FileName` `OAC_SCDD.json`, persistent storage, the File Descriptor PDR and its two mandatory sensors |
 | 7. SCD Definition Document Structure | `metadata` and `fields`; the field descriptor in full — type, response class, defaults, sentinel semantics, `cid_binding`, `applies_when` |
 | 8. SCD Assignment as a PLDM File | DSP0242 alignment, `FileName` `OAC_SCDA.json`, volatile-only retention bounded by +12V Aux, `DfOpen` / `DfWrite` / `DfClose` sequence, one write session delimiting one complete Assignment |
-| 9. SCD Assignment Document Structure | `metadata` and `assignments`; sparseness, definition revision echo, prohibition on nulls and sentinels |
-| 10. OCP-Defined Field Registry | The `ocp.` namespace, the `pen.` vendor namespace, registry field definitions, subdivision identifier construction, reserved identifiers |
-| 11. Delivery, Validation, and Acceptance | Transfer sequence, OAC validation checks, the rejection code table, atomic application, latch and replacement, re-apply versus re-negotiate, cache survival |
+| 9. SCD Assignment Document Structure | `metadata` and `assignments`; sparseness, the informational revision echo, prohibition on nulls and sentinels |
+| 10. OCP-Defined Field Registry | The `ocp.` namespace, the `pen.` vendor namespace, the five registry fields, and subdivision identifier construction |
+| 11. Delivery, Validation, and Acceptance | Transfer sequence, OAC validation checks, the Configuration State Sensor and what each of its four states means, the rejection code table, atomic application, latch and replacement, re-apply versus re-negotiate, cache survival |
 | 12. Runtime Power Control | Post-latch power changes via PLDM effecters per DSP0248 |
-| 13. Size Limits | 32 KiB Definition and 8 KiB Assignment, measured on the minified form as transferred |
+| 13. Size Limits | 64 KB for both documents, measured on the minified form as transferred |
 | 14. Compliance | OAC and controller compliance requirement tables |
 | Annex A | Informative paired CID + Definition + Assignment walkthrough |
 | Annex B | Informative algorithm — how a controller composes an Assignment from a Definition |
 | Annex C | PLDM protocol field value reference |
-| Annex D | Items open for workstream resolution |
+
+Items left open for OCP OAC workstream resolution are flagged in place as **Work in progress** notes at the section they belong to, rather than gathered into an annex.
 
 ## Key Normative Points
 
@@ -51,19 +52,19 @@ The Assignment is transferred using PLDM for File Transfer (DSP0242) over MCTP o
 |-------|-------------|
 | Mandatory defaults | Every field descriptor shall carry a `default`. This is what makes a sparse Assignment safe, and there is no exemption |
 | Sparse assignment | The Assignment carries only the fields the controller wishes to change. Omission means the default applies and is a valid, complete outcome |
-| Response classes | `required` is **advisory**. A controller that does not recognize a `required` field shall omit it, and the OAC shall proceed on the default. `optional` is the only other class |
+| Response classes | `response` classifies the *value*, not the document. A controller that does not recognize a `required` field shall omit it, the OAC shall proceed on the default, and the under-configured case is reported as State Set 15 state 4 rather than refused. `optional` is the only other class |
 | Field namespacing | `ocp.` is reserved for the registry in Section 10. A vendor uses `pen.<IANA PEN>.<field_name>` and needs no OCP registration |
 | Group name scoping | Protocol group names are unique **within a connector**, not across the document. The binding key is the pair `(cid_connector, cid_group_name)`. Cross-connector reuse is conformant, and Section 14.2 makes accepting it a mandatory controller requirement |
 | Subdivision identifiers | `ocp.link_subdivision.<connector lowercased>.<group name>`. Both segments are required; drop the connector segment and two reused group names collide, and field identifiers are the Assignment's keys |
 | Sentinel defaults | A default deliberately outside `[min, max]` shall be flagged `sentinel_default`. A controller shall not assign the sentinel value; it is a state the OAC may hold, not a value the controller may choose |
-| Power clamping | Conflicting power values clamp rather than reject: `applied_cap = min(ocp.initial_power_level_set_w, ocp.max_power_w, opl_max_w)` |
-| Definition revision | The Assignment shall echo the Definition's `definition_revision`. A mismatch means the controller composed against a stale Definition and shall re-read and recompose |
+| Cross-field power relations | `ocp.initial_power_max_w` shall not exceed `ocp.max_power_w`, and `ocp.initial_power_min_w` shall not exceed `ocp.initial_power_max_w`. Either violation is rejected with code `0x10`; the OAC does not silently reconcile a contradictory pair |
+| Definition revision | `definition_revision` is optional and informational in both documents, and an echo is not validated. Currency of a cached Definition is established by `OAC_MC_RDY` deassertion per Section 6.4 |
 | Duplicate keys | Rejected rather than resolved. ECMA-404 leaves duplicate-key resolution undefined, so first-wins and last-wins are both wrong answers |
 | Nulls | Rejected. Absence and `null` are not equivalent |
 | Application | Validation and application are atomic — accepted whole or rejected whole, never partially |
 | Timing | Written and accepted in O3, before `OAC_PWR_EN`. Replaceable while still in O3; latched on O3 → O4 |
 | Cache persistence | The accepted configuration **shall not** be stored in non-volatile memory |
-| Size | 32 KiB for the Definition and 8 KiB for the Assignment, measured as transferred |
+| Size | 64 KB for both documents, measured as transferred. An Assignment composed against a Definition cannot exceed it |
 | Runtime changes | Post-latch power changes use PLDM effecters per DSP0248, not an Assignment rewrite |
 
 ## Related Resources

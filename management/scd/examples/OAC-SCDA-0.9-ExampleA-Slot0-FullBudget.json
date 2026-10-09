@@ -3,7 +3,7 @@
     "metadata": {
       "schema_version": "0.9",
       "definition_revision": 1,
-      "description": "Example A SCD Assignment: slot 0, full 2500 W budget. Both declared fields are set, so this Assignment is not sparse -- with only two fields there is nothing to omit."
+      "description": "Example A SCD Assignment: slot 0, full 2500 W budget. Both declared fields are set, so this Assignment is not sparse -- with only two fields there is nothing to omit. definition_revision is echoed as provenance; the OAC does not check it."
     },
     "assignments": {
       "ocp.slot_id": 0,
