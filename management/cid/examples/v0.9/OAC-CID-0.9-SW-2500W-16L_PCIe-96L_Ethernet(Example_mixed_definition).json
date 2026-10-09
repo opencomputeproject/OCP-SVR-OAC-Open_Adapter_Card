@@ -11,8 +11,7 @@
         "opl_emg_w": 625,
         "opl_eff_w": 2200,
         "opl_red_w": 1600,
-        "opl_set_min_w": 625,
-        "opl_set_max_w": 2500
+        "opl_set_min_w": 625
       }
     },
     "connectors": [
@@ -20,6 +19,7 @@
         "id": "CONN0",
         "populated": true,
         "impedance_ohm": 85,
+        "mpesti_capable": false,
         "high_speed_lanes": {
           "protocol": "PCIe Gen6",
           "total_lanes": 16,

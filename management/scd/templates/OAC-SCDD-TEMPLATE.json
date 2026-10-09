@@ -39,7 +39,7 @@
         }
       },
       {
-        "$comment": "INITIAL OPL-SET WATTAGE. min and max MUST equal the CID power.primary.opl_set_min_w and opl_set_max_w; the default MUST lie inside that range. Do NOT add a cross-field constraint against ocp.max_power_w -- the OAC clamps to min(this, ocp.max_power_w, opl_max_w), so no assignable combination is unsafe. Delete this whole descriptor if the OAC does not support OPL-SET. See Specification Section 10.3.",
+        "$comment": "INITIAL OPL-SET WATTAGE. min MUST equal the CID power.primary.opl_set_min_w and max MUST equal power.primary.opl_max_w; the default MUST lie inside that range. The CID declares no separate OPL-SET ceiling. Do NOT add a cross-field constraint against ocp.max_power_w -- the OAC clamps to min(this, ocp.max_power_w, opl_max_w), so no assignable combination is unsafe. Delete this whole descriptor if the OAC does not support OPL-SET. See Specification Section 10.3.",
         "id": "ocp.initial_power_level_set_w",
         "display_name": "Initial OPL-SET Wattage",
         "description": "Power cap applied when the OAC enters Operational State O5.",

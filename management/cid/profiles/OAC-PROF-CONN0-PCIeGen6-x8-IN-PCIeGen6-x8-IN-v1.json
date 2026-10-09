@@ -3,7 +3,7 @@
     "profile_id": "OAC-PROF-CONN0-PCIeGen6-x8-IN-PCIeGen6-x8-IN-v1",
     "schema_version": "0.9",
     "profile_version": "1.0",
-    "is_conn0": true,
+    "applicable_conns": ["CONN0"],
     "description": "CONN0 PCIe Gen6 x16 pin mapping",
     "high_speed_lanes": [
       {

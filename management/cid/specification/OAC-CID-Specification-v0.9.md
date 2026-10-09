@@ -333,8 +333,7 @@ The `connector_type` field declares which of these two variants is implemented o
 | `opl_emg_w` | number | Required | > 0.0, <= `opl_max_w` | Emergency Power Reduction Operational Power Level (OPL-EMG) in watts. The lowest validated operational power level supported by the OAC. The OAC shall transition to this level upon assertion of OAC_PWRBRK#. |
 | `opl_eff_w` | number | Optional | <= `opl_max_w`, >= `opl_emg_w` | Efficiency Optimized Operational Power Level (OPL-EFF) in watts. Vendor-defined operating profile intended to optimize performance-per-watt. If absent, no OPL-EFF profile is defined for this OAC. |
 | `opl_red_w` | number | Optional | <= `opl_eff_w` (if present) or <= `opl_max_w`, >= `opl_emg_w` | Reduced Power Operational Power Level (OPL-RED) in watts. Vendor-defined operating profile for operation under significant platform power constraints. If absent, no OPL-RED profile is defined for this OAC. |
-| `opl_set_min_w` | number | Optional | >= `opl_emg_w` | Minimum value in watts that may be configured for the user-configurable power level (OPL-SET). If absent, OPL-SET is not supported by this OAC. |
-| `opl_set_max_w` | number | Optional | <= `opl_max_w`, >= `opl_set_min_w` | Maximum value in watts that may be configured for OPL-SET. Required if `opl_set_min_w` is present. |
+| `opl_set_min_w` | number | Optional | >= `opl_emg_w`, <= `opl_max_w` | Minimum value in watts that may be configured for the user-configurable power level (OPL-SET). No corresponding maximum is declared: the upper bound of the configurable range is always `opl_max_w`, because a settable level above the OAC's maximum validated operating point would not be a valid operating point. If absent, OPL-SET is not supported by this OAC. |
 
 The OPL hierarchy shall satisfy the following ordering constraint:
 
@@ -342,7 +341,7 @@ The OPL hierarchy shall satisfy the following ordering constraint:
 opl_max_w >= opl_eff_w >= opl_red_w >= opl_emg_w
 ```
 
-Where optional OPL fields are absent, the ordering constraint applies only to those OPLs that are present. The upstream management controller shall use the declared OPL values to evaluate power budget feasibility before enabling primary power.
+Where optional OPL fields are absent, the ordering constraint applies only to those OPLs that are present. Where `opl_set_min_w` is declared, the configurable OPL-SET range is `opl_set_min_w` through `opl_max_w` inclusive. The upstream management controller shall use the declared OPL values to evaluate power budget feasibility before enabling primary power.
 
 ### 7.4 connectors Array
 
@@ -357,23 +356,18 @@ The value of `"connectors"` shall be a JSON array. Each element of the array sha
 | `id` | string | Required | `"CONN0"` through `"CONN6"`, `"CABLE"` | Connector position identifier. Each value shall be unique within the `connectors` array. |
 | `populated` | boolean | Required | `true` or `false` | `true` if a physical connector is installed at this position on the OAC. An element with `populated` set to `false` may be included for informational purposes but shall convey no signaling or power information. |
 | `impedance_ohm` | integer | Required if `populated=true` | `85` or `92` | Target differential impedance in ohms. The value `85` corresponds to the black connector variant used for PCIe-class and USB-class high-speed standards. The value `92` corresponds to the white connector variant used for Ethernet-class standards. |
+| `mpesti_capable` | boolean | Required on CONN0 | `true` or `false` | Declares whether Pin A1 on CONN0 is overloaded to carry M-PESTI (Modular-Peripheral Sideband Tunneling Interface) in addition to presence detect, as permitted by OCP OAC Base Specification v0.9 Section 9.4.8.2.12.1. `true` — Pin A1 carries M-PESTI in addition to presence detect. `false` — Pin A1 serves presence detect alone through a GND tie, per OCP OAC Base Specification v0.9 Section 9.4.8.2.12. This field shall be present in the CONN0 connector object and shall not appear in the CONN1 through CONN6 or CABLE connector objects. See Section 7.4.2. |
 | `connector_profile` | string | Optional | OCP-ratified profile identifier | References an OCP-ratified connector profile that defines the `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for this connector position. When `connector_profile` is present, the `high_speed_lanes`, `clocking`, and `discrete_signals` sections shall not be present in the connector object; when it is absent, those sections follow the presence requirements stated in Sections 7.4.3, 7.4.4, and 7.4.5. Connector profiles, their identifiers, their document format, and the rules governing their use are defined in Section 8. |
 
-#### 7.4.2 presence_detect Object
+#### 7.4.2 mpesti_capable Field
 
-Presence detection is neither optional nor negotiable, and the `"presence_detect"` object does not make it so. Every populated connector asserts its corresponding `OAC_PRSNT[0:6]#` signal by tying Pin A1 to GND on the OAC, as specified in OCP OAC Base Specification v0.9 Section 9.4.8.2.12. The pin, the signal name, the active-low sense, and the assertion method are fixed by the Base Specification for every connector position, are identical on every conformant OAC, and are therefore never declared in the CID.
+Presence detection is neither optional nor negotiable, and nothing in the CID makes it so. Every populated connector asserts its corresponding `OAC_PRSNT[0:6]#` signal by tying Pin A1 to GND on the OAC, as specified in OCP OAC Base Specification v0.9 Section 9.4.8.2.12. The pin, the signal name, the active-low sense, and the assertion method are fixed by the Base Specification for every connector position, are identical on every conformant OAC, and are therefore never declared in the CID.
 
-The `"presence_detect"` object exists for exactly one purpose: to declare that CONN0 Pin A1 is additionally overloaded with M-PESTI functionality, as permitted by OCP OAC Base Specification v0.9 Section 9.4.8.2.12.1. It carries no other information, and it is the only place in the CID where that overload can be declared.
+One property of Pin A1 is not fixed by the Base Specification. On CONN0, and on CONN0 alone, Pin A1 may additionally be overloaded with M-PESTI (Modular-Peripheral Sideband Tunneling Interface) functionality, as permitted by OCP OAC Base Specification v0.9 Section 9.4.8.2.12.1. The `"mpesti_capable"` field exists to declare that overload, and it is the only place in the CID where the overload can be declared.
 
-Accordingly, the object is optional, and its absence carries a specific and complete meaning: Pin A1 of every populated connector is tied to GND for presence detect in the standard manner, and M-PESTI is not implemented. The upstream management controller shall interpret an absent `"presence_detect"` object in exactly that way, and shall not treat its absence as missing or incomplete information.
+The field is a direct member of the connector object and is defined in Table 7.4.1-1 with the other top-level connector fields. It shall be present in the CONN0 connector object and shall not appear in the CONN1 through CONN6 or CABLE connector objects, because the M-PESTI overload is defined only for CONN0. A connector object other than CONN0 that declares `"mpesti_capable"` shall be treated as malformed and the slot shall not be energized.
 
-When the object is present on a connector object where `populated` is `true`, it shall contain only the field defined in this section.
-
-**Table 7.4.2-1: presence_detect Object Fields**
-
-| Field Name | JSON Type | Required | Constraints | Description |
-|------------|-----------|----------|-------------|-------------|
-| `mpesti_capable` | boolean | Required | `true` or `false` | Applicable to CONN0 only. When `true`, Pin A1 on CONN0 is overloaded to carry M-PESTI (Modular-Peripheral Sideband Tunneling Interface) in addition to presence detect, as permitted by OCP OAC Base Specification v0.9 Section 9.4.8.2.12.1. When `false`, or when the enclosing `presence_detect` object is absent entirely, Pin A1 serves presence detect alone through a GND tie, per OCP OAC Base Specification v0.9 Section 9.4.8.2.12. This field shall not appear on CONN1 through CONN6 or on the CABLE connector object, because the M-PESTI overload is defined only for CONN0. |
+When `"mpesti_capable"` is `true`, Pin A1 on CONN0 carries M-PESTI in addition to presence detect. When it is `false`, Pin A1 on CONN0 serves presence detect alone through a GND tie, per OCP OAC Base Specification v0.9 Section 9.4.8.2.12. Presence detect itself is unaffected in either case: the GND tie and the resulting `OAC_PRSNT0#` assertion are present regardless of the value of this field, and a `false` value is a positive statement that the overload is not implemented rather than an absence of information.
 
 #### 7.4.3 high_speed_lanes Object
 
@@ -519,7 +513,7 @@ The following ordering conventions shall be observed in all conformant CID docum
 3. Within a connector's `"lanes"` array, all RX entries (in ascending `lane_index` order) shall precede all TX entries (in ascending `lane_index` order).
 4. Optional fields that are absent from a CID document shall be treated as absent (not as null or zero) by the upstream management controller. A JSON `null` value for a field defined in this specification is not equivalent to field absence and shall be treated as a malformed CID.
 5. JSON keys shall use snake_case (underscore-separated lowercase). CamelCase or hyphenated key names are not conformant.
-6. Within a connector object, the signal sections shall appear in the order `presence_detect`, `high_speed_lanes`, `clocking`, `discrete_signals`. A connector object that declares a `connector_profile` contains none of `high_speed_lanes`, `clocking`, or `discrete_signals`, per Section 8.2; their absence is not an error.
+6. Within a connector object, the top-level fields shall appear in the order `id`, `populated`, `impedance_ohm`, `mpesti_capable` (CONN0 only), `connector_profile`, followed by the signal sections in the order `high_speed_lanes`, `clocking`, `discrete_signals`. A connector object that declares a `connector_profile` contains none of `high_speed_lanes`, `clocking`, or `discrete_signals`, per Section 8.2; their absence is not an error.
 
 ---
 
@@ -576,13 +570,16 @@ Connector profiles are defined and maintained exclusively by the OCP OAC workstr
 identifiers shall use the prefix `OAC-PROF-` and follow the naming convention:
 
 ```
-OAC-PROF-<CONN0|CONN>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
+OAC-PROF-<CONN0|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
 ```
 
-The connector segment shall be `CONN0` for profiles targeting CONN0 (9 assignable columns,
-`is_conn0: true`) and `CONN` for profiles applicable to any CONN1–6 position (8 assignable columns,
-`is_conn0: false`). No specific connector index (CONN1, CONN2, etc.) shall appear in the profile
-identifier.
+The connector segment shall be `CONN0` for profiles targeting CONN0 (9 assignable columns), `CONN`
+for profiles applicable to any CONN1–6 position (8 assignable columns), and `CABLE` for profiles
+targeting the CABLE connector position. The segment shall agree with the profile's
+`applicable_conns` field as defined in Table 8.4-1: `CONN0` corresponds to `["CONN0"]`, `CONN` to
+`["CONN1-6"]`, and `CABLE` to `["CABLE"]`. A profile whose connector segment and `applicable_conns`
+value disagree shall be treated as unrecognized. No specific connector index (CONN1, CONN2, etc.)
+shall appear in the profile identifier.
 
 The following abbreviations shall be used for protocol names within `OAC-PROF-` identifiers. The
 direction suffix shall be `IN` for `"INBOUND"` and `OUT` for `"OUTBOUND"`.
@@ -647,7 +644,7 @@ registry shall be treated as unrecognized.
 
 | Field Name | JSON Type | Required | Constraints | Description |
 |------------|-----------|----------|-------------|-------------|
-| `is_conn0` | boolean | Required | `true` or `false` | Declares the connector position class the profile targets. `true` — CONN0, which has nine assignable pin columns (columns 1–9). `false` — any of CONN1 through CONN6, which have eight assignable pin columns (columns 1–8). See Section 8.5. |
+| `applicable_conns` | array of strings | Required | Non-empty array drawn from `"CONN0"`, `"CONN1-6"`, `"CABLE"`, each token appearing at most once | Declares the connector position class or classes the profile was ratified against. `"CONN0"` — the CONN0 position, which has nine assignable pin columns (columns 1–9). `"CONN1-6"` — any of CONN1 through CONN6, which have eight assignable pin columns (columns 1–8) and which are interchangeable for profile purposes. `"CABLE"` — the CABLE connector position. In this revision the array shall contain exactly one token; a multi-token array is reserved for a future revision and shall be treated as unrecognized. See Section 8.5. |
 | `high_speed_lanes` | object or array of objects | Optional | Per Section 7.4.3 | High-speed differential lane definition for the connector position. |
 | `clocking` | array of objects | Optional | Per Section 7.4.4 | Reference clock definition for the connector position. |
 | `discrete_signals` | array of objects | Optional | Per Section 7.4.5 | Discrete signal definition for the connector position. |
@@ -666,7 +663,7 @@ Three differences from Section 7 apply, and are the only differences:
 2. A section omitted from a profile document means that the connector position carries no signals of
    that class. The upstream management controller shall treat the omitted section as absent and shall
    not apply any default signal definition in its place.
-3. A profile document does not declare `id`, `populated`, `impedance_ohm`, `presence_detect`, or
+3. A profile document does not declare `id`, `populated`, `impedance_ohm`, `mpesti_capable`, or
    `connector_profile`. Those fields describe a specific connector position on a specific OAC and
    belong to the CID connector object, not to the profile. Impedance in particular is a property of
    the installed connector variant and is declared by the CID in every case, whether or not a profile
@@ -674,25 +671,36 @@ Three differences from Section 7 apply, and are the only differences:
 
 ### 8.5 Profile Applicability to Connector Positions
 
-CONN0 and CONN1 through CONN6 are not interchangeable. CONN0 has nine assignable pin columns, with
-columns 10 and 11 reserved for the management USB 2.0 interface and `OAC_MC_RDY`; CONN1 through CONN6
-have eight. A profile's `is_conn0` field declares which of the two classes it was ratified against.
+CONN0, CONN1 through CONN6, and CABLE are not interchangeable. CONN0 has nine assignable pin
+columns, with columns 10 and 11 reserved for the management USB 2.0 interface and `OAC_MC_RDY`;
+CONN1 through CONN6 have eight. A profile's `applicable_conns` field declares which position class
+or classes it was ratified against.
 
-The upstream management controller shall reject a profile applied to a connector position
-inconsistent with its declared `is_conn0` value. A profile with `is_conn0: true` shall be referenced
-only by the CONN0 connector object, and a profile with `is_conn0: false` shall be referenced only by a
-CONN1 through CONN6 connector object. A CID that violates this rule shall be treated as malformed and
-the slot shall not be energized.
+The upstream management controller shall reject a profile applied to a connector position that is
+not covered by the profile's `applicable_conns` value. A profile declaring `["CONN0"]` shall be
+referenced only by the CONN0 connector object; a profile declaring `["CONN1-6"]` shall be referenced
+only by a CONN1 through CONN6 connector object; and a profile declaring `["CABLE"]` shall be
+referenced only by the CABLE connector object. A CID that violates this rule shall be treated as
+malformed and the slot shall not be energized.
+
+The field is an array, and its vocabulary is expressed in terms of position classes rather than
+individual connector indices. CONN1 through CONN6 are electrically equivalent for profile purposes,
+so enumerating them individually would admit subsets such as `["CONN2", "CONN5"]` that carry no
+meaning. The array form reserves room for a profile ratified against more than one class without a
+further change to the profile document schema; in this revision, per Table 8.4-1, exactly one token
+shall be present.
 
 > **WORK IN PROGRESS — subject to change by the OCP OAC workstream.**
 >
 > Two related cases are open and are not resolved by the rule above.
 >
-> The first is the application of an `is_conn0: false` profile to CONN0. The eight columns such a
+> The first is the application of a `["CONN1-6"]` profile to CONN0. The eight columns such a
 > profile defines map onto CONN0's first eight assignable columns without conflict, which makes the
 > combination physically meaningful, but it leaves CONN0's ninth assignable column undefined. The
 > rule above rejects the combination outright. Whether to permit it instead, and if so how the ninth
-> column is to be declared, has not been decided.
+> column is to be declared, has not been decided. The `applicable_conns` array can express the
+> resolution directly, as `["CONN0", "CONN1-6"]`, once the workstream settles the ninth column; the
+> single-token restriction of Table 8.4-1 is what holds the case closed in the meantime.
 >
 > The second is supplementation and partial override more generally — a CID that references a profile
 > and adds to, or amends, what the profile declares. Section 8.2 forbids this today, which is what
@@ -745,7 +753,7 @@ The upstream management controller shall perform at minimum the following valida
 7. The `connector_type` value is compatible with the host slot (e.g., a `"125A"` OAC shall not be enabled in a slot that only supports the `"100A"` variant).
 8. The `opl_max_w` value does not exceed the continuous power capacity implied by the declared `connector_type` and `input_voltage` (per OCP OAC v0.9 Section 9.3, Table 8).
 9. The `opl_emg_w` value is present and satisfies the OPL ordering constraint (`opl_emg_w` <= `opl_max_w`).
-10. For each populated connector that declares a `connector_profile`: the profile identifier is recognized as an OCP-ratified profile (`OAC-PROF-` prefix) that the baseboard supports, the profile's `is_conn0` value is consistent with the connector position it is applied to per Section 8.5, and the connector object contains no `high_speed_lanes`, `clocking`, or `discrete_signals` sections. If the profile identifier is unrecognized or unsupported, if the `is_conn0` value is inconsistent with the connector position, or if any signal section is present alongside `connector_profile`, the connector shall be treated as incompletely defined or malformed and the slot shall not be energized.
+10. For each populated connector that declares a `connector_profile`: the profile identifier is recognized as an OCP-ratified profile (`OAC-PROF-` prefix) that the baseboard supports, the connector position it is applied to is covered by the profile's `applicable_conns` value per Section 8.5, and the connector object contains no `high_speed_lanes`, `clocking`, or `discrete_signals` sections. If the profile identifier is unrecognized or unsupported, if the connector position is not covered by `applicable_conns`, or if any signal section is present alongside `connector_profile`, the connector shall be treated as incompletely defined or malformed and the slot shall not be energized.
 11. For each populated connector that does not declare a `connector_profile` and that carries high-speed differential signals: the `high_speed_lanes` section is present, per Section 7.4.3. A connector that carries high-speed signals but describes neither a profile nor explicit lane definitions is incompletely defined and the slot shall not be energized.
 
 An upstream management controller may perform additional validation beyond these minimum requirements. Validation failures shall be logged with sufficient detail to identify the specific field and the nature of the failure.
@@ -775,11 +783,11 @@ An OAC implementation that claims conformance with this specification shall sati
 | `connector_type`, `opl_max_w`, and `opl_emg_w` shall be declared in `power.primary` | Mandatory | Section 7.3.1 |
 | CONN1 through CONN6 connector positions may be populated | Optional | Section 7.4 |
 | CABLE connector position may be populated | Optional | Section 7.4 |
-| `presence_detect` may be declared on CONN0 solely to declare M-PESTI capability on Pin A1 | Optional | Section 7.4.2 |
+| `mpesti_capable` shall be declared in the CONN0 connector object, and shall not appear in the CONN1 through CONN6 or CABLE connector objects | Mandatory | Section 7.4.2 |
 | `opl_eff_w` and `opl_red_w` OPL fields may be declared if supported | Optional | Section 7.3.1 |
-| `opl_set_min_w` and `opl_set_max_w` may be declared if OPL-SET is supported | Optional | Section 7.3.1 |
+| `opl_set_min_w` may be declared if OPL-SET is supported, bounding the configurable range below; the upper bound is `opl_max_w` | Optional | Section 7.3.1 |
 | `connector_profile` may be declared on any populated connector to reference an OCP-ratified connector profile | Optional | Section 8.2 |
-| A referenced `connector_profile` shall have an `is_conn0` value consistent with the connector position it is applied to | Mandatory (if connector_profile present) | Section 8.5 |
+| A referenced `connector_profile` shall have an `applicable_conns` value that covers the connector position it is applied to | Mandatory (if connector_profile present) | Section 8.5 |
 | `high_speed_lanes` shall be present on any populated connector that carries high-speed differential signals and does not declare a `connector_profile` | Mandatory | Section 7.4.3 |
 | When `connector_profile` is declared, `high_speed_lanes`, `clocking`, and `discrete_signals` shall not be present in the same connector object | Mandatory (if connector_profile present) | Section 8.2 |
 | `connector_profile` values shall use only OCP-ratified identifiers with the `OAC-PROF-` prefix | Mandatory (if connector_profile present) | Section 8.3 |
@@ -801,7 +809,7 @@ An upstream management controller implementation that claims conformance with th
 | upstream management controller shall recognize, without runtime fetch, every OCP-ratified profile identifier (`OAC-PROF-` prefix) the baseboard can support, published at or before the declared `schema_version`, and shall handle every other profile identifier robustly | Mandatory | Section 8.3 |
 | upstream management controller shall reject any connector object that contains both `connector_profile` and any of `high_speed_lanes`, `clocking`, or `discrete_signals` | Mandatory | Section 8.2 |
 | upstream management controller shall not enable primary power when `connector_profile` references a profile identifier that is unrecognized or that the baseboard cannot support | Mandatory | Section 8.3 |
-| upstream management controller shall reject a profile applied to a connector position inconsistent with the profile's `is_conn0` value | Mandatory | Section 8.5 |
+| upstream management controller shall reject a profile applied to a connector position not covered by the profile's `applicable_conns` value | Mandatory | Section 8.5 |
 | upstream management controller may perform additional validation beyond the minimum requirements in Section 9.3 | Optional | Section 9.3 |
 
 ---
@@ -850,6 +858,7 @@ document.
         "id": "CONN0",
         "populated": true,
         "impedance_ohm": 85,
+        "mpesti_capable": false,
         "connector_profile": "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"
       },
       {
@@ -866,17 +875,19 @@ document.
 Three points are worth noting about this document.
 
 The two profile identifiers differ in their connector segment. `OAC-PROF-CONN0-...` carries
-`is_conn0: true` and may be referenced only by the CONN0 connector object; `OAC-PROF-CONN-...`
-carries `is_conn0: false` and may be referenced only by CONN1 through CONN6. Applying either to the
-other class of position is a validation failure, per Section 8.5.
+`applicable_conns: ["CONN0"]` and may be referenced only by the CONN0 connector object;
+`OAC-PROF-CONN-...` carries `applicable_conns: ["CONN1-6"]` and may be referenced only by CONN1
+through CONN6. The connector segment and the field shall agree, per Section 8.3. Applying either
+profile to the other class of position is a validation failure, per Section 8.5.
 
 `impedance_ohm` is declared on both connectors even though the profiles supply everything else. It is
 a property of the installed connector variant on this particular OAC rather than of the ratified
 signal assignment, and it is declared by the CID in every case, per Section 8.4.
 
-`presence_detect` is absent, and its absence is complete information rather than an omission. It
-means that Pin A1 of each populated connector is tied to GND for presence detect in the standard
-manner and that M-PESTI is not implemented, per Section 7.4.2.
+`mpesti_capable` is declared on CONN0 as `false`. Presence detect itself appears nowhere in the
+document: Pin A1 of each populated connector is tied to GND in the standard manner, which the Base
+Specification fixes and the CID therefore never restates. The `false` value says only that CONN0
+Pin A1 is not additionally overloaded with M-PESTI, per Section 7.4.2.
 
 ### A.2 Explicitly Defined CID
 
@@ -906,6 +917,7 @@ It therefore declares `high_speed_lanes`, `clocking`, and `discrete_signals` inl
         "id": "CONN0",
         "populated": true,
         "impedance_ohm": 85,
+        "mpesti_capable": false,
         "high_speed_lanes": {
           "name": "pcie_primary",
           "protocol": "PCIe Gen5",

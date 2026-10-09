@@ -9,7 +9,7 @@ expanded form for readability. A production OAC may publish either form; the min
 | File | Form Factor | Power | Connectors |
 |------|-------------|-------|-----------|
 | [OAC-CID-0.9-2500W-PCIe-x16-(Example_using_connector_profile).json](OAC-CID-0.9-2500W-PCIe-x16-%28Example_using_connector_profile%29.json) | Double-wide offset | +50V, 125A (BK125), 2500 W OPL-MAX, 625 W OPL-EMG | CONN0 only, by profile reference |
-| [OAC-CID-0.9-SW-2500W-16L_PCIe-96L_Ethernet(Example_mixed_definition).json](OAC-CID-0.9-SW-2500W-16L_PCIe-96L_Ethernet%28Example_mixed_definition%29.json) | Single-wide | +50V, 100A (BK100), 2500 W OPL-MAX, 625 W OPL-EMG, OPL-SET band 625–2500 W | CONN0 explicit + CONN1–CONN6 by profile reference |
+| [OAC-CID-0.9-SW-2500W-16L_PCIe-96L_Ethernet(Example_mixed_definition).json](OAC-CID-0.9-SW-2500W-16L_PCIe-96L_Ethernet%28Example_mixed_definition%29.json) | Single-wide | +50V, 100A (BK100), 2500 W OPL-MAX, 625 W OPL-EMG, OPL-SET floor 625 W | CONN0 explicit + CONN1–CONN6 by profile reference |
 
 ---
 
@@ -25,8 +25,8 @@ This is the shortest conformant CID shape. Where a ratified profile matches the 
 per-lane pin map need not be repeated — the controller already has built-in knowledge of every
 profile ratified at or before the declared `schema_version`, so there is no runtime fetch.
 
-The card declares only the two mandatory power fields, `opl_max_w` and `opl_emg_w`, and no OPL-SET
-band. A corresponding SCD Definition therefore has no `ocp.initial_power_level_set_w` to offer. For
+The card declares only the two mandatory power fields, `opl_max_w` and `opl_emg_w`, and no
+`opl_set_min_w`, so OPL-SET is not supported. A corresponding SCD Definition therefore has no `ocp.initial_power_level_set_w` to offer. For
 that worked through end to end, see Triple A in [`../../../scd/examples/`](../../../scd/examples/).
 
 ### Mixed definition — both approaches in one document
@@ -38,8 +38,9 @@ This is the common real-world shape: a card's management and host connector is u
 vendor-specific enough to need explicit declaration, while its fabric connectors follow a ratified
 standard pinout. The two approaches are exclusive *per connector*, not per document.
 
-It also declares an OPL-SET band of 625–2500 W, which is what makes
-`ocp.initial_power_level_set_w` available to the SCD Definition.
+It also declares `opl_set_min_w` of 625 W, which makes `ocp.initial_power_level_set_w` available
+to the SCD Definition. The configurable range runs from that floor up to `opl_max_w`, 2500 W;
+the ceiling is not declared separately.
 
 ---
 

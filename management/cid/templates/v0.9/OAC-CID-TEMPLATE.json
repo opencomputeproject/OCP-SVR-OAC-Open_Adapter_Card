@@ -12,28 +12,24 @@
     },
     "power": {
       "primary": {
-        "$comment": "input_voltage: nominal primary rail. Allowed values: '+12V', '+50V'. connector_type: primary power connector variant per OCP OAC Base Spec v0.9 Section 9.3 -- '100A' (BK100, 80A derated, all form factors) or '125A' (BK125, 100A derated, double-wide only). OPL fields define Operational Power Levels per OCP OAC Base Spec v0.9 Section 10.1.2. opl_max_w and opl_emg_w are required. opl_eff_w, opl_red_w, opl_set_min_w, and opl_set_max_w are optional. Ordering constraint: opl_max_w >= opl_eff_w >= opl_red_w >= opl_emg_w.",
+        "$comment": "input_voltage: nominal primary rail. Allowed values: '+12V', '+50V'. connector_type: primary power connector variant per OCP OAC Base Spec v0.9 Section 9.3 -- '100A' (BK100, 80A derated, all form factors) or '125A' (BK125, 100A derated, double-wide only). OPL fields define Operational Power Levels per OCP OAC Base Spec v0.9 Section 10.1.2. opl_max_w and opl_emg_w are required. opl_eff_w, opl_red_w, and opl_set_min_w are optional. opl_set_min_w declares the floor of the configurable OPL-SET range; the ceiling is always opl_max_w and is not declared separately. Ordering constraint: opl_max_w >= opl_eff_w >= opl_red_w >= opl_emg_w.",
         "input_voltage": "<+12V|+50V>",
         "connector_type": "<100A|125A>",
         "opl_max_w": 0.0,
         "opl_emg_w": 0.0,
         "opl_eff_w": 0.0,
         "opl_red_w": 0.0,
-        "opl_set_min_w": 0.0,
-        "opl_set_max_w": 0.0
+        "opl_set_min_w": 0.0
       }
     },
     "connectors": [
       {
-        "$comment": "Populated connector template. 'id' must be unique and one of: CONN0-CONN6, CABLE. CONN0 must always appear first with populated=true. connector_profile is optional: when present, high_speed_lanes, clocking, and discrete_signals become optional -- any section explicitly declared overrides the profile for that section in full; any section omitted is inherited from the profile. Use an OCP-ratified profile identifier (prefix 'OAC-PROF-'). When connector_profile is set, high_speed_lanes, clocking, and discrete_signals must be omitted from this connector object -- they are defined entirely by the profile. Omit connector_profile entirely to define signals explicitly.",
+        "$comment": "Populated connector template. 'id' must be unique and one of: CONN0-CONN6, CABLE. CONN0 must always appear first with populated=true. connector_profile is optional: when present, high_speed_lanes, clocking, and discrete_signals become optional -- any section explicitly declared overrides the profile for that section in full; any section omitted is inherited from the profile. Use an OCP-ratified profile identifier (prefix 'OAC-PROF-'). When connector_profile is set, high_speed_lanes, clocking, and discrete_signals must be omitted from this connector object -- they are defined entirely by the profile. Omit connector_profile entirely to define signals explicitly. mpesti_capable is required on CONN0 and must be omitted on CONN1-CONN6 and CABLE: it declares whether CONN0 Pin A1 is additionally overloaded with M-PESTI. Presence detection itself (the GND tie on Pin A1) is fixed by the OAC Base Specification and is never declared in the CID.",
         "id": "<CONNx>",
         "populated": true,
         "impedance_ohm": 0,
+        "mpesti_capable": false,
         "connector_profile": "<OAC-PROF-...-v1 | omit if defining signals explicitly>",
-        "presence_detect": {
-          "$comment": "Optional. Include this object only when mpesti_capable is true on CONN0. Presence detection (GND-tie on Pin A1) is statically defined by the OAC Base Specification and does not need to be declared when M-PESTI is not implemented.",
-          "mpesti_capable": false
-        },
         "high_speed_lanes": {
           "lanes": [
             {

@@ -35,7 +35,7 @@ The editor operates in two distinct modes selectable from the header:
 
 **CID Mode** — for authoring a complete OAC CID. Covers the full schema: metadata, power (input voltage, connector type, all OPL levels), and per-connector signal definitions for up to seven connectors (CONN0–CONN6). Each connector can reference an OCP-ratified Connector Profile by identifier, or define its signals explicitly — but not both.
 
-**Connector Profile Mode** — for authoring a reusable, OCP-ratified connector profile. A profile defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for a specific connector position and protocol configuration. Once ratified by the OCP OAC workstream, OACs can reference a profile by its identifier rather than repeating full pin-level declarations in every CID. This keeps CIDs compact and consistent across vendors.
+**Connector Profile Mode** — for authoring a reusable, OCP-ratified connector profile. A profile defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for a specific connector position class and protocol configuration. The `applicable_conns` selector chooses that class — `CONN0` (9 assignable columns), `CONN1-6` (8 columns, any of CONN1 through CONN6), or `CABLE` (8 columns) — and drives both the pin map layout and the connector segment of the suggested identifier. Once ratified by the OCP OAC workstream, OACs can reference a profile by its identifier rather than repeating full pin-level declarations in every CID. This keeps CIDs compact and consistent across vendors.
 
 ### Guided and Manual Editing — Live Two-Way Sync
 
@@ -62,6 +62,8 @@ Validation covers:
 - Required field presence (metadata, power, connector ID)
 - Power field ordering constraints (OPL hierarchy)
 - connector_profile mutual exclusivity with explicit signal sections
+- `mpesti_capable` present on CONN0 and absent everywhere else
+- `applicable_conns` present, single-token, and in agreement with the `profile_id` segment
 - High-speed lane protocol compatibility, lane count limits, link_subdivision applicability
 - Clock count maximum (16 per connector), required clock fields, ssc_supported presence
 - Pin assignment validity and conflict detection
@@ -81,7 +83,7 @@ Validation covers:
 The Connector Profile panel includes a **✦ Suggest ID** button that auto-generates a standards-compliant profile identifier from the currently defined protocol groups, lane counts, and signal direction. The generated identifier follows the OCP-ratified naming convention:
 
 ```
-OAC-PROF-<CONN0|CONN>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>
+OAC-PROF-<CONN0|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>
 ```
 
 ### Help System
@@ -90,6 +92,8 @@ A `?` button in the header opens a help modal with four tabs:
 
 - **Getting Started** — a six-step walkthrough from mode selection through firmware export
 - **Field Reference** — a searchable table of every CID and profile field with type, required/optional status, and description
+
+Documents written against the pre-2026-10-09 schema still load. `is_conn0` and the `presence_detect` wrapper object are read on input and reported as superseded, and re-saving the document emits `applicable_conns` and a flat `mpesti_capable` field in their place.
 - **Keyboard Shortcuts** — `?` (open help), `Esc` (close), `Alt+G`/`Alt+M` (mode switch), `Alt+I` (import), `Alt+E` (export)
 - **About** — schema version, spec revision, repository link, normative references, and last-modified date
 

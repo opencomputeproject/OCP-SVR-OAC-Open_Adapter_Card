@@ -4,6 +4,74 @@ All notable changes to the OAC Connector Interface Definition (CID) specificatio
 
 ---
 
+## [0.9] — 2026-10-09 — Workstream review revision 2
+
+Second in-place revision of the v0.9 document, applying three decisions taken in the OCP OAC
+workstream review of 2026-10-09. The version identifier is unchanged.
+
+### Changed
+
+- **Table 7.3.1-1 `opl_set_max_w` removed** — the configurable OPL-SET range is now bounded below by
+  `opl_set_min_w` and above by `opl_max_w`. A settable level above the OAC's maximum validated
+  operating point would not be a valid operating point, so a separately declared ceiling could only
+  restate `opl_max_w` or contradict it. The presence of `opl_set_min_w` is now what declares OPL-SET
+  support. Section 7.3.1 and the Section 10.1 compliance table were reworded accordingly.
+- **Connector profile `is_conn0` replaced by `applicable_conns`** — a boolean naming one connector
+  position could not express a CABLE profile at all, and it stated the answer rather than the
+  question. `applicable_conns` is an array of class tokens drawn from `"CONN0"`, `"CONN1-6"`, and
+  `"CABLE"`. The tokens are position *classes*, not indices: CONN1 through CONN6 are electrically
+  interchangeable for profile purposes, so `["CONN2", "CONN5"]` would carry no meaning that
+  `["CONN1-6"]` does not already carry. In this revision the array shall contain exactly one token;
+  a multi-token array is reserved for a future revision and shall be treated as unrecognized.
+- **Profile identifier grammar extended to `CABLE`** — the connector segment of a profile identifier
+  is now `CONN0`, `CONN`, or `CABLE`. Section 8.3 adds a normative agreement rule: `CONN0`
+  corresponds to `["CONN0"]`, `CONN` to `["CONN1-6"]`, and `CABLE` to `["CABLE"]`, and a profile
+  whose segment and `applicable_conns` value disagree shall be treated as unrecognized. The existing
+  namespace is unaffected — no ratified identifier changes.
+- **`presence_detect` object flattened to the `mpesti_capable` field** — the wrapper object held one
+  field, and its optionality made the absent case ambiguous to tooling. `mpesti_capable` is now a
+  direct member of the connector object, defined in Table 7.4.1-1 alongside the other top-level
+  connector fields. It is **required in the CONN0 connector object and prohibited in the CONN1
+  through CONN6 and CABLE connector objects**, because the M-PESTI overload is defined only for
+  CONN0. A `false` value is now a positive statement that the overload is not implemented rather
+  than an absence of information. Section 7.4.2 was retitled from "presence_detect Object" to
+  "mpesti_capable Field" rather than deleted, so Sections 7.4.3 through 7.4.5 and every
+  cross-reference to them are unchanged. Table 7.4.2-1 was removed.
+- **Section 7.6 field ordering** — a sixth rule fixes the order of the top-level connector fields as
+  `id`, `populated`, `impedance_ohm`, `mpesti_capable` (CONN0 only), `connector_profile`, followed by
+  the signal sections in the order `high_speed_lanes`, `clocking`, `discrete_signals`.
+- **Section 8.5 open case restated** — the first work-in-progress case is now expressed in terms of
+  `["CONN1-6"]`. `applicable_conns` can express the resolution directly, as `["CONN0", "CONN1-6"]`,
+  once the workstream settles the ninth column; the single-token restriction of Table 8.4-1 is what
+  holds the case closed in the meantime. The case itself remains open.
+
+### Revisited from the 2026-10-08 revision
+
+- The 2026-10-08 revision recorded the collapse of `opl_set_min_w` and `opl_set_max_w` as declined.
+  That decision stands for the **floor**, and for the reason recorded then: `opl_set_min_w` is what
+  lets a vendor keep a platform from throttling the OAC into uselessness. Only the **ceiling** is
+  removed here, and it is removed as redundant with `opl_max_w` specifically. The floor is not up
+  for re-proposal.
+
+### Associated artifacts
+
+- **OAC SCD Specification v0.9** — `opl_set_max_w` was load-bearing in the SCD and could not be left
+  behind. The Section 9 `ocp.initial_power_level_set_w` effecter `Range.max`, the Section 12 clamp,
+  the Section 12 mandatory conformance row, the Section 7 placement narrative, the Section 13
+  embedded CID fragment, and SCD Examples B and C now bound the effecter by `opl_max_w`.
+- **`scd/tools/validate-scd.py`** — the `POWER_REGISTRY` entry for `ocp.initial_power_level_set_w`
+  resolves its upper bound to `opl_max_w`.
+- **Connector profiles** — all four ratified profiles and their `-minified` variants carry
+  `applicable_conns` in place of `is_conn0`.
+- **CID template and examples** — `opl_set_max_w` removed; `mpesti_capable` added to every CONN0
+  connector object in the CID examples, the SCD examples, and both Annex A documents.
+- **`OAC-CID-Editor.html`** — the `opl_set_max_w` input removed, the `is_conn0` checkbox replaced by
+  an `applicable_conns` selector offering CONN0, CONN1-6, and CABLE, and `mpesti_capable` emitted as
+  a flat field in Section 7.6 order. The loader still reads pre-revision documents: `is_conn0` and
+  `presence_detect` are accepted on input and reported as superseded, so existing work is not lost.
+
+---
+
 ## [0.9] — 2026-10-08 — Workstream review revision
 
 Revision of the published v0.9 document in response to the OAC workstream review recorded in

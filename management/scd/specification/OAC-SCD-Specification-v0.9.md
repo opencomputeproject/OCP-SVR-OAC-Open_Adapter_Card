@@ -243,7 +243,7 @@ Content is allocated between the CID and SCD by a single test:
 
 Two consequences of this rule are worth stating explicitly, because both were contested during drafting and both were resolved against the intuitive answer.
 
-**Power stays in the CID.** The Operational Power Level menu — `opl_max_w`, `opl_eff_w`, `opl_red_w`, `opl_emg_w`, and the `opl_set_min_w` / `opl_set_max_w` bounds — remains in the CID. Those wattages are precisely what a platform weighs when deciding whether it can supply the OAC, and a platform that cannot supply `opl_emg_w` shall not power the OAC at all. Moving them into SCD would mean the admission decision could no longer be made from the CID alone. The `opl_max_w` value is additionally a hardware safety bound, and a configuration document shall never be able to raise a hardware limit.
+**Power stays in the CID.** The Operational Power Level menu — `opl_max_w`, `opl_eff_w`, `opl_red_w`, `opl_emg_w`, and the `opl_set_min_w` floor on the configurable level — remains in the CID. Those wattages are precisely what a platform weighs when deciding whether it can supply the OAC, and a platform that cannot supply `opl_emg_w` shall not power the OAC at all. Moving them into SCD would mean the admission decision could no longer be made from the CID alone. The `opl_max_w` value is additionally a hardware safety bound, and a configuration document shall never be able to raise a hardware limit.
 
 **SCD states the platform's budget instead.** What SCD contributes is a quantity the CID cannot express, because it describes the platform rather than the OAC: the wattage this particular slot can supply. This flows from the controller to the OAC and is the mirror image of the CID's declaration. It does not restate anything the CID says. Section 10.2 defines it.
 
@@ -689,7 +689,7 @@ The declared bounds follow from the CID: below `opl_emg_w` the OAC cannot run at
 | Type | `integer` |
 | Response class | `optional` |
 | Units | `"watts"` |
-| Range | `min` = CID `power.primary.opl_set_min_w`; `max` = CID `power.primary.opl_set_max_w` |
+| Range | `min` = CID `power.primary.opl_set_min_w`; `max` = CID `power.primary.opl_max_w` |
 | Default | OAC-declared, within that range |
 | `cid_binding` | `{ "cid_object": "power.primary", "constraint": "opl_range" }` |
 
@@ -974,7 +974,7 @@ SCD is one-time configuration per negotiation. Everything dynamic goes through t
 An OAC shall expose a DSP0248 numeric effecter permitting the upstream management controller to move the OPL-SET level at runtime. The effecter shall be bounded below by the CID `power.primary.opl_set_min_w` and above by:
 
 ```
-min( ocp.max_power_w, CID power.primary.opl_set_max_w )
+min( ocp.max_power_w, CID power.primary.opl_max_w )
 ```
 
 `ocp.initial_power_level_set_w` sets the value the effecter holds at the point the OAC enters O5. It is not a separate control path.
@@ -1048,7 +1048,7 @@ Assignments are sparse and consist of scalar values keyed by identifier; a typic
 | Report the field identifier at which validation failed | Recommended | 11.4 |
 | Clamp rather than reject when the assigned initial power level exceeds the platform budget | Mandatory | 10.3 |
 | Expose a DSP0248 numeric effecter for runtime OPL-SET control | Mandatory | 12 |
-| Bound that effecter above by `min(ocp.max_power_w, opl_set_max_w)` | Mandatory | 12 |
+| Bound that effecter above by `min(ocp.max_power_w, opl_max_w)` | Mandatory | 12 |
 | Latch the Assignment on the O3 to O4 transition | Mandatory | 11.1 |
 | Require re-negotiation only when primary power was removed **and** the MC was reset | Mandatory | 11.6.2 |
 | Hold the cache in two survival domains per Table 11.6-2 | Recommended | 11.6.3 |
@@ -1122,8 +1122,7 @@ This annex shows one OAC's three documents together. The CID fragment is abridge
         "opl_eff_w": 2000,
         "opl_red_w": 1200,
         "opl_emg_w": 625,
-        "opl_set_min_w": 625,
-        "opl_set_max_w": 2500
+        "opl_set_min_w": 625
       }
     },
     "connectors": [

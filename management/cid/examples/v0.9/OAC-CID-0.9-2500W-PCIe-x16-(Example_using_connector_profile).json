@@ -16,6 +16,7 @@
         "id": "CONN0",
         "populated": true,
         "impedance_ohm": 85,
+        "mpesti_capable": false,
         "connector_profile": "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"
       }
     ]

@@ -16,9 +16,9 @@ Each example is a **matched triple**, because SCD is two documents. The CID is w
 | Definition | [OAC-SCDD-0.9-ExampleA-Minimal-NoSubdivision.json](OAC-SCDD-0.9-ExampleA-Minimal-NoSubdivision.json) |
 | Assignment | [OAC-SCDA-0.9-ExampleA-Slot0-FullBudget.json](OAC-SCDA-0.9-ExampleA-Slot0-FullBudget.json) |
 
-CONN0 is declared entirely by `connector_profile` reference, so its group name lives in the profile and is inherited by this connector. The CID declares only the two mandatory power fields, `opl_max_w` 2500 W and `opl_emg_w` 625 W — there is no OPL-SET band.
+CONN0 is declared entirely by `connector_profile` reference, so its group name lives in the profile and is inherited by this connector. The CID declares only the two mandatory power fields, `opl_max_w` 2500 W and `opl_emg_w` 625 W — there is no `opl_set_min_w`, so OPL-SET is not supported.
 
-The Definition therefore declares two fields and no `protocol_group` binding at all: nothing is subdividable, and with no `opl_set_min_w` / `opl_set_max_w` there is no `ocp.initial_power_level_set_w` to declare. The controller sets slot 0 and the full 2500 W budget.
+The Definition therefore declares two fields and no `protocol_group` binding at all: nothing is subdividable, and with no `opl_set_min_w` there is no `ocp.initial_power_level_set_w` to declare. The controller sets slot 0 and the full 2500 W budget.
 
 This triple is the one to study for what a Definition looks like when almost nothing is configurable. Note that the profile is never resolved by the SCD path here — with no `protocol_group` binding, the Definition and the profile never meet.
 
@@ -30,7 +30,7 @@ This triple is the one to study for what a Definition looks like when almost not
 | Definition | [OAC-SCDD-0.9-ExampleB-Bifurcatable-VendorField.json](OAC-SCDD-0.9-ExampleB-Bifurcatable-VendorField.json) |
 | Assignment | [OAC-SCDA-0.9-ExampleB-Slot5-x8x8-Sparse.json](OAC-SCDA-0.9-ExampleB-Slot5-x8x8-Sparse.json) |
 
-CONN0 is defined with explicit per-lane pin mapping: PCIe Gen6, x16 inbound, named `pcie_primary`. The subdivision menu lives in the Definition as `ocp.link_subdivision.conn0.pcie_primary`. The CID declares the full OPL set plus an OPL-SET band of 625–2500 W.
+CONN0 is defined with explicit per-lane pin mapping: PCIe Gen6, x16 inbound, named `pcie_primary`. The subdivision menu lives in the Definition as `ocp.link_subdivision.conn0.pcie_primary`. The CID declares the full OPL set plus an `opl_set_min_w` of 625 W, which puts the configurable OPL-SET range at 625 W through `opl_max_w`, 2500 W.
 
 The Definition declares five fields — both response classes, both `cid_binding` kinds, the sentinel default, and both namespaces. The Assignment sets three of them and omits two.
 
@@ -71,7 +71,7 @@ Note also that `definition_revision` is `3` here rather than `1`. It is an opaqu
 |----------|:-:|:-:|:-:|
 | `connector_profile` resolution present in the CID | ● | | ● |
 | Definition with no `protocol_group` binding | ● | | |
-| OAC with no OPL-SET band | ● | | |
+| OAC with no OPL-SET floor | ● | | |
 | Sentinel default (`ocp.slot_id`) | ● | ● | ● |
 | `power.primary` binding | ● | ● | ● |
 | Single subdividable group | | ● | |

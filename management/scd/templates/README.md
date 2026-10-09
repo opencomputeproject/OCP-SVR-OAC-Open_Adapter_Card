@@ -20,7 +20,7 @@ Both templates carry `$comment` keys for authoring guidance. **Every `$comment` 
 1. Enumerate what is genuinely configurable about the OAC. Apply the placement rule: if the platform needs the value to decide whether to power the OAC at all, it belongs in the **CID**, not here.
 2. Copy `OAC-SCDD-TEMPLATE.json` and delete the descriptors that do not apply.
 3. Give every field a `default`. There is no such thing as a field without one — it is what makes a sparse Assignment safe. Where no correct value exists, use a sentinel default per Specification Section 7.6 and flag it with `"sentinel_default": true`.
-4. Set the power field bounds from the OAC's own CID `power.primary` object. `ocp.max_power_w` takes `opl_emg_w` / `opl_max_w`; `ocp.initial_power_level_set_w` takes `opl_set_min_w` / `opl_set_max_w`.
+4. Set the power field bounds from the OAC's own CID `power.primary` object. `ocp.max_power_w` takes `opl_emg_w` / `opl_max_w`; `ocp.initial_power_level_set_w` takes `opl_set_min_w` / `opl_max_w` — the CID declares no separate OPL-SET ceiling, because the configurable range is always bounded above by the OAC's maximum validated operating point.
 5. Declare one `ocp.link_subdivision.<connector>.<group>` field per subdividable protocol group, with the connector segment lowercased in the `id` and canonical in the `cid_binding`.
 6. Put anything outside the `ocp.` registry under `pen.<your IANA PEN>.`. No OCP registration is needed.
 7. Set `definition_revision`, and increment it on every subsequent content change including firmware updates.

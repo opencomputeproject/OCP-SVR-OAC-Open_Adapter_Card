@@ -126,7 +126,7 @@ RETIRED_IDS = {
 # field id -> (min source, max source, default source or None)
 POWER_REGISTRY = {
     "ocp.max_power_w": ("opl_emg_w", "opl_max_w", "opl_emg_w"),
-    "ocp.initial_power_level_set_w": ("opl_set_min_w", "opl_set_max_w", None),
+    "ocp.initial_power_level_set_w": ("opl_set_min_w", "opl_max_w", None),
 }
 
 

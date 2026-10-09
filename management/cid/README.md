@@ -110,7 +110,7 @@ A CID is a JSON object with the root key `"oac_cid"` and three mandatory section
 |---------|----------|----------|
 | `metadata` | Yes | `schema_version` and `oac_spec_revision`, both required; optional `description`, `iana_pen`, `platform_token` |
 | `power` | Yes | `primary` object: input voltage, connector variant, and the Operational Power Level wattages |
-| `connectors` | Yes | One object per populated connector position: pin map, protocol groups, clocking, discrete signals, presence detect |
+| `connectors` | Yes | One object per populated connector position: pin map, protocol groups, clocking, discrete signals, and — on CONN0 — the `mpesti_capable` declaration |
 
 ### Connectors
 
@@ -146,10 +146,13 @@ offset only), and the supported Operational Power Levels:
 | `opl_eff_w` | OPL-EFF | Optional |
 | `opl_red_w` | OPL-RED | Optional |
 | `opl_emg_w` | OPL-EMG | Yes |
-| `opl_set_min_w` / `opl_set_max_w` | OPL-SET band | Optional |
+| `opl_set_min_w` | OPL-SET floor | Optional |
 
 `OPL-MAX ≥ OPL-EFF ≥ OPL-RED ≥ OPL-EMG`. The SCD can only narrow this envelope; a configuration
-document never raises a hardware limit.
+document never raises a hardware limit. Where `opl_set_min_w` is declared, the configurable
+OPL-SET range runs from it up to `opl_max_w` — there is no separately declared ceiling, because
+a settable level above the OAC's maximum validated operating point would not be a valid
+operating point. The presence of `opl_set_min_w` is what declares OPL-SET support.
 
 ---
 
@@ -243,10 +246,17 @@ entirely — a CID is plain UTF-8 JSON and nothing else.
 
 The v0.9 document was revised in place on **2026-10-08** following the OAC workstream review.
 Connector profiles became their own Section 8, which renumbered CID Retrieval and Validation to 9,
-Compliance to 10, and Annex C to Annex B. `presence_detect`, `high_speed_lanes` presence, and the
-relationship between the CID and mechanical keying were rewritten, Annex A was replaced with two
-complete examples, and the document standardized on "the OAC". Section numbers cited elsewhere in
-this repository refer to the revised document.
+Compliance to 10, and Annex C to Annex B. The presence-detect material, `high_speed_lanes`
+presence, and the relationship between the CID and mechanical keying were rewritten, Annex A was
+replaced with two complete examples, and the document standardized on "the OAC". Section
+numbers cited elsewhere in this repository refer to the revised document.
+
+It was revised again on **2026-10-09**: `opl_set_max_w` was removed in favour of bounding the
+configurable OPL-SET range by `opl_max_w`, the connector profile field `is_conn0` was replaced by
+the class-token array `applicable_conns` (which also extends the profile identifier grammar to
+`CABLE`), and the single-field `presence_detect` object was flattened into a `mpesti_capable`
+field required on CONN0 and prohibited elsewhere. Section numbering is unchanged by that
+revision. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

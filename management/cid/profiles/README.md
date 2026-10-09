@@ -11,12 +11,12 @@ The use of `connector_profile` in a CID is **mutually exclusive** with explicit 
 All profile identifiers use the prefix `OAC-PROF-` and follow this pattern:
 
 ```
-OAC-PROF-<CONN0|CONN>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
+OAC-PROF-<CONN0|CONN|CABLE>-<proto1>-x<lanes1>-<dir1>[-<proto2>-x<lanes2>-<dir2>]-v<n>[-minified]
 ```
 
 | Token | Values | Description |
 |-------|--------|-------------|
-| `CONN0` \| `CONN` | `CONN0` or `CONN` | `CONN0` = targets CONN0 only (9 assignable columns); `CONN` = targets CONN1–CONN6 (8 assignable columns) |
+| `CONN0` \| `CONN` \| `CABLE` | `CONN0`, `CONN`, or `CABLE` | The connector position class the profile is ratified against. `CONN0` = CONN0 only (9 assignable columns); `CONN` = any of CONN1–CONN6 (8 assignable columns); `CABLE` = the CABLE position. Shall agree with the profile's `applicable_conns` field |
 | `<proto>` | e.g. `PCIeGen6`, `Eth200G` | Protocol abbreviation per Table 8.3-1 of the specification |
 | `x<lanes>` | e.g. `x16`, `x4` | Total high-speed lane count for this protocol segment |
 | `<dir>` | `IN` or `OUT` | Signal direction: `IN` = INBOUND (host→OAC), `OUT` = OUTBOUND (OAC→host) |
@@ -53,7 +53,7 @@ If an OAC's connector configuration does not match any available OCP-ratified pr
   "oac_connector_profile": {
     "profile_id":     "OAC-PROF-...",
     "schema_version": "0.9",
-    "is_conn0":       true,
+    "applicable_conns": ["CONN0"],
     "description":    "...",
     "high_speed_lanes": { ... },
     "clocking":       [ ... ],
@@ -62,7 +62,7 @@ If an OAC's connector configuration does not match any available OCP-ratified pr
 }
 ```
 
-`is_conn0` is `true` for CONN0 profiles (9 assignable columns, col 1–9) and `false` for CONN1–CONN6 profiles (8 assignable columns, col 1–8). A profile is not required to define all three sections.
+`applicable_conns` declares the connector position class or classes the profile was ratified against. It is a non-empty array drawn from `"CONN0"` (9 assignable columns, col 1–9), `"CONN1-6"` (8 assignable columns, col 1–8, interchangeable for profile purposes), and `"CABLE"`, with each token appearing at most once. In this revision the array shall contain exactly one token, and it shall agree with the connector segment of `profile_id`: `CONN0` corresponds to `["CONN0"]`, `CONN` to `["CONN1-6"]`, and `CABLE` to `["CABLE"]`. A profile is not required to define all three signal sections.
 
 ---
 

@@ -795,11 +795,8 @@
         <div class="field-row">
           <div class="field">
             <label>opl_set_min_w <span class="opt-tag">(optional)</span></label>
-            <input type="number" id="f-opl-set-min" placeholder="" step="0.1" oninput="onSetMinChange()" />
-          </div>
-          <div class="field" id="opl-set-max-field" style="display:none">
-            <label>opl_set_max_w <span class="opt-tag">(optional)</span></label>
-            <input type="number" id="f-opl-set-max" placeholder="" step="0.1" oninput="updatePreview()" />
+            <input type="number" id="f-opl-set-min" placeholder="" step="0.1" oninput="updatePreview()" />
+            <div class="hint">Floor of the configurable OPL-SET range. The ceiling is always opl_max_w and is not declared separately.</div>
           </div>
         </div>
       </div>
@@ -824,17 +821,18 @@
             <button class="btn btn-secondary btn-sm" onclick="suggestProfileId()" title="Auto-generate profile_id from current configuration" style="white-space:nowrap;flex-shrink:0;">✦ Suggest ID</button>
           </div>
           <div class="profile-id-hint">
-            OCP-ratified profiles only: <code>OAC-PROF-&lt;CONN0|CONN&gt;-&lt;proto1&gt;-x&lt;lanes1&gt;-&lt;dir1&gt;[-&lt;proto2&gt;-x&lt;lanes2&gt;-&lt;dir2&gt;]-v&lt;n&gt;</code><br/><code>CONN0</code> = is_conn0:true (9 cols) &nbsp;|&nbsp; <code>CONN</code> = is_conn0:false (8 cols, any CONN1–6)<br/>Direction: IN=INBOUND, OUT=OUTBOUND. Protocol abbreviations: PCIeGen6, Eth200G, UALink2, CXL3, etc.<br/>
+            OCP-ratified profiles only: <code>OAC-PROF-&lt;CONN0|CONN|CABLE&gt;-&lt;proto1&gt;-x&lt;lanes1&gt;-&lt;dir1&gt;[-&lt;proto2&gt;-x&lt;lanes2&gt;-&lt;dir2&gt;]-v&lt;n&gt;</code><br/><code>CONN0</code> = applicable_conns [&quot;CONN0&quot;] (9 cols) &nbsp;|&nbsp; <code>CONN</code> = [&quot;CONN1-6&quot;] (8 cols, any CONN1–6) &nbsp;|&nbsp; <code>CABLE</code> = [&quot;CABLE&quot;] (8 cols)<br/>Direction: IN=INBOUND, OUT=OUTBOUND. Protocol abbreviations: PCIeGen6, Eth200G, UALink2, CXL3, etc.<br/>
           </div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label>is_conn0 <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">true if this profile targets CONN0 (9 assignable columns, col 1&ndash;9). false for CONN1&ndash;CONN6 (8 assignable columns, col 1&ndash;8). Determines the pin map layout.</span></span> <span class="req">*</span></label>
-            <label class="checkbox-label" style="margin-top:6px;">
-              <input type="checkbox" id="pf-is-conn0" checked onchange="onIsConn0Change(this)" />
-              CONN0 profile (9 columns, col 1–9)
-            </label>
-            <div class="hint">Checked = CONN0 (9 columns). Unchecked = CONN1–CONN6 (8 columns).</div>
+            <label>applicable_conns <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">The connector position class this profile is ratified against. CONN0 has 9 assignable columns (col 1&ndash;9); CONN1&ndash;CONN6 and CABLE have 8 (col 1&ndash;8). Determines the pin map layout.</span></span> <span class="req">*</span></label>
+            <select id="pf-applicable-conns" onchange="onApplicableConnsChange(this)" style="margin-top:6px;">
+              <option value="CONN0" selected>CONN0 &mdash; CONN0 only (9 columns, col 1&ndash;9)</option>
+              <option value="CONN1-6">CONN1-6 &mdash; any of CONN1&ndash;CONN6 (8 columns, col 1&ndash;8)</option>
+              <option value="CABLE">CABLE &mdash; cable connector position (8 columns, col 1&ndash;8)</option>
+            </select>
+            <div class="hint">Emitted as a single-token array, e.g. <code>"applicable_conns": ["CONN0"]</code>. Exactly one token is permitted in this revision.</div>
           </div>
           <div class="field">
             <label>schema_version <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">CID schema version this profile conforms to. Must match the schema_version of any CID that references this profile.</span></span> <span class="req">*</span></label>
@@ -1008,13 +1006,6 @@
       });
     });
 
-    // ── opl_set_max visibility ─────────────────────────────────────────────────
-    function onSetMinChange() {
-      const v = document.getElementById('f-opl-set-min').value.trim();
-      document.getElementById('opl-set-max-field').style.display = v ? '' : 'none';
-      updatePreview();
-    }
-
     // ── Connector panel renderer ──────────────────────────────────────────────
     function renderConnPanel(id) {
       if (id === 'PROFILE') { renderProfilePanel(); return; }
@@ -1046,9 +1037,9 @@
       panel.appendChild(fieldText('connector_profile', withTip('connector_profile','OCP-ratified pinout profile reference. When set, high_speed_lanes, clocking, and discrete_signals shall NOT be present on this connector &mdash; they are defined entirely by the profile.')+'&thinsp;(optional)', s.connector_profile,
         'OAC-PROF-...-v1  (omit to define signals explicitly)', false, v => { s.connector_profile = v; updatePreview(); renderConnPanel(id); }));
 
-      // CONN0: presence_detect / mpesti_capable
+      // CONN0: mpesti_capable (flat field, required on CONN0 only)
       if (id === 'CONN0') {
-        const sec = el('div', 'section-heading'); sec.textContent = 'Presence Detect'; panel.appendChild(sec);
+        const sec = el('div', 'section-heading'); sec.textContent = 'M-PESTI'; panel.appendChild(sec);
         const mCard = el('div','');
         mCard.style.marginBottom = '14px';
         const chkLabel = document.createElement('label');
@@ -1057,7 +1048,7 @@
         chkLabel.appendChild(chk);
         chkLabel.appendChild(document.createTextNode(' mpesti_capable'));
         mCard.appendChild(chkLabel);
-        const hint = el('div','hint'); hint.textContent = 'Include only when M-PESTI is implemented on CONN0.'; hint.style.marginTop='4px';
+        const hint = el('div','hint'); hint.textContent = 'Required on CONN0 and emitted either way. Check only when CONN0 Pin A1 is additionally overloaded with M-PESTI. Presence detect itself is fixed by the Base Specification and is never declared in the CID.'; hint.style.marginTop='4px';
         mCard.appendChild(hint);
         panel.appendChild(mCard);
       }
@@ -1223,7 +1214,7 @@
       });
 
       // Add Protocol Group button — capped at connector max (CONN0: 18, CONN1-6: 16)
-      // In profile mode use is_conn0 checkbox; in CID mode use the connector id
+      // In profile mode use the applicable_conns selector; in CID mode use the connector id
       const maxGroups = 8; // max 8 protocol groups per connector (uint32 nibble SCD encoding)
       div.appendChild(makeBtn('+ Add Protocol Group', 'btn btn-secondary btn-sm', () => {
         if (hs.groups.length >= maxGroups) {
@@ -1318,11 +1309,11 @@
     // ADDITIONAL HS restriction: odd-col Row A and even-col Row N are clk/discrete only
 
     function pinMapCols(connId) {
-      // In profile mode derive column count from the is_conn0 checkbox
+      // In profile mode derive column count from the applicable_conns selector
       let maxCol;
       if (connId === 'PROFILE') {
-        const cb = document.getElementById('pf-is-conn0');
-        maxCol = (!cb || cb.checked) ? 9 : 8;
+        const sel = document.getElementById('pf-applicable-conns');
+        maxCol = (!sel || sel.value === 'CONN0') ? 9 : 8;
       } else {
         maxCol = connId === 'CONN0' ? 9 : 8;
       }
@@ -1822,7 +1813,6 @@
       const oeff = vn('f-opl-eff');
       const ored = vn('f-opl-red');
       const osmin = vn('f-opl-set-min');
-      const osmax = vn('f-opl-set-max');
       if (volt || ct || omax !== null || oemg !== null) {
         const pwr = {};
         if (volt) pwr.input_voltage = volt;
@@ -1832,7 +1822,6 @@
         if (oeff !== null) pwr.opl_eff_w = oeff;
         if (ored !== null) pwr.opl_red_w = ored;
         if (osmin !== null) pwr.opl_set_min_w = osmin;
-        if (osmax !== null) pwr.opl_set_max_w = osmax;
         cid.power = { primary: pwr };
       }
 
@@ -1843,12 +1832,10 @@
         if (!s.populated) return;
         const c = { id, populated: true };
         if (s.impedance_ohm) c.impedance_ohm = parseInt(s.impedance_ohm);
+        // mpesti_capable is required on CONN0 and prohibited elsewhere (Section 7.4.2),
+        // and precedes connector_profile in the field order of Section 7.6.
+        if (id === 'CONN0') c.mpesti_capable = !!s.mpesti_capable;
         if (s.connector_profile) c.connector_profile = s.connector_profile;
-
-        // presence_detect (CONN0 only)
-        if (id === 'CONN0' && s.mpesti_capable) {
-          c.presence_detect = { mpesti_capable: true };
-        }
 
         // high_speed_lanes array — omitted when connector_profile is set (mutually exclusive)
         if (s.hs.enabled && !s.connector_profile) {
@@ -1948,7 +1935,20 @@
         if (!p) { E('Missing root key: oac_connector_profile'); return { errors, warnings }; }
         if (!p.profile_id) E('profile_id is required');
         if (!p.schema_version) E('schema_version is required');
-        if (p.is_conn0 === undefined) W('is_conn0 not declared');
+        if (!Array.isArray(p.applicable_conns)) {
+          if (p.is_conn0 !== undefined)
+            W('is_conn0 is superseded by applicable_conns; re-save to update this profile');
+          else E('applicable_conns is required');
+        } else if (p.applicable_conns.length !== 1) {
+          E('applicable_conns shall contain exactly one token in this revision');
+        } else if (!['CONN0','CONN1-6','CABLE'].includes(p.applicable_conns[0])) {
+          E('applicable_conns token must be CONN0, CONN1-6, or CABLE');
+        } else if (p.profile_id) {
+          const seg = p.applicable_conns[0] === 'CONN0' ? 'CONN0'
+                    : p.applicable_conns[0] === 'CABLE' ? 'CABLE' : 'CONN';
+          if (p.profile_id.indexOf('OAC-PROF-' + seg + '-') !== 0)
+            E('profile_id connector segment must be "' + seg + '" to agree with applicable_conns (Section 8.3)');
+        }
         validateSignals(p, E, W, 'Profile');
         return { errors, warnings };
       }
@@ -1975,13 +1975,23 @@
         E('opl_eff_w must be ≤ opl_max_w');
       if (pwr.opl_red_w && pwr.opl_eff_w && pwr.opl_red_w > pwr.opl_eff_w)
         E('opl_red_w must be ≤ opl_eff_w');
-      if (pwr.opl_set_min_w && pwr.opl_set_max_w && pwr.opl_set_min_w > pwr.opl_set_max_w)
-        E('opl_set_min_w must be ≤ opl_set_max_w');
+      if (pwr.opl_set_min_w && pwr.opl_max_w && pwr.opl_set_min_w > pwr.opl_max_w)
+        E('opl_set_min_w must be ≤ opl_max_w');
+      if (pwr.opl_set_max_w !== undefined)
+        W('opl_set_max_w is no longer defined; the OPL-SET ceiling is opl_max_w');
 
       // Connectors
       const connectors = cid.connectors || [];
       const conn0 = connectors.find(c => c.id === 'CONN0');
       if (!conn0 || !conn0.populated) E('CONN0 must be present and populated');
+      if (conn0 && conn0.mpesti_capable === undefined && !conn0.presence_detect)
+        E('CONN0 must declare mpesti_capable (Section 7.4.2)');
+      connectors.forEach(c => {
+        if (c.id !== 'CONN0' && c.mpesti_capable !== undefined)
+          E(c.id + ' must not declare mpesti_capable — the M-PESTI overload is defined only for CONN0');
+        if (c.presence_detect)
+          W(c.id + ': the presence_detect object is superseded by a flat mpesti_capable field on CONN0');
+      });
 
       connectors.filter(c => c.populated && !c.connector_profile).forEach(c => {
         validateSignals(c, E, W, c.id);
@@ -2239,8 +2249,9 @@
 
     function suggestProfileId() {
       const s = connState['PROFILE'];
-      const isConn0 = !!(document.getElementById('pf-is-conn0') || {checked:true}).checked;
-      const connPart = isConn0 ? 'CONN0' : 'CONN';
+      const connClass = (document.getElementById('pf-applicable-conns') || {value:'CONN0'}).value;
+      const connPart = connClass === 'CONN0' ? 'CONN0'
+                     : connClass === 'CABLE' ? 'CABLE' : 'CONN';
       const groups = (s.hs.groups || []).filter(g => g.protocol || (g.lanes && g.lanes.length));
 
       if (!groups.length) {
@@ -2276,9 +2287,9 @@
       showToast('Profile ID suggested: ' + suggested, 3000);
     }
 
-    function onIsConn0Change(cb) {
-      if (!cb.checked) {
-        // Warn and clear any column-9 pin assignments (col 9 doesn't exist on CONN1-6)
+    function onApplicableConnsChange(sel) {
+      if (sel.value !== 'CONN0') {
+        // Warn and clear any column-9 pin assignments (col 9 exists only on CONN0)
         const s = connState['PROFILE'];
         const col9Pins = [];
         const allSections = [
@@ -2289,8 +2300,8 @@
 
         if (allSections.length) {
           const list = [...new Set(allSections)].join(', ');
-          if (!confirm(`Switching to CONN1–CONN6 (8 columns) will clear all pin assignments on column 9:\n${list}\n\nProceed?`)) {
-            cb.checked = true; // revert
+          if (!confirm(`Switching to ${sel.value} (8 columns) will clear all pin assignments on column 9:\n${list}\n\nProceed?`)) {
+            sel.value = 'CONN0'; // revert
             return;
           }
           // Clear all column-9 assignments
@@ -2348,7 +2359,7 @@
           profile_id:          v('pf-profile-id')           || '',
           schema_version:      v('pf-schema-version')       || '0.9',
           profile_version:     v('pf-profile-version')     || '1.0',
-          is_conn0: !!(document.getElementById('pf-is-conn0') || {checked:true}).checked,
+          applicable_conns: [ (document.getElementById('pf-applicable-conns') || {value:'CONN0'}).value ],
         }
       };
       const desc = v('pf-desc');
@@ -2398,8 +2409,15 @@
       setVal('pf-profile-id',         p.profile_id          || '');
       setVal('pf-schema-version',     p.schema_version      || '0.9');
       setVal('pf-profile-version',     p.profile_version     || '1.0');
-      const isConn0Cb = document.getElementById('pf-is-conn0');
-      if (isConn0Cb) isConn0Cb.checked = p.is_conn0 !== false; // default true if field absent
+      const acSel = document.getElementById('pf-applicable-conns');
+      if (acSel) {
+        let cls = null;
+        if (Array.isArray(p.applicable_conns) && p.applicable_conns.length)
+          cls = p.applicable_conns[0];
+        else if (p.is_conn0 !== undefined)
+          cls = p.is_conn0 ? 'CONN0' : 'CONN1-6';   // pre-revision profile document
+        acSel.value = (cls === 'CONN1-6' || cls === 'CABLE') ? cls : 'CONN0';
+      }
       setVal('pf-desc',               p.description         || '');
 
       const s = freshProfileState();
@@ -2482,8 +2500,6 @@
       setVal('f-opl-eff', pwr.opl_eff_w!=null?pwr.opl_eff_w:'');
       setVal('f-opl-red', pwr.opl_red_w!=null?pwr.opl_red_w:'');
       setVal('f-opl-set-min', pwr.opl_set_min_w!=null?pwr.opl_set_min_w:'');
-      setVal('f-opl-set-max', pwr.opl_set_max_w!=null?pwr.opl_set_max_w:'');
-      document.getElementById('opl-set-max-field').style.display = pwr.opl_set_min_w!=null ? '' : 'none';
 
       // connectors
       CONN_IDS.forEach(id => {
@@ -2503,7 +2519,8 @@
         s.populated = c.populated !== false;
         s.impedance_ohm = c.impedance_ohm != null ? String(c.impedance_ohm) : '';
         s.connector_profile = c.connector_profile || '';
-        if (c.presence_detect) s.mpesti_capable = !!c.presence_detect.mpesti_capable;
+        if (c.mpesti_capable !== undefined) s.mpesti_capable = !!c.mpesti_capable;
+        else if (c.presence_detect) s.mpesti_capable = !!c.presence_detect.mpesti_capable;   // pre-revision CID
 
         if (c.high_speed_lanes) {
           s.hs.enabled = true;
@@ -2606,8 +2623,7 @@
         return;
       }
       ['f-schema-version','f-oac-spec','f-desc','f-voltage','f-conn-type',
-       'f-opl-max','f-opl-emg','f-opl-eff','f-opl-red','f-opl-set-min','f-opl-set-max','f-pct','f-iana-pen'].forEach(id => setVal(id,''));
-      document.getElementById('opl-set-max-field').style.display='none';
+       'f-opl-max','f-opl-emg','f-opl-eff','f-opl-red','f-opl-set-min','f-pct','f-iana-pen'].forEach(id => setVal(id,''));
       CONN_IDS.forEach(id => {
         connState[id] = {
           populated: id==='CONN0', impedance_ohm:'', connector_profile:'', mpesti_capable:false,
@@ -2749,14 +2765,13 @@
       {f:'opl_emg_w',         s:'Power',     t:'number',  r:true,  d:'Power in emergency/safe mode (OPL-EMG). The BMC may fall back to this level during a power emergency.'},
       {f:'opl_eff_w',         s:'Power',     t:'number',  r:false, d:'Efficient operating power level (OPL-EFF). Optional reduced-performance state.'},
       {f:'opl_red_w',         s:'Power',     t:'number',  r:false, d:'Reduced operating power level (OPL-RED). Optional further reduction state.'},
-      {f:'opl_set_min_w',     s:'Power',     t:'number',  r:false, d:'Minimum power for OPL-SET range. Paired with opl_set_max_w.'},
-      {f:'opl_set_max_w',     s:'Power',     t:'number',  r:false, d:'Maximum power for OPL-SET range. Defines the settable OPL window.'},
+      {f:'opl_set_min_w',     s:'Power',     t:'number',  r:false, d:'Floor of the configurable OPL-SET range. The ceiling is always opl_max_w and is not declared separately. Presence of this field is what declares OPL-SET support.'},
       // Connector
       {f:'id',                s:'Connector', t:'string',  r:true,  d:'Connector identifier: "CONN0" through "CONN6".'},
       {f:'populated',         s:'Connector', t:'boolean', r:true,  d:'true if this connector position is physically populated on the adapter.'},
       {f:'impedance_ohm',     s:'Connector', t:'integer', r:false, d:'High-speed signal trace impedance in ohms. "85 Ω (Black)" or "92 Ω (White)" per OAC Base Spec color coding.'},
       {f:'connector_profile', s:'Connector', t:'string',  r:false, d:'Reference to an OCP-ratified connector profile identifier (e.g. "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"). Mutually exclusive with explicit high_speed_lanes, clocking, and discrete_signals.'},
-      {f:'mpesti_capable',    s:'Connector', t:'boolean', r:false, d:'true if this connector supports M-PESTI presence detect on Pin A1 (CONN0 only).'},
+      {f:'mpesti_capable',    s:'Connector', t:'boolean', r:true,  d:'Required on CONN0, prohibited on CONN1–CONN6 and CABLE. true when CONN0 Pin A1 is overloaded to carry M-PESTI in addition to presence detect. Presence detect itself is fixed by the Base Specification and is never declared.'},
       // HS Lanes
       {f:'name',              s:'HS Lanes',  t:'string',  r:true,  d:'Required snake_case identifier for this protocol group (e.g. "pcie_primary", "eth_fabric"). Lowercase letters, digits, and underscores only. Must be unique within the connector\'s high_speed_lanes array.'},
       {f:'protocol',          s:'HS Lanes',  t:'string',  r:true,  d:'High-speed protocol carried by this lane group (e.g. "PCIe Gen6", "Ethernet 200G", "UALink 800G").'},
@@ -2780,7 +2795,7 @@
       // Profile
       {f:'profile_id',        s:'Profile',   t:'string',  r:true,  d:'OCP-ratified profile identifier. Format: OAC-PROF-<CONN0|CONN>-<proto>-x<lanes>-<dir>-v<n>[-minified].'},
       {f:'profile_version',   s:'Profile',   t:'string',  r:true,  d:'Semantic version of this specific profile definition (e.g. "1.0"). Incremented when pin assignments change.'},
-      {f:'is_conn0',          s:'Profile',   t:'boolean', r:true,  d:'true if this profile targets CONN0 (9 assignable columns); false for CONN1–CONN6 (8 assignable columns).'},
+      {f:'applicable_conns',  s:'Profile',   t:'array',   r:true,  d:'Connector position class the profile is ratified against: ["CONN0"] (9 assignable columns), ["CONN1-6"] (8 columns, any of CONN1–CONN6), or ["CABLE"]. Exactly one token in this revision. Must agree with the connector segment of profile_id.'},
     ];
 
     function buildHelpRefTable() {

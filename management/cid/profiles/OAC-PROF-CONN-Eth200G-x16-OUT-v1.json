@@ -3,7 +3,7 @@
     "profile_id": "OAC-PROF-CONN-Eth200G-x16-OUT-v1",
     "schema_version": "0.9",
     "profile_version": "1.0",
-    "is_conn0": false,
+    "applicable_conns": ["CONN1-6"],
     "description": "CONN1-6 200G Ethernet 16L mapping",
     "high_speed_lanes": {
       "protocol": "Ethernet 200G",
