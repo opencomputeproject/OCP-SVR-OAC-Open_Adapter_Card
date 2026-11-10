@@ -34,6 +34,8 @@ O3
 end note
 Baseboard -> OAC: Enumerate management interface
 Baseboard -> OAC: Establish MCTP/PLDM communication
+Baseboard -> OAC: Query OAC metadata file
+Baseboard -> Baseboard: Resolve cid, scdd and scda file identifiers from metadata
 Baseboard -> OAC: Query OAC connector interface definition (CID)
 Baseboard -> OAC: Query OAC slot configuration data definitions (SCDD)
 Baseboard -> Baseboard: Check platform compatibility against CID

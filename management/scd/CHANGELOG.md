@@ -8,6 +8,38 @@ Only the current revision is carried in the working tree. Superseded revisions r
 
 ---
 
+## [0.9] — 2026-11-09 — Workstream review revision 3
+
+In-place revision of the v0.9 document, changing how the two SCD files are discovered. The version identifier is unchanged. Nothing in the Definition or Assignment document structure moves, no field identifier is renumbered, and no rejection code changes meaning.
+
+**Breaking for upstream management controllers.** A controller that locates the SCD files by matching the `FileName` values `OAC_SCDD.json` and `OAC_SCDA.json` against the OAC's File Descriptor PDRs will not work against an OAC built to this revision.
+
+**This entry supersedes the `OemFileClassificationName` → `FileName` entry of the 2026-10-06 revision** on the question of *discovery*. That entry replaced an OEM classification name with a `FileName` string as "the discriminator a controller matched on." Discovery no longer proceeds from either. The half of that entry that stands is the withdrawal of the `OemFileClassification` requirements, which remain withdrawn.
+
+### Changed
+
+- **Sections 6.3 and 8.1 are rewritten around the OAC Metadata file.** An OAC that implements Slot Configuration Data declares the Definition under the `scdd` role and the Assignment under the `scda` role of its metadata file, defined in the new [OAC-METADATA-SPEC](../metadata/specification/). A controller resolves each role to obtain the `FileIdentifier` it reads or writes, and shall not match a `FileName` or rely on PDR ordering to locate either file.
+
+- **The two roles are declared together or not at all**, and this closes an inference a controller previously had to make. Under the old model, an OAC that implemented no SCD presented the controller with no matching record — which is indistinguishable from an OAC that implements SCD and failed to publish the record. The metadata file makes the absence explicit, and a controller finding neither role now proceeds to energization on the CID alone, knowing it was told to rather than guessing.
+
+- **Both `FileName` values remain fixed and are reclassified as descriptive.** `OAC_SCDD.json` and `OAC_SCDA.json` are unchanged, shall be assigned to no other file, and shall be carried as the `file_name` of the corresponding metadata role. They are retained so the files stay identifiable in a PDR repository dump, a firmware image, and diagnostic tooling — not as the mechanism by which a controller finds them.
+
+- **Fallback is prohibited.** A controller whose metadata retrieval fails shall not drop back to a `FileName` match. It would reach the file by a path the OAC never advertised.
+
+- **Section 11.1 gains a step 0** — retrieve and validate the metadata file, resolve the roles — and the sequence now runs 0 through 7. Step 0 carries the same terminate-on-failure force as step 1, and names the no-SCD path: metadata declaring neither role sends the controller from step 1 straight to step 6.
+
+- **A dangling identifier is a malformed metadata document, not a missing file.** A `FileIdentifier` advertised under `scdd` or `scda` for which no File Descriptor PDR exists is handled per OAC-METADATA-SPEC Section 8.3; the slot is not energized. The distinction matters because the two cases warrant different diagnoses: the card said the file was there, and it was not.
+
+- **Section 8.2's `DfOpen` row (step 1 of the write sequence)** no longer describes locating the file by matching `OAC_SCDA.json`. It opens with the identifier the `scda` role advertised.
+
+- **Compliance tables.** The OAC table gains two rows — declare both roles or neither, and assign the two `FileName` values to no other file while carrying them as the metadata `file_name`. On the controller side, the locate-by-`FileName` and open-by-`FileIdentifier` rows are rewritten to resolve the metadata roles, and two rows are added: proceed on the CID alone when neither role is declared, and do not fall back to a name match.
+
+- **Annex C Tables C-2 and C-6** are reworded on the same point. `FileName` is no longer "the discriminator a controller matches on" or "the name a controller matches on to locate the file it writes"; `FileIdentifier` is obtained from the metadata role. Table C-5's *Identified by* row names the `scda` role rather than the name string.
+
+- **Section 2 adds OAC-METADATA-SPEC** to the normative references.
+
+---
+
 ## [0.9] — 2026-10-09 — Workstream review revision 2
 
 In-place revision of the v0.9 document, applying the twenty-four review items raised in the OCP OAC workstream review of 2026-10-08. The version identifier is unchanged. Nothing here changes a wire value: the two retired rejection codes are reserved rather than reused, and no identifier, `FileName`, or PDR field is renumbered.

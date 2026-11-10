@@ -33,7 +33,7 @@ Tracking these rules manually while editing raw JSON is impractical. The editor 
 
 The editor operates in two distinct modes selectable from the header:
 
-**CID Mode** — for authoring a complete OAC CID. Covers the full schema: metadata, power (input voltage, connector type, all OPL levels), and per-connector signal definitions for up to seven connectors (CONN0–CONN6). Each connector can reference an OCP-ratified Connector Profile by identifier, or define its signals explicitly — but not both.
+**CID Mode** — for authoring a complete OAC CID. Covers the full schema: metadata, power (input voltage, connector type, all OPL levels, and the optional declared power excursion profile), and per-connector signal definitions for up to seven connectors (CONN0–CONN6). Each connector can reference an OCP-ratified Connector Profile by identifier, or define its signals explicitly — but not both.
 
 **Connector Profile Mode** — for authoring a reusable, OCP-ratified connector profile. A profile defines standard `high_speed_lanes`, `clocking`, and `discrete_signals` assignments for one or more connector positions and a protocol configuration. The `applicable_conns` control is a row of checkboxes, one per position: `CONN0`, `CONN1` through `CONN6`, and `CABLE`. Select every position the profile is ratified for. The editor enforces the rule that one array may not mix geometry classes, so checking `CONN0` or `CABLE` clears the others and checking any of `CONN1` through `CONN6` clears `CONN0` and `CABLE`; the selection can never be emptied. Selecting all six of `CONN1` through `CONN6` emits the `"CONN1-6"` shorthand, and any other selection emits the positions it names. The selection drives the pin map column count — nine columns for `CONN0`, eight otherwise — and the connector segment of the suggested identifier, which is the position itself when exactly one of `CONN1` through `CONN6` is selected and `CONN` when more than one is. Once ratified by the OCP OAC workstream, OACs can reference a profile by its identifier rather than repeating full pin-level declarations in every CID. This keeps CIDs compact and consistent across vendors.
 
@@ -47,6 +47,16 @@ Within each mode, the user can switch between:
 
 Switching between modes at any point is safe — the current document state is preserved.
 
+### Power Excursion Profile
+
+An optional card in the Power section, off by default, for authoring `power.excursion`. The **Declare a power excursion profile** checkbox turns it on; **Load recommended grid** fills the six intervals of specification Table 7.3.2-2 — 10, 100, 1,000, 10,000, 100,000, and 1,000,000 microseconds — at the Base Specification Section 10.1.4 ceiling, which is the starting point most vendors will edit downward. Intervals can also be entered by hand.
+
+Each row shows the Section 10.1.4 ceiling at that interval beside the declared ratio, so a value that is about to fail validation is visible before the validation panel says so. A plot below the table draws the declared profile against the envelope, with out-of-envelope points marked in red.
+
+The declared profile is drawn as a **step function**, not a connected line. That is deliberate: the interpolation rule of Section 7.3.2 is nearest-declared-interval-shorter-than-T, which is literally a step, and a connected line would show the author an interpolation the specification does not permit.
+
+Deleting every row, or disabling the card, omits `power.excursion` from the exported document. Omission means uncharacterized — the controller budgets the slot at the Section 10.1.4 ceiling — and not that the OAC makes no excursions.
+
 ### Visual Pin Map
 
 Each connector panel includes an expandable Visual Pin Map showing the full CONN0 or CONN1–6 pin grid (rows A–N, columns 1–9 or 1–8). Clicking any available cell opens an assignment picker for that pin. The picker lists all unassigned signals — HS lanes grouped by protocol group and lane index, clock signals, and discrete signals — with their group index and polarity clearly labeled to avoid ambiguity in multi-group configurations.
@@ -55,12 +65,13 @@ Assigned pins are color-coded by signal type (RX+, RX−, TX+, TX−, clock, dis
 
 ### Real-Time Validation
 
-A validation panel below the JSON preview shows errors and warnings as the document is built. Errors represent schema violations that would cause the BMC to reject the CID or block slot energization. Warnings represent conditions that are technically permitted but may indicate an incomplete or unusual configuration. The header badge shows a count of errors and warnings at a glance.
+A validation panel below the JSON preview shows errors and warnings as the document is built. Errors represent schema violations that would cause the upstream management controller to reject the CID or block slot energization. Warnings represent conditions that are technically permitted but may indicate an incomplete or unusual configuration. The header badge shows a count of errors and warnings at a glance.
 
 Validation covers:
 
 - Required field presence (metadata, power, connector ID)
 - Power field ordering constraints (OPL hierarchy)
+- `power.excursion` well-formedness — 2 to 8 entries, strictly ascending `interval_us`, `ratio_max` at or above 1.0 and at or below the piecewise Base Specification Section 10.1.4 envelope, and ratios monotonically non-increasing as the interval lengthens. The implied peak current is reported as an informational warning and never as an error
 - connector_profile mutual exclusivity with explicit signal sections
 - `mpesti_capable` present on CONN0 and absent everywhere else
 - `applicable_conns` present and non-empty, free of duplicate and unrecognized tokens, not mixing geometry classes, not combining `"CONN1-6"` with an individual `"CONN1"` through `"CONN6"` token, and in agreement with the `profile_id` connector segment

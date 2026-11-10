@@ -1,0 +1,43 @@
+{
+  "oac_cid": {
+    "metadata": {
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "description": "Excursion Example C: +50V, BK100, 3000 W OPL-MAX, two connectors. Declares a peak of 2.80 at 10 us. The card sits between Example A and Example B: better behaved than the Section 10.1.4 ceiling, but not by the margin Example A claims. A chassis holding eight of these on a shared primary power path cannot absorb eight simultaneous 2.8x transients, which is the budgeting problem the declaration exists to make visible. Pretty-printed for review; a real CID is minified."
+    },
+    "power": {
+      "primary": {
+        "input_voltage": "+50V",
+        "connector_type": "100A",
+        "opl_max_w": 3000,
+        "opl_emg_w": 750,
+        "opl_eff_w": 2400,
+        "opl_red_w": 1500,
+        "opl_set_min_w": 750
+      },
+      "excursion": [
+        { "interval_us": 10, "ratio_max": 2.80 },
+        { "interval_us": 100, "ratio_max": 2.65 },
+        { "interval_us": 1000, "ratio_max": 2.20 },
+        { "interval_us": 10000, "ratio_max": 1.80 },
+        { "interval_us": 100000, "ratio_max": 1.40 },
+        { "interval_us": 1000000, "ratio_max": 1.00 }
+      ]
+    },
+    "connectors": [
+      {
+        "id": "CONN0",
+        "populated": true,
+        "impedance_ohm": 92,
+        "mpesti_capable": false,
+        "connector_profile": "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"
+      },
+      {
+        "id": "CONN1",
+        "populated": true,
+        "impedance_ohm": 92,
+        "connector_profile": "OAC-PROF-CONN-Eth200G-x16-OUT-v1"
+      }
+    ]
+  }
+}

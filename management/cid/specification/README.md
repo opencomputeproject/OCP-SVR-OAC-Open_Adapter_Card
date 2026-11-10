@@ -36,14 +36,14 @@ The CID answers exactly one question — may this OAC be powered at all — and 
 | Section | Content |
 |---------|---------|
 | 1. Scope | What the CID covers and what is out of scope |
-| 2. Normative References | DSP0220, DSP0236, DSP0240, DSP0242, DSP0248, DSP0249, DSP0257, ECMA-404, OCP OAC Base Specification |
+| 2. Normative References | DSP0220, DSP0236, DSP0240, DSP0242, DSP0248, DSP0249, DSP0257, ECMA-404, OCP OAC Base Specification, OAC-METADATA-SPEC |
 | 3. Terms and Definitions | CID, FRU Data File, FRU Bundle, OPL, Operational State, upstream management controller, expanded and minified JSON |
 | 4. Symbols and Abbreviated Terms | CID, FRU, OPL, PLDM, MCTP, TX, RX |
 | 5. CID Overview | Purpose, the categories of information the CID declares, and how the CID and mechanical keying divide the compatibility problem between them |
-| 6. CID as a FRU File | 6.1 DSP0257 access and determinism · 6.2 UTF-8 / ECMA-404 encoding, minification, and profile file encoding · 6.3 File Descriptor PDR, `FileName` `OAC_CID.json`, `FileIdentifier`, read-only `FileCapabilities`, Fixed Length File semantics, and the two mandatory sensors — **annotated WORK IN PROGRESS** |
-| 7. CID JSON Document Structure | 7.1 General · 7.2 `metadata` (with `iana_pen` and `platform_token`) · 7.3 `power` · 7.4 `connectors` · 7.5 Enumerated values summary · 7.6 Field naming and ordering |
+| 6. CID as a FRU File | 6.1 DSP0257 access and determinism · 6.2 UTF-8 / ECMA-404 encoding, minification, and profile file encoding · 6.3 File Descriptor PDR, discovery through the OAC Metadata file's `cid` role, descriptive `FileName` `OAC_CID.json`, read-only `FileCapabilities`, Fixed Length File semantics, and the two mandatory sensors |
+| 7. CID JSON Document Structure | 7.1 General, including ignore-unrecognized-keys at every level of nesting · 7.2 `metadata` (with `iana_pen` and `platform_token`) · 7.3 `power` — 7.3.1 `primary`, 7.3.2 `excursion` · 7.4 `connectors` · 7.5 Enumerated values summary · 7.6 Field naming and ordering |
 | 8. Connector Profile JSON Document Structure | 8.1 General · 8.2 Referencing a profile from a CID · 8.3 Profile identifiers and the protocol abbreviation table · 8.4 Profile document structure · 8.5 Applicability to connector positions via `applicable_conns`, with the open cases annotated |
-| 9. CID Retrieval and Validation | 9.1 Storage and exposure · 9.2 Retrieval sequence · 9.3 Validation requirements · 9.4 Timeout handling |
+| 9. CID Retrieval and Validation | 9.1 Storage and exposure · 9.2 Retrieval sequence, beginning with the metadata file · 9.3 Validation requirements, including Table 9.3-1 for `power.excursion` · 9.4 Timeout handling |
 | 10. Compliance | 10.1 OAC implementation requirements · 10.2 Upstream management controller requirements |
 | Annex A (informative) | Two complete example CID documents — A.1 profile-referencing, A.2 explicitly defined |
 | Annex B (informative) | PLDM protocol field value reference |
@@ -55,7 +55,9 @@ The CID answers exactly one question — may this OAC be powered at all — and 
 | Topic | Requirement |
 |-------|-------------|
 | Access path | DSP0257 FRU Data File, located via a DSP0248 File Descriptor PDR. **No alternative access path is defined**, and an OAC shall not require one |
-| File naming | `FileName` is `OAC_CID.json`. The controller matches on the name to find the record, then opens the file with the `FileIdentifier` from that same record. PDR ordering shall not be relied on |
+| Discovery | The controller resolves the `cid` role of the [OAC Metadata file](../../metadata/specification/) to a `FileIdentifier` and opens that. It shall not locate the CID by matching `FileName`, shall not rely on PDR ordering, and shall not fall back to name matching when metadata retrieval fails |
+| File naming | `FileName` is `OAC_CID.json`, fixed, and assigned to no other file — but **descriptive, not functional**. It keeps the CID identifiable in a PDR dump, a firmware image, and diagnostic tooling, and is what the metadata advertises alongside the identifier so the two can be cross-checked. The name names; the identifier opens |
+| Unrecognized keys | Ignored at **every level of nesting**, not only the top level of `"oac_cid"`. Ignoring means proceeding as though the key were absent; it does not license treating the containing object as malformed |
 | Read-only | `FcWritesPermitted` and `ExWriteOpen` shall both be zero. An OAC shall not accept a write to the CID |
 | Fixed Length File | `FileMaximumSize` carries the exact transferred size and is updated whenever a firmware update replaces the CID. Fixed length binds the file within a firmware revision, not across revisions — the CID's size **may** change when firmware is updated |
 | Mandatory sensors | Device File State Sensor (DSP0249 State Set 68) **and** File Size Monitoring Sensor. DSP0242 only recommends the latter; this specification requires it |
@@ -73,6 +75,7 @@ The CID answers exactly one question — may this OAC be powered at all — and 
 | Unknown profile | A controller receiving a `connector_profile` identifier it does not recognize, or recognizes but cannot support, shall log a compatibility warning and **shall not** enable primary power to that slot |
 | Profile knowledge | A conformant controller carries built-in knowledge of the ratified profiles **its baseboard can support** — not of every ratified profile — and handles all others robustly rather than treating them as parse failures |
 | `platform_token` | Intended for tightly coupled, pre-validated baseboard and OAC pairings. Requires `iana_pen` in the same `metadata` object. An unrecognized token shall be treated as absent, falling back to full Section 9.3 validation. A validated pairing is defined by the act of validation, not by who owns the two parts |
+| Power excursion | `power.excursion` is optional: 2 to 8 `{ interval_us, ratio_max }` entries, ascending, with ratios normalized to `opl_max_w` only and bounded above by the Base Specification Section 10.1.4 envelope. Absent means *uncharacterized*, not *none* — the controller budgets at the ceiling. The profile applies at OPL-MAX and OPL-EFF only; the effective ratio is 1 at OPL-RED, OPL-EMG, and OPL-SET. Undeclared intervals resolve to the nearest **shorter** declared interval, never by linear interpolation |
 | Retrieval timeout | Implementation-defined but should be no less than 5 seconds. On timeout the controller shall not enable primary power |
 
 ---
@@ -82,6 +85,7 @@ The CID answers exactly one question — may this OAC be powered at all — and 
 | Version | Status | Description |
 |---------|--------|-------------|
 | 0.9 | Draft | **Revised 2026-10-08** in response to the OAC workstream review of the published v0.9 document. Connector profiles moved out of Section 7.4.1 into their own Section 8, which pushed Retrieval and Validation to 9 and Compliance to 10. `presence_detect`, `high_speed_lanes` presence, and the mechanical-keying relationship rewritten. Section 6.3 and Section 8.5 annotated as work in progress. Annex A replaced with two complete, labelled examples. Terminology standardized on "the OAC". Tracks OAC Base Specification v0.9. `link_subdivision` removed from the CID and relocated to the SCD. A required `name` added to every protocol group, which is what SCD `cid_binding` resolves against. DSP0220 FRU Files Record and the Format Identifier UUID replaced by the DSP0248 File Descriptor PDR / DSP0242 access / DSP0257 FRU Data File pattern. Compression section removed — the CID is plain UTF-8 JSON and nothing more. `ssc_supported` replaces `ssc_capable` / `ssc_default`. `link_role` and `sris_capable` removed. **Revised again 2026-10-09**: `opl_set_max_w` removed — the configurable OPL-SET range is bounded above by `opl_max_w`; connector profile `is_conn0` replaced by the position-token array `applicable_conns`, extending the identifier grammar to `CABLE` and to per-position segments such as `OAC-PROF-CONN6-…`; the single-field `presence_detect` object flattened into a `mpesti_capable` field required on CONN0 and prohibited elsewhere. Section numbering unchanged by this revision |
+| 0.9 | Draft | **Revised 2026-11-09**, third in-place revision, no version bump. File discovery moved to the OAC Metadata file, lifting Section 6.3's WORK IN PROGRESS annotation and Annex B's scoping note. Section 7.1's ignore-unrecognized-keys rule extended to every level of nesting. New Section 7.3.2 adds the optional `power.excursion` array, with Table 9.3-1 validation checks and conditional conformance rows in 10.1 and 10.2. Annex A.1 extended with a declared profile. Section numbering unchanged |
 | 0.7 | Draft | DMTF-style rewrite. JSON encoding replacing YAML. Operational Power Levels introduced. Connector naming updated to CONN0–CONN6. `connector_profile` introduced. Power connector type updated to 100A/125A. Auxiliary power and `throttle_on_pwrbrk` removed. `discrete_signals` extended with `driver_type`, `default_state`, `pulldown`. `minimum_lanes` made optional. Connector profile naming convention established |
 | 0.3 | Draft | Initial draft — YAML encoding, basic power, connector, and lane schema |
 
@@ -102,13 +106,9 @@ See [CHANGELOG.md](../CHANGELOG.md) for the full entry-by-entry history.
 
 ## Open Items
 
-Two mechanisms are marked **WORK IN PROGRESS** in the document itself and are expected to change
+One mechanism is marked **WORK IN PROGRESS** in the document itself and is expected to change
 before v0.9 is published as final:
 
-- **Section 6.3 in its entirety** — the hard-coded `FileName`, the match-on-name-then-open-by-
-  identifier discovery sequence, and the PDR field constraints that follow from them. An alternative
-  has been raised in which an OAC publishes a metadata file enumerating the files it exposes.
-  Annex B is scoped by the same annotation.
 - **Section 8.5** — whether a `["CONN1-6"]` profile may be applied to CONN0 (leaving CONN0's
   ninth assignable column undefined), and whether a CID may supplement or partially override a
   referenced profile at all. Section 8.2 forbids both today, which is what makes the first a
@@ -122,6 +122,12 @@ Remaining editorial defect, recorded so it is not rediscovered:
   one 4-bit nibble per protocol group." That rationale came from a superseded PLDM-effecter SCD
   draft and no longer describes how SCD works. The limit itself is still correct; only the
   justification is stale. It hides from any grep on field names.
+
+**Section 6.3 is closed.** Its WORK IN PROGRESS annotation covered the hard-coded `FileName` and the
+match-on-name-then-open-by-identifier sequence, and named a metadata file as the alternative under
+consideration. The workstream adopted that alternative on 2026-11-09; Section 6.3 now specifies
+discovery through the [OAC Metadata file](../../metadata/), and Annex B's scoping note — which
+existed only to mark the annex provisional to the extent 6.3 was — has been removed.
 
 The Section 2 reference list, the Contents block, and the "adapter" / "the OAC" terminology
 divergence were all corrected in the 2026-10-08 revision — see [CHANGELOG.md](../CHANGELOG.md).

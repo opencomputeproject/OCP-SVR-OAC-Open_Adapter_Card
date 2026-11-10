@@ -310,7 +310,7 @@ main {
 <header>
   <span class="logo-block">OCP</span>
   <div>
-    <div class="header-title">OAC Adapter — CID Compliance Check Logic</div>
+    <div class="header-title">OAC — CID Compliance Check Logic</div>
     <div class="header-sub">Open Adapter Card &middot; Connector Interface Definition &middot; JSON Schema</div>
   </div>
 </header>
@@ -318,7 +318,9 @@ main {
 <main>
 
   <div class="page-intro">
-    The BMC evaluates each incoming adapter CID (<code>oac_cid JSON</code>) through a sequence of checks. A single FAIL blocks power-on. One or more WARNs (with no FAILs) results in degraded operation. All PASS yields full normal operation.
+    The upstream management controller evaluates each incoming OAC CID (<code>oac_cid JSON</code>) through a sequence of checks. A single FAIL blocks power-on. One or more WARNs (with no FAILs) results in degraded operation. All PASS yields full normal operation.
+    <br/><br/>
+    The CID is not found by name. The upstream management controller first retrieves the OAC Metadata file &mdash; the one file located by its fixed <code>FileName</code> &mdash; and resolves the <code>cid</code> role to the <code>FileIdentifier</code> it then opens. A controller that cannot retrieve or validate the metadata file stops there; falling back to matching <code>FileName</code> is prohibited. Nothing below runs until that step succeeds.
   </div>
 
   <div class="legend-bar">
@@ -331,7 +333,7 @@ main {
   <div class="checks-flow">
 
     <div class="start-wrap">
-      <div class="start-node">BMC receives adapter CID (oac_cid JSON)</div>
+      <div class="start-node">Upstream management controller resolves the <code>cid</code> role from the OAC Metadata file and retrieves the CID (oac_cid JSON)</div>
     </div>
 
     <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
@@ -345,7 +347,7 @@ main {
       <div class="check-body">
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label"><code>schema_version</code> missing or unrecognized by BMC firmware</span>
+          <span class="outcome-label"><code>schema_version</code> missing or unrecognized by controller firmware</span>
         </div>
         <div class="outcome-row">
           <span class="outcome-chip chip-pass">&#10003; PASS</span>
@@ -455,6 +457,42 @@ main {
     <div class="check-card">
       <div class="check-header">
         <div class="check-num">6</div>
+        <div class="check-title">Declared Power Excursion Profile &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">optional field</span></div>
+        <div class="check-field">power.excursion</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Fewer than 2 or more than 8 entries, or <code>interval_us</code> values not strictly ascending positive integers</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Any <code>ratio_max</code> &lt; 1.0, or above the Base Specification Section 10.1.4 envelope at its interval &mdash; 3 for T &le; 100&nbsp;&micro;s, 4 &minus; 0.2171&nbsp;&middot;&nbsp;ln(T) between, 1 for T &ge; 1,000,000&nbsp;&micro;s</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label"><code>ratio_max</code> rises as <code>interval_us</code> rises &mdash; a longer averaging interval cannot admit a larger ratio</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-warn">&#9888; WARN</span>
+          <span class="outcome-label">Declared profile, converted to watts against <code>opl_max_w</code>, exceeds the slot's transient capability at some interval. Ratios are normalized to each document's own OPL-MAX, so the comparison is made in absolute watts, never ratio against ratio</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-warn">&#9888; WARN</span>
+          <span class="outcome-label">Field absent &mdash; the OAC is uncharacterized, not quiet. The upstream management controller budgets the slot at the full Section 10.1.4 ceiling</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Profile is well-formed, inside the envelope, and within the slot's transient budget. An implied current above the connector's derated continuous rating is reported, not judged &mdash; that rating is thermal, and these are microsecond-scale averages</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">7</div>
         <div class="check-title">Connector Impedance &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per populated connector</span></div>
         <div class="check-field">connectors[].impedance_ohm</div>
       </div>
@@ -482,50 +520,30 @@ main {
 
     <div class="check-card">
       <div class="check-header">
-        <div class="check-num">7</div>
+        <div class="check-num">8</div>
         <div class="check-title">Connector Profile Resolution &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per connector with profile</span></div>
         <div class="check-field">connectors[].connector_profile</div>
       </div>
       <div class="check-body">
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label"><code>OAC-PROF-</code> identifier unrecognized by BMC firmware and no explicit override provided</span>
+          <span class="outcome-label"><code>OAC-PROF-</code> identifier unrecognized by controller firmware and no explicit override provided</span>
         </div>
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label"><code>VENDOR-</code> profile FRU File not found and no explicit section override present</span>
+          <span class="outcome-label"><code>VENDOR-</code> profile FRU File not found, and the connector carries no explicit declaration</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Connector carries high-speed signals but declares neither a <code>connector_profile</code> nor an explicit <code>high_speed_lanes</code> array (Specification Section 9.3)</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Connector carries both a <code>connector_profile</code> and an explicit declaration. The two are mutually exclusive per Specification Section 8.2 &mdash; a profile is not a set of defaults to be partially overridden</span>
         </div>
         <div class="outcome-row">
           <span class="outcome-chip chip-pass">&#10003; PASS</span>
-          <span class="outcome-label">Profile resolved successfully, or all sections explicitly overridden</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
-
-    <div class="check-card">
-      <div class="check-header">
-        <div class="check-num">8</div>
-        <div class="check-title">High-Speed Lane Protocol / Role / Direction / Min Lanes &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per connector with hs</span></div>
-        <div class="check-field">high_speed_lanes.protocol &middot; .link_role &middot; .link_direction &middot; .minimum_lanes</div>
-      </div>
-      <div class="check-body">
-        <div class="outcome-row">
-          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label">No baseboard high-speed lane definition found for this connector</span>
-        </div>
-        <div class="outcome-row">
-          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label">Any mismatch in <code>protocol</code>, <code>link_role</code>, or <code>link_direction</code></span>
-        </div>
-        <div class="outcome-row">
-          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label">Available baseboard lanes &lt; declared <code>minimum_lanes</code></span>
-        </div>
-        <div class="outcome-row">
-          <span class="outcome-chip chip-pass">&#10003; PASS</span>
-          <span class="outcome-label">Protocol, role, direction all match; available lanes &ge; minimum_lanes</span>
+          <span class="outcome-label">Profile resolved successfully, or the connector declares its sections explicitly instead</span>
         </div>
       </div>
     </div>
@@ -535,13 +553,41 @@ main {
     <div class="check-card">
       <div class="check-header">
         <div class="check-num">9</div>
+        <div class="check-title">High-Speed Lane Protocol / Direction / Min Lanes &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per connector with hs</span></div>
+        <div class="check-field">high_speed_lanes.protocol &middot; .link_direction &middot; .minimum_lanes</div>
+      </div>
+      <div class="check-body">
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">No baseboard high-speed lane definition found for this connector</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Any mismatch in <code>protocol</code> or <code>link_direction</code>. There is no <code>link_role</code> comparison &mdash; the field is not part of the v0.9 schema, because link topology has no bearing on the power decision</span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-fail">&#10005; FAIL</span>
+          <span class="outcome-label">Available baseboard lanes &lt; declared <code>minimum_lanes</code></span>
+        </div>
+        <div class="outcome-row">
+          <span class="outcome-chip chip-pass">&#10003; PASS</span>
+          <span class="outcome-label">Protocol and direction match; available lanes &ge; <code>minimum_lanes</code></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <div class="check-card">
+      <div class="check-header">
+        <div class="check-num">10</div>
         <div class="check-title">Lane Pin Assignments &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per connector</span></div>
         <div class="check-field">lanes[required=true]</div>
       </div>
       <div class="check-body">
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label">A required lane is missing from the adapter CID declaration</span>
+          <span class="outcome-label">A required lane is missing from the OAC CID declaration</span>
         </div>
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
@@ -562,14 +608,14 @@ main {
 
     <div class="check-card">
       <div class="check-header">
-        <div class="check-num">10</div>
+        <div class="check-num">11</div>
         <div class="check-title">Reference Clocking &nbsp;<span style="font-weight:400;font-size:11px;color:var(--ocp-muted);">per required clock</span></div>
         <div class="check-field">clocking[required=true]</div>
       </div>
       <div class="check-body">
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label">A required clock signal is missing from the adapter CID</span>
+          <span class="outcome-label">A required clock signal is missing from the OAC CID</span>
         </div>
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
@@ -586,14 +632,14 @@ main {
 
     <div class="check-card">
       <div class="check-header">
-        <div class="check-num">11</div>
+        <div class="check-num">12</div>
         <div class="check-title">Required Discrete Signals</div>
         <div class="check-field">discrete_signals[required=true]</div>
       </div>
       <div class="check-body">
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
-          <span class="outcome-label">A required discrete signal is missing from the adapter CID</span>
+          <span class="outcome-label">A required discrete signal is missing from the OAC CID</span>
         </div>
         <div class="outcome-row">
           <span class="outcome-chip chip-fail">&#10005; FAIL</span>
@@ -610,7 +656,7 @@ main {
 
     <div class="check-card">
       <div class="check-header">
-        <div class="check-num">12</div>
+        <div class="check-num">13</div>
         <div class="check-title">OAC Spec Revision</div>
         <div class="check-field">metadata.oac_spec_revision</div>
       </div>
@@ -638,14 +684,14 @@ main {
 
         <div class="verdict-card blocked">
           <div><span class="verdict-badge">&#10005; BLOCKED</span></div>
-          <div class="verdict-condition">Any FAIL result in checks 1&ndash;11</div>
-          <div class="verdict-action">OAC_PWR_EN de-asserted &mdash; adapter power denied</div>
+          <div class="verdict-condition">Any FAIL result in checks 1&ndash;13</div>
+          <div class="verdict-action">OAC_PWR_EN de-asserted &mdash; OAC power denied</div>
         </div>
 
         <div class="verdict-card degraded">
           <div><span class="verdict-badge">&#9888; DEGRADED</span></div>
           <div class="verdict-condition">No FAILs &mdash; one or more WARNs</div>
-          <div class="verdict-action">OAC_PWR_EN asserted &mdash; reduced capability, BMC logs warning</div>
+          <div class="verdict-action">OAC_PWR_EN asserted &mdash; reduced capability, controller logs warning</div>
         </div>
 
         <div class="verdict-card normal">

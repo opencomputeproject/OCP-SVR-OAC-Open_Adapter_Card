@@ -1,0 +1,21 @@
+{
+  "oac_metadata": {
+    "$comment": "The OAC Metadata file. An upstream management controller reads this file first, in Operational State O3, and uses it to locate every other management file the OAC exposes. The metadata file itself is located by the reserved FileName 'OAC_METADATA.json' in its own DSP0248 File Descriptor PDR; that is the only reserved file name in the OAC management model. schema_version tracks the OAC Metadata schema revision. $comment keys are an authoring aid, are permitted anywhere, and shall be ignored; a production metadata file is minified and would not normally carry them.",
+    "schema_version": "0.9",
+    "files": {
+      "$comment": "One entry per management file, keyed by role. The OCP-defined roles are 'cid', 'scdd', and 'scda'. 'cid' is required. 'scdd' and 'scda' are declared together or not at all -- an OAC that implements no SCD declares neither. A vendor adds files under 'pen.<IANA PEN>.<name>', following the SCD namespacing convention; a controller ignores roles it does not recognize. file_identifier is the uint16 FileIdentifier from this file's File Descriptor PDR and is what DfOpen takes; the OAC assigns it and no value is fixed by specification. file_identifier values shall be distinct across roles. file_name is the strASCII FileName from that same PDR, and for the three OCP-defined roles it is fixed to the values shown.",
+      "cid": {
+        "file_identifier": 1,
+        "file_name": "OAC_CID.json"
+      },
+      "scdd": {
+        "file_identifier": 2,
+        "file_name": "OAC_SCDD.json"
+      },
+      "scda": {
+        "file_identifier": 3,
+        "file_name": "OAC_SCDA.json"
+      }
+    }
+  }
+}

@@ -89,6 +89,7 @@ The following documents are normative references for this specification. For dat
 | DSP0249 | DMTF, "PLDM State Set Specification," Version 1.4.0 |
 | DSP0257 | DMTF, "PLDM for FRU Data Specification," Version 2.0 |
 | ECMA-404 | ECMA International, "JSON Data Interchange Syntax," 2nd Edition |
+| OAC-METADATA-SPEC | OCP, "OAC Metadata Specification," Version 0.9 |
 | OCP OAC v0.9 | OCP, "Open Adapter Card Base Specification," Version 0.9 |
 
 ---
@@ -153,6 +154,7 @@ The CID declares the following categories of information:
 - **Connector population**: which connector positions (CONN0 through CONN6, CABLE) are physically populated on the OAC
 - **Connector impedance**: the differential impedance class (85 ohms or 92 ohms) of each populated connector, which corresponds to the color-coded mechanical keying on the OAC connector
 - **Power requirements**: the primary input voltage rail, Operational Power Level definitions (OPL-MAX, OPL-EFF, OPL-RED, OPL-EMG, OPL-SET), and minimum and maximum current draw
+- **Power excursion behavior**: optionally, the maximum ratio of average power to OPL-MAX that the OAC draws over stated averaging intervals, so that the platform can budget against the OAC's actual transient behavior rather than against the Base Specification ceiling
 - **M-PESTI capability**: whether M-PESTI functionality is implemented on CONN0 Pin A1
 - **High-speed signaling assignments**: per-lane protocol, direction, link subdivision topology, and physical pin mapping for each populated connector
 - **Reference clocking**: frequency, type, direction, and lane associations for each reference clock
@@ -198,30 +200,23 @@ The same encoding rules apply to the connector profile definition files of Secti
 
 ### 6.3 File Classification and Access
 
-> **WORK IN PROGRESS — subject to change by the OCP OAC workstream.**
->
-> The whole of Section 6.3 is under active review. This covers the hard-coded `FileName` value, the
-> match-on-name-then-open-by-identifier discovery sequence, and the File Descriptor PDR and sensor
-> PDR field constraints that follow from them. An alternative approach has been raised in which an
-> OAC publishes a metadata file enumerating the files it exposes, together with their identifiers and
-> roles, and discovery proceeds from that file rather than from a well-known name. Resolving the
-> question depends on the workstream's assessment of DMTF work currently in progress.
->
-> The requirements below are stated normatively so that they can be implemented and tested today, and
-> the field values collected in Annex B are scoped identically. Implementers should expect this
-> mechanism to be revisited before this specification is published as final.
-
 The CID shall be represented in the OAC's PDR repository by a File Descriptor PDR as defined in DSP0248, with EntityType set to Device File and FileClassification set to FRUDataFile. The file so described is a FRU Data File per DSP0257 and is retrieved as required by Section 6.1.
 
-The OAC shall set the FileName field of that File Descriptor PDR, which is a strASCII string, to:
+The CID is located through the OAC Metadata file. An OAC shall declare the CID under the `cid` role of its metadata file, and an upstream management controller shall resolve that role to obtain the CID's FileIdentifier. The metadata file and its own discovery are defined in OAC-METADATA-SPEC; the whole of that mechanism reduces to a single reserved FileName, `OAC_METADATA.json`, from which every other management file on the OAC is reached.
+
+A controller shall not locate the CID by matching a FileName against the OAC's File Descriptor PDRs, and shall not fall back to doing so when metadata retrieval fails. An OAC is not obliged to publish its File Descriptor PDRs in any order a controller can predict, and a controller that reaches the CID by a path the OAC did not advertise is making the energization decision on data it cannot account for.
+
+The OAC shall nevertheless set the FileName field of the CID's File Descriptor PDR, which is a strASCII string, to:
 
 ```
 OAC_CID.json
 ```
 
-An upstream management controller shall use that name to distinguish the CID from every other FRU Data File the OAC publishes, the Slot Configuration Definition among them, and shall not rely on PDR ordering to make that distinction.
+This value is fixed, and an OAC shall not assign it to any other file. It is no longer the discovery mechanism; it is retained so that the CID remains identifiable in a PDR repository dump, in a firmware image, and to diagnostic tooling, and so that the value the metadata file advertises under the `cid` role can be checked against the record it describes. The metadata file's `file_name` member for the `cid` role shall carry this same string.
 
-FileName is how the CID is recognised; it is not how it is opened. The same File Descriptor PDR carries a FileIdentifier, a uint16 that DSP0248 defines as unique relative to the PLDM Terminus ID, and DSP0242 requires that value, rather than the name string, as the parameter to DfOpen, DfGetFileAttribute, and DfSetFileAttribute. An upstream management controller shall therefore match on FileName to find the record and then use the FileIdentifier from that same record to open the file. The OAC assigns the FileIdentifier; this specification fixes no value for it, and a controller shall not assume one.
+FileName names the CID; it is not how the CID is opened. The same File Descriptor PDR carries a FileIdentifier, a uint16 that DSP0248 defines as unique relative to the PLDM Terminus ID, and DSP0242 requires that value, rather than the name string, as the parameter to DfOpen, DfGetFileAttribute, and DfSetFileAttribute. The metadata file carries both values for the CID so that a controller obtains the identifier directly and performs no name matching of its own. The OAC assigns the FileIdentifier; this specification fixes no value for it, and a controller shall not assume one.
+
+A FileIdentifier advertised under the `cid` role for which no File Descriptor PDR exists is a malformed metadata document, not a missing CID, and is handled per OAC-METADATA-SPEC Section 8.3. The slot is not energized.
 
 The OAC shall set the FileCapabilities bitfield16 so that no write and no modification of the CID is permitted: FcWritesPermitted and ExWriteOpen shall both be zero.
 
@@ -248,7 +243,11 @@ A sensor is associated with the CID by carrying the same entity identification a
 
 ### 7.1 General
 
-The CID is a single JSON object. The root key of the JSON document shall be `"oac_cid"`. The value associated with `"oac_cid"` shall be a JSON object containing three sections: `"metadata"`, `"power"`, and `"connectors"`. These three sections shall appear in this order within the `"oac_cid"` object. Additional top-level keys within `"oac_cid"` are permitted for vendor extensions but shall use a vendor-namespaced prefix of the form `"vendor_<name>_"`. The upstream management controller shall ignore unrecognized keys.
+The CID is a single JSON object. The root key of the JSON document shall be `"oac_cid"`. The value associated with `"oac_cid"` shall be a JSON object containing three sections: `"metadata"`, `"power"`, and `"connectors"`. These three sections shall appear in this order within the `"oac_cid"` object. Additional top-level keys within `"oac_cid"` are permitted for vendor extensions but shall use a vendor-namespaced prefix of the form `"vendor_<name>_"`.
+
+The upstream management controller shall ignore unrecognized keys wherever they appear in this document, at any level of nesting, and shall not treat their presence as an error. The rule is stated for every level deliberately. Scoped to the top level alone, it would leave undefined the behavior of a controller that encounters an unfamiliar member inside `"power"`, inside a connector object, or inside any object nested within them — which is precisely where this specification's own extensions arrive. A controller built against an earlier revision shall remain able to read a CID written to a later one, and ignoring what it does not recognize, at whatever depth it appears, is how that holds.
+
+Ignoring a key means proceeding as though it were absent. It does not mean treating the object that contains it as malformed, and it does not relieve the controller of validating the keys it does recognize.
 
 The complete CID document structure is:
 
@@ -308,7 +307,9 @@ The format and content of the token value are vendor-defined. Common implementat
 
 ### 7.3 power Object
 
-The `"power"` object shall be present. It contains one mandatory sub-object, `"primary"`, which declares the OAC's primary power requirements and Operational Power Level definitions.
+The `"power"` object shall be present. It contains one mandatory member, `"primary"`, which declares the OAC's primary power requirements and Operational Power Level definitions, and one optional member, `"excursion"`, which declares the OAC's transient power behavior above its sustained level.
+
+The division between the two is a division between the sustained and the transient. `"primary"` answers how much power the OAC draws when it is running; `"excursion"` answers how far above that level it goes, and for how long, when it is running hardest. An OAC that declares no `"excursion"` member has not thereby declared that it makes no excursions — it has declined to characterize them, and the upstream management controller plans for the specification's ceiling, per Section 7.3.2.
 
 #### 7.3.1 power.primary Object
 
@@ -342,6 +343,61 @@ opl_max_w >= opl_eff_w >= opl_red_w >= opl_emg_w
 ```
 
 Where optional OPL fields are absent, the ordering constraint applies only to those OPLs that are present. Where `opl_set_min_w` is declared, the configurable OPL-SET range is `opl_set_min_w` through `opl_max_w` inclusive. The upstream management controller shall use the declared OPL values to evaluate power budget feasibility before enabling primary power.
+
+#### 7.3.2 power.excursion Array
+
+The `"excursion"` member of `"power"` is optional. When present, its value shall be a JSON array declaring the OAC's power excursion profile: the maximum ratio of average power to `opl_max_w` that the OAC draws over averaging intervals of stated lengths.
+
+OCP OAC Base Specification v0.9 Section 10.1.4, Table 29, defines the envelope every OAC shall remain within, as a ratio R of the average power over any continuous interval of length T, in microseconds, to the OAC's maximum sustained power. The envelope is piecewise, and all three branches are normative:
+
+```
+R = 3                         for T <= 100 microseconds
+R = 4 - 0.2171 * ln(T)        for 100 < T < 1,000,000 microseconds
+R = 1                         for T >= 1,000,000 microseconds
+```
+
+The logarithmic branch is the one usually quoted, but it is bounded on both sides, and a validator that evaluates it outside `100 < T < 1,000,000` produces a wrong answer in the permissive direction at short intervals and in the restrictive direction at long ones. At T = 10 the formula yields 3.50 where the envelope is 3; at T = 1,000,000 it yields 1.0009 where the envelope is 1.
+
+Table 29 states the same envelope a second time, as the constant 1 for OPL-RED, OPL-EMG, and OPL-SET at every interval length. That column is the source of the normalization rule below.
+
+That envelope is a ceiling on all OACs, not a description of any particular one. Most OACs are materially better behaved than it, and a platform that budgets every slot against the ceiling over-provisions every slot. The `"excursion"` array lets an OAC say where it actually sits, so that the upstream management controller can budget against the declaration instead of against the worst case the specification permits.
+
+**Table 7.3.2-1: power.excursion Array Fields**
+
+| Field Name | JSON Type | Required | Constraints | Description |
+|------------|-----------|----------|-------------|-------------|
+| `excursion` | array | Optional | 2 to 8 entries; `interval_us` strictly ascending | Declared excursion behavior of this OAC. When absent, the upstream management controller shall assume the OCP OAC Base Specification v0.9 Section 10.1.4 envelope. |
+| `excursion[].interval_us` | integer | Required | > 0 | Averaging interval length T, in microseconds, matching the OCP OAC Base Specification v0.9 Section 10.1.4 definition of T. |
+| `excursion[].ratio_max` | number | Required | >= 1.0, <= the Section 10.1.4 envelope value at `interval_us`, evaluated piecewise | Maximum ratio of average power during any interval of this length to `opl_max_w`. |
+
+The value is a bare array of interval and ratio pairs, and carries no sibling fields. The quantity being declared is one curve, and a curve is a sequence of points; an enclosing object would exist only to hold a single key.
+
+**Normalization.** `ratio_max` is normalized to `opl_max_w`, and to `opl_max_w` only. This has two consequences that are worth stating directly because neither is what a reader expects.
+
+The profile does not rescale at OPL-EFF. An OAC operating at OPL-EFF does not acquire a larger absolute excursion headroom by virtue of a lower sustained level; the ratio is against `opl_max_w` in every case, so the absolute excursion ceiling is the same number of watts at either level.
+
+The profile applies only at OPL-MAX and OPL-EFF. At OPL-RED, OPL-EMG, and OPL-SET the effective ratio is 1 regardless of what the profile declares. Those levels exist because the platform is constrained; an excursion allowance at a level entered specifically to relieve a constraint would defeat the level.
+
+No absolute peak wattage field is defined, and no `reference_level` field is defined. Both would be derivable from `opl_max_w` and the declared ratio, and a derivable field is a field that can disagree with its source.
+
+**Canonical interval grid.** An OAC declaring an excursion profile should use the following intervals, so that profiles from different vendors are directly comparable without interpolation:
+
+**Table 7.3.2-2: Recommended Interval Grid**
+
+| `interval_us` | Section 10.1.4 envelope ceiling |
+|---------------|--------------------------------|
+| 10 | 3.00 |
+| 100 | 3.00 |
+| 1,000 | 2.50 |
+| 10,000 | 2.00 |
+| 100,000 | 1.50 |
+| 1,000,000 | 1.00 |
+
+The ceilings in Table 7.3.2-2 are the Section 10.1.4 envelope rounded down to two decimal places. On the logarithmic branch the rounding matters: `4 - 0.2171 * ln(1000)` is 2.5003, not 2.5000. The 10 and 1,000,000 rows are not on that branch — they are the flat branches, exactly 3 and exactly 1. A validator shall evaluate the piecewise envelope rather than consult this table. The grid is a recommendation, not a constraint: an OAC may declare any intervals it can characterize, and shall declare at least two.
+
+**Interpolation.** For an interval T that is not a declared point, the upstream management controller shall use the `ratio_max` declared for the nearest declared interval shorter than T. If no declared interval is shorter than T, the controller shall use the OCP OAC Base Specification v0.9 Section 10.1.4 envelope value for T, evaluated piecewise. For T greater than the largest declared interval, the controller shall use the `ratio_max` of the largest declared interval.
+
+The rule rounds toward the larger ratio in every direction, which is the conservative direction for a power budget. Linear interpolation between declared points would produce a smaller number than the OAC guaranteed at the shorter interval, and the OAC guaranteed nothing about the gap.
 
 ### 7.4 connectors Array
 
@@ -513,7 +569,8 @@ The following ordering conventions shall be observed in all conformant CID docum
 3. Within a connector's `"lanes"` array, all RX entries (in ascending `lane_index` order) shall precede all TX entries (in ascending `lane_index` order).
 4. Optional fields that are absent from a CID document shall be treated as absent (not as null or zero) by the upstream management controller. A JSON `null` value for a field defined in this specification is not equivalent to field absence and shall be treated as a malformed CID.
 5. JSON keys shall use snake_case (underscore-separated lowercase). CamelCase or hyphenated key names are not conformant.
-6. Within a connector object, the top-level fields shall appear in the order `id`, `populated`, `impedance_ohm`, `mpesti_capable` (CONN0 only), `connector_profile`, followed by the signal sections in the order `high_speed_lanes`, `clocking`, `discrete_signals`. A connector object that declares a `connector_profile` contains none of `high_speed_lanes`, `clocking`, or `discrete_signals`, per Section 8.2; their absence is not an error.
+6. Within the `power` object, `primary` shall appear before `excursion`. Within an `excursion` entry, `interval_us` shall appear before `ratio_max`.
+7. Within a connector object, the top-level fields shall appear in the order `id`, `populated`, `impedance_ohm`, `mpesti_capable` (CONN0 only), `connector_profile`, followed by the signal sections in the order `high_speed_lanes`, `clocking`, `discrete_signals`. A connector object that declares a `connector_profile` contains none of `high_speed_lanes`, `clocking`, or `discrete_signals`, per Section 8.2; their absence is not an error.
 
 ---
 
@@ -752,14 +809,16 @@ The upstream management controller shall complete the following steps before ena
 
 1. Confirm that the OAC has reached Operational State O3 by detecting assertion of OAC_MC_RDY on CONN0 Column 11.
 2. Establish an MCTP session with the OAC management controller over the OAC Management USB 2.0 interface.
-3. Locate the CID File Descriptor PDR in the OAC's PDR repository by matching `FileName` equal to `OAC_CID.json` (per Section 6.3).
-4. Use the `FileIdentifier` from the matched PDR to open the file via `DfOpen` (DSP0242), specifying read access.
+3. Retrieve and validate the OAC Metadata file per OAC-METADATA-SPEC Section 8, and resolve its `cid` role to obtain the CID's `FileIdentifier` (per Section 6.3).
+4. Use that `FileIdentifier` to open the file via `DfOpen` (DSP0242), specifying read access.
 5. Issue one or more `DfRead` commands to retrieve the CID payload, then issue `DfClose` to terminate the transfer session.
 6. Parse and validate the resulting JSON against the schema defined in Section 7.
 7. Resolve any `connector_profile` references per Section 8, and evaluate the resulting complete connector definitions.
 8. Evaluate the CID content for compatibility with the baseboard's available resources (power budget, connector impedance class, protocol support).
 
-If any step fails, the upstream management controller shall not enable primary busbar power to the OAC slot and shall log an error indicating the failure mode and slot identifier.
+Step 3 is a change from earlier revisions of this specification, in which the controller located the CID by matching the `FileName` `OAC_CID.json` against the OAC's File Descriptor PDRs. The metadata file now carries that mapping, and a controller shall not perform the name match itself. The reason is given in Section 6.3: the metadata file is what the OAC advertises, and reaching the CID by any other path means energizing a slot on data the OAC never offered by that route.
+
+If any step fails, the upstream management controller shall not enable primary busbar power to the OAC slot and shall log an error indicating the failure mode and slot identifier. This includes a failure to retrieve or validate the metadata file at step 3, and includes the case in which the `FileIdentifier` the metadata advertises corresponds to no File Descriptor PDR.
 
 ### 9.3 Validation Requirements
 
@@ -776,6 +835,24 @@ The upstream management controller shall perform at minimum the following valida
 9. The `opl_emg_w` value is present and satisfies the OPL ordering constraint (`opl_emg_w` <= `opl_max_w`).
 10. For each populated connector that declares a `connector_profile`: the profile identifier is recognized as an OCP-ratified profile (`OAC-PROF-` prefix) that the baseboard supports, the connector position it is applied to is covered by the profile's `applicable_conns` value per Section 8.5, and the connector object contains no `high_speed_lanes`, `clocking`, or `discrete_signals` sections. If the profile identifier is unrecognized or unsupported, if the connector position is not covered by `applicable_conns`, or if any signal section is present alongside `connector_profile`, the connector shall be treated as incompletely defined or malformed and the slot shall not be energized.
 11. For each populated connector that does not declare a `connector_profile` and that carries high-speed differential signals: the `high_speed_lanes` section is present, per Section 7.4.3. A connector that carries high-speed signals but describes neither a profile nor explicit lane definitions is incompletely defined and the slot shall not be energized.
+12. If `power.excursion` is present, the checks of Table 9.3-1 are performed. If `power.excursion` is absent, these checks do not apply and the upstream management controller shall budget the slot against the OCP OAC Base Specification v0.9 Section 10.1.4 envelope, per Section 7.3.2.
+
+**Table 9.3-1: power.excursion Validation Checks**
+
+| # | Check | Disposition on failure |
+|---|-------|------------------------|
+| 1 | `interval_us` values are strictly ascending across the array, with no duplicates | Malformed; slot shall not be energized |
+| 2 | Each `ratio_max` is less than or equal to the OCP OAC Base Specification v0.9 Section 10.1.4 envelope value evaluated piecewise at that entry's `interval_us`, per Section 7.3.2 | Malformed; slot shall not be energized |
+| 3 | `ratio_max` values are monotonically non-increasing as `interval_us` increases | Malformed; slot shall not be energized |
+| 4 | Each `ratio_max` is greater than or equal to 1.0 | Malformed; slot shall not be energized |
+| 5 | The array contains at least 2 and at most 8 entries | Malformed; slot shall not be energized |
+| 6 | The implied peak current, `ratio_max` x `opl_max_w` / nominal `input_voltage`, is computed for each entry | Reported, not judged |
+
+Check 2 is the check that makes the field enforceable rather than advisory. Without it an OAC could declare any ratio it liked and the declaration would constrain nothing. The envelope shall be evaluated from the formula of Section 7.3.2, not read from Table 7.3.2-2, because the tabulated values are rounded down and a conformant declaration may sit between the rounded value and the true one.
+
+Check 3 reflects that a longer averaging interval cannot admit a larger ratio than a shorter one contained within it. A profile that rises with interval length describes behavior that cannot occur.
+
+Check 6 is reported rather than judged because the Base Specification states rated and derated continuous current for the BK100 and BK125 connector variants, and continuous current is a thermal figure. It is not comparable to a 10 microsecond transient, and no pulse current rating against which the implied value could be judged is presently defined. The controller should log the computed value so that it is available to a platform that does have such a limit.
 
 An upstream management controller may perform additional validation beyond these minimum requirements. Validation failures shall be logged with sufficient detail to identify the specific field and the nature of the failure.
 
@@ -798,6 +875,8 @@ An OAC implementation that claims conformance with this specification shall sati
 | CONN0 shall be populated (`populated=true`) | Mandatory | Section 7.4.1 |
 | CID shall be stored in non-volatile memory and exposed by the OAC management controller, accessible via PLDM for FRU Data over MCTP | Mandatory | Section 9.1 |
 | CID shall be accessible when the OAC is in Operational State O3 or later | Mandatory | Section 9.2 |
+| CID shall be declared under the `cid` role of the OAC Metadata file, carrying the CID File Descriptor PDR's `FileIdentifier` | Mandatory | Section 6.3 |
+| CID File Descriptor PDR `FileName` shall be `OAC_CID.json`, and that name shall be assigned to no other file | Mandatory | Section 6.3 |
 | CID shall be a syntactically valid JSON document per ECMA-404 | Mandatory | Section 7.1 |
 | CID shall conform to the JSON schema defined in Section 7 | Mandatory | Section 7 |
 | The `"metadata"`, `"power"`, and `"connectors"` sections shall be present in the CID | Mandatory | Section 7.1 |
@@ -807,6 +886,11 @@ An OAC implementation that claims conformance with this specification shall sati
 | `mpesti_capable` shall be declared in the CONN0 connector object, and shall not appear in the CONN1 through CONN6 or CABLE connector objects | Mandatory | Section 7.4.2 |
 | `opl_eff_w` and `opl_red_w` OPL fields may be declared if supported | Optional | Section 7.3.1 |
 | `opl_set_min_w` may be declared if OPL-SET is supported, bounding the configurable range below; the upper bound is `opl_max_w` | Optional | Section 7.3.1 |
+| `power.excursion` may be declared to characterize the OAC's transient power behavior | Optional | Section 7.3.2 |
+| A declared `power.excursion` array shall contain 2 to 8 entries with strictly ascending `interval_us` | Mandatory (if power.excursion present) | Section 7.3.2 |
+| Each declared `ratio_max` shall be >= 1.0 and shall not exceed the OCP OAC Base Specification v0.9 Section 10.1.4 envelope value at its `interval_us` | Mandatory (if power.excursion present) | Section 7.3.2 |
+| Declared `ratio_max` values shall be monotonically non-increasing as `interval_us` increases | Mandatory (if power.excursion present) | Section 7.3.2 |
+| An OAC declaring `power.excursion` shall remain within the declared profile at OPL-MAX and OPL-EFF, and shall not exceed a ratio of 1 at OPL-RED, OPL-EMG, or OPL-SET | Mandatory (if power.excursion present) | Section 7.3.2 |
 | `connector_profile` may be declared on any populated connector to reference an OCP-ratified connector profile | Optional | Section 8.2 |
 | A referenced `connector_profile` shall have an `applicable_conns` value that covers the connector position it is applied to | Mandatory (if connector_profile present) | Section 8.5 |
 | `high_speed_lanes` shall be present on any populated connector that carries high-speed differential signals and does not declare a `connector_profile` | Mandatory | Section 7.4.3 |
@@ -822,7 +906,8 @@ An upstream management controller implementation that claims conformance with th
 | Requirement | Classification | Reference |
 |-------------|----------------|-----------|
 | upstream management controller shall retrieve the CID after the OAC reaches Operational State O3, and before enabling primary busbar power | Mandatory | Section 9.2 |
-| upstream management controller shall locate the CID by FileName (OAC_CID.json) in the File Descriptor PDR, not by ordinal position | Mandatory | Section 6.3 |
+| upstream management controller shall locate the CID by resolving the `cid` role of the OAC Metadata file, and shall not locate it by matching FileName or by ordinal position | Mandatory | Section 6.3 |
+| upstream management controller shall not fall back to matching the FileName `OAC_CID.json` when metadata retrieval fails | Mandatory | Section 6.3 |
 | upstream management controller shall perform all minimum validation checks defined in Section 9.3 | Mandatory | Section 9.3 |
 | upstream management controller shall not enable primary busbar power if CID retrieval or validation fails | Mandatory | Section 9.2 |
 | upstream management controller shall apply a retrieval timeout and handle timeout without enabling power | Mandatory | Section 9.4 |
@@ -831,6 +916,11 @@ An upstream management controller implementation that claims conformance with th
 | upstream management controller shall reject any connector object that contains both `connector_profile` and any of `high_speed_lanes`, `clocking`, or `discrete_signals` | Mandatory | Section 8.2 |
 | upstream management controller shall not enable primary power when `connector_profile` references a profile identifier that is unrecognized or that the baseboard cannot support | Mandatory | Section 8.3 |
 | upstream management controller shall reject a profile applied to a connector position not covered by the profile's `applicable_conns` value | Mandatory | Section 8.5 |
+| upstream management controller shall ignore unrecognized keys at any level of nesting, and shall not treat their presence as malformed | Mandatory | Section 7.1 |
+| upstream management controller shall budget the slot against the OCP OAC Base Specification v0.9 Section 10.1.4 envelope when `power.excursion` is absent | Mandatory | Section 7.3.2 |
+| upstream management controller shall perform the checks of Table 9.3-1 when `power.excursion` is present | Mandatory (if power.excursion present) | Section 9.3 |
+| upstream management controller shall resolve an undeclared interval by the nearest-shorter-interval rule, and shall not linearly interpolate between declared points | Mandatory (if power.excursion present) | Section 7.3.2 |
+| upstream management controller shall not grant excursion headroom above a ratio of 1 at OPL-RED, OPL-EMG, or OPL-SET | Mandatory | Section 7.3.2 |
 | upstream management controller may perform additional validation beyond the minimum requirements in Section 9.3 | Optional | Section 9.3 |
 
 ---
@@ -872,7 +962,15 @@ document.
         "opl_eff_w": 2200.0,
         "opl_red_w": 800.0,
         "opl_emg_w": 300.0
-      }
+      },
+      "excursion": [
+        { "interval_us": 10, "ratio_max": 2.8 },
+        { "interval_us": 100, "ratio_max": 2.6 },
+        { "interval_us": 1000, "ratio_max": 2.1 },
+        { "interval_us": 10000, "ratio_max": 1.7 },
+        { "interval_us": 100000, "ratio_max": 1.35 },
+        { "interval_us": 1000000, "ratio_max": 1.0 }
+      ]
     },
     "connectors": [
       {
@@ -893,7 +991,7 @@ document.
 }
 ```
 
-Three points are worth noting about this document.
+Four points are worth noting about this document.
 
 The two profile identifiers differ in their connector segment. `OAC-PROF-CONN0-...` carries
 `applicable_conns: ["CONN0"]` and may be referenced only by the CONN0 connector object;
@@ -909,6 +1007,17 @@ signal assignment, and it is declared by the CID in every case, per Section 8.4.
 document: Pin A1 of each populated connector is tied to GND in the standard manner, which the Base
 Specification fixes and the CID therefore never restates. The `false` value says only that CONN0
 Pin A1 is not additionally overloaded with M-PESTI, per Section 7.4.2.
+
+`power.excursion` is declared on the recommended interval grid of Table 7.3.2-2, and every entry sits
+below the Section 10.1.4 ceiling at its interval — 2.8 against 3.00 at 10 microseconds, 2.1 against
+2.50 at 1,000, and so on. Because `opl_max_w` is 3,000 W, the 10 microsecond entry declares a peak of
+8,400 W averaged over that interval, and the implied current at the +50V input is 168 A. That figure
+is above the BK125 variant's 100 A derated continuous rating, which is expected and is not a
+validation failure: the derated rating is a thermal limit on sustained current and the declared
+figure is a 10 microsecond average. Check 6 of Table 9.3-1 reports it rather than judging it, for
+exactly this reason. An OAC that declared no `excursion` member would be budgeted at the 3.00 ceiling
+instead, implying 180 A over the same interval — the declaration buys the platform 12 A of margin it
+would otherwise have to provision for.
 
 ### A.2 Explicitly Defined CID
 
@@ -1013,10 +1122,6 @@ per Section 7.2.1.
 
 ## Annex B (informative) -- PLDM Protocol Field Value Reference
 
-> **NOTE:** The values collected in this annex are scoped by the WORK IN PROGRESS annotation in
-> Section 6.3. Where that annotation marks a mechanism as under review, the corresponding field
-> values here are provisional to the same extent.
-
 This annex collects the PLDM field values this specification constrains. It lists only those fields; every other field of each record is governed by the referenced DMTF specification and is an implementation matter. Byte offsets and field widths are not reproduced here — see DSP0248 for the File Descriptor PDR and the sensor PDR formats, DSP0242 for the file sensor requirements and the transfer commands, DSP0249 for entity type codes and State Set 68, and DSP0257 for FRU Data File structure.
 
 ### B.1 CID
@@ -1037,8 +1142,8 @@ This annex collects the PLDM field values this specification constrains. It list
 |-------|-------|------|
 | `EntityType` | 9 (Device File) | |
 | `FileClassification` | `FRUDataFile` | The file content is FRU data per DSP0257. |
-| `FileName` | `OAC_CID.json` (`strASCII`) | The discriminator an upstream management controller matches on. Not PDR order. |
-| `FileIdentifier` | Implementation-chosen `uint16` | What `DfOpen` takes. A controller matches `FileName`, then opens with this value. |
+| `FileName` | `OAC_CID.json` (`strASCII`) | Fixed, and assigned to no other file. Descriptive rather than the discovery mechanism; the metadata file's `cid` role carries this same string. |
+| `FileIdentifier` | Implementation-chosen `uint16` | What `DfOpen` takes. A controller obtains this value from the metadata file's `cid` role, not by matching `FileName`. |
 | `FileCapabilities` | `FcWritesPermitted` = 0, `ExWriteOpen` = 0, `DataType` = 0 | The CID is read-only from the upstream management controller's perspective. `DataType` = 0 declares a regular file rather than a streaming FIFO. |
 | `FileMaximumSize` | The exact transferred size of the CID, not greater than the applicable size limit | For a fixed-length file DSP0242 equates file size to this field, so it is exact rather than an upper bound. The OAC shall update this field whenever the CID is replaced by a firmware update. |
 | `SuperiorDirectoryFileIdentifier` | `0xFFFF` | The CID is a flat file; no directory is required. |

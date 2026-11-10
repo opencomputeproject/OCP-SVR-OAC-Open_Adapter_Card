@@ -1,0 +1,36 @@
+{
+  "oac_cid": {
+    "metadata": {
+      "schema_version": "0.9",
+      "oac_spec_revision": "0.9",
+      "description": "Excursion Example B: +12V, BK100, 600 W OPL-MAX. A card that genuinely needs the full 3x short-interval excursion allowance permitted by Base Specification Section 10.1.4, and therefore declares it rather than understating it. This is the case the validation rules have to permit: every ratio sits at or just under the Section 10.1.4 envelope, so the declaration is legal but leaves the platform no headroom to assume. Declaring the ceiling is a useful statement in its own right, because it is a verified claim rather than the absence of one. This file is pretty-printed for review. A real CID is minified."
+    },
+    "power": {
+      "primary": {
+        "input_voltage": "+12V",
+        "connector_type": "100A",
+        "opl_max_w": 600,
+        "opl_emg_w": 200,
+        "opl_eff_w": 450,
+        "opl_set_min_w": 200
+      },
+      "excursion": [
+        { "interval_us": 10, "ratio_max": 3.00 },
+        { "interval_us": 100, "ratio_max": 3.00 },
+        { "interval_us": 1000, "ratio_max": 2.45 },
+        { "interval_us": 10000, "ratio_max": 1.95 },
+        { "interval_us": 100000, "ratio_max": 1.45 },
+        { "interval_us": 1000000, "ratio_max": 1.00 }
+      ]
+    },
+    "connectors": [
+      {
+        "id": "CONN0",
+        "populated": true,
+        "impedance_ohm": 85,
+        "mpesti_capable": true,
+        "connector_profile": "OAC-PROF-CONN0-PCIeGen6-x8-IN-PCIeGen6-x8-IN-v1"
+      }
+    ]
+  }
+}

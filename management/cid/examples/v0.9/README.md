@@ -3,13 +3,20 @@
 **Schema Version:** 0.9
 **Specification Reference:** [OAC-CID-Specification-v0.9.md](../../specification/OAC-CID-Specification-v0.9.md)
 
-Reference OAC Connector Interface Definition documents for CID schema version 0.9. Both are shown in
+Reference OAC Connector Interface Definition documents for CID schema version 0.9. All are shown in
 expanded form for readability. A production OAC may publish either form; the minified equivalent is recommended, and is the same document with optional whitespace removed.
+
+The first two illustrate the two ways a connector's signal assignment may be expressed. The three
+excursion examples illustrate `power.excursion`, and are deliberately plain on the connector side so
+that the power declaration is the only thing varying between them.
 
 | File | Form Factor | Power | Connectors |
 |------|-------------|-------|-----------|
 | [OAC-CID-0.9-2500W-PCIe-x16-(Example_using_connector_profile).json](OAC-CID-0.9-2500W-PCIe-x16-%28Example_using_connector_profile%29.json) | Double-wide offset | +50V, 125A (BK125), 2500 W OPL-MAX, 625 W OPL-EMG | CONN0 only, by profile reference |
 | [OAC-CID-0.9-SW-2500W-16L_PCIe-96L_Ethernet(Example_mixed_definition).json](OAC-CID-0.9-SW-2500W-16L_PCIe-96L_Ethernet%28Example_mixed_definition%29.json) | Single-wide | +50V, 100A (BK100), 2500 W OPL-MAX, 625 W OPL-EMG, OPL-SET floor 625 W | CONN0 explicit + CONN1–CONN6 by profile reference |
+| [OAC-CID-0.9-ExampleA-Excursion-4800W.json](OAC-CID-0.9-ExampleA-Excursion-4800W.json) | Double-wide | +50V, 125A (BK125), 4800 W OPL-MAX, 1200 W OPL-EMG, OPL-SET floor 1200 W | CONN0 only, by profile reference |
+| [OAC-CID-0.9-ExampleB-Excursion-600W.json](OAC-CID-0.9-ExampleB-Excursion-600W.json) | Single-wide | +12V, 100A (BK100), 600 W OPL-MAX, 200 W OPL-EMG, OPL-SET floor 200 W | CONN0 only, by profile reference |
+| [OAC-CID-0.9-ExampleC-Excursion-3000W.json](OAC-CID-0.9-ExampleC-Excursion-3000W.json) | Single-wide | +50V, 100A (BK100), 3000 W OPL-MAX, 750 W OPL-EMG, OPL-SET floor 750 W | CONN0 + CONN1, both by profile reference |
 
 ---
 
@@ -44,6 +51,40 @@ It also declares `opl_set_min_w` of 625 W, which makes the SCD power set points
 configurable range runs from that floor up to `opl_max_w`, 2500 W; the ceiling is not declared
 separately.
 
+### Declared power excursion — three positions against the same ceiling
+
+Examples A, B, and C all declare `power.excursion` on the recommended interval grid of Table 7.3.2-2,
+and the point of having three is that they sit in different places relative to the Base Specification
+Section 10.1.4 envelope.
+
+**Example A** is the case the field was added for. At 10 µs the specification permits 3.00 and the
+card declares 2.60; at 10 ms the specification permits 2.0004 and the card declares 1.55. A platform
+budgeting eight of these slots against the ceiling instead of the declaration provisions for
+transients that will never occur.
+
+**Example B** is the case the validation rules have to keep legal. Every ratio sits at or just under
+the envelope — 3.00 at both 10 µs and 100 µs — so the declaration buys the platform nothing. It is
+still worth making: a declared ceiling is a verified claim, and the absence of a declaration is not.
+A validator that treated "declares the maximum" as suspicious would be wrong about the field.
+
+**Example C** sits between them, and is the one to read if only one is read. At `opl_max_w` of
+3,000 W the declared 2.80 at 10 µs implies 168 A at the +50V input, which is above the BK100
+variant's 80 A derated continuous rating. That is not a validation failure. The derated rating is a
+thermal limit on *sustained* current; 168 A is a 10 µs average. Check 6 of Table 9.3-1 computes and
+reports this number precisely because no pulse-current rating exists to judge it against — the
+question of whether the BK100 and BK125 connectors carry an I²t limit or a current-versus-duration
+curve is open with the connector and mechanical subgroup. If an answer arrives, the check becomes
+normative without the field changing.
+
+All three declare a `ratio_max` of exactly 1.00 at 1,000,000 µs. At a one-second average an OAC is
+not excursing, it is running; the final point is where the profile rejoins `opl_max_w`.
+
+Note what none of the three declare: an absolute peak wattage, or a reference level. `ratio_max` is
+normalized to `opl_max_w` and to nothing else, so Example A's 2.60 at 10 µs means 12,480 W whether
+the card is running at OPL-MAX or at OPL-EFF — the profile does not rescale downward at the lower
+sustained level. At OPL-RED, OPL-EMG, and OPL-SET the effective ratio is 1 regardless of what the
+file says, per Section 7.3.2.
+
 ---
 
 ## Note on Filenames
@@ -57,8 +98,10 @@ delimiter and silently truncates direct links.
 
 ## Known Issues
 
-Both examples have conformance defects against the v0.9 specification, recorded here so the files
-are not taken as fully normative references until corrected:
+The two original examples — the profile-reference and mixed-definition files — have conformance
+defects against the v0.9 specification, recorded here so the files are not taken as fully normative
+references until corrected. The three excursion examples are not affected; they declare
+`schema_version` and `oac_spec_revision` and their descriptions agree with their declared values.
 
 | Issue | Detail |
 |-------|--------|

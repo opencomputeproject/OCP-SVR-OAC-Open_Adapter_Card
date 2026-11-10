@@ -37,6 +37,13 @@ Everything the platform needs in order to decide whether to energize the slot ha
 auxiliary power alone. OAC slots are not hot-pluggable and carry up to 5 kW, so the baseboard cannot
 discover a card by powering it and observing the result.
 
+The management exchange opens with a query of the **OAC Metadata file**, which is the only file the
+baseboard locates by name. The metadata file maps the roles `cid`, `scdd`, and `scda` to the
+`FileIdentifier` values the baseboard then opens, so the two steps preceding the CID query in the
+diagram are not ceremony — they are what makes the CID findable. See
+[`../../management/metadata/`](../../management/metadata/). A baseboard that cannot retrieve or
+validate the metadata file stops there; falling back to matching `FileName` is prohibited.
+
 ### O3 → O5 — Primary Power to Operational
 
 Only after the CID has been evaluated and the SCD Assignment accepted does the baseboard energize

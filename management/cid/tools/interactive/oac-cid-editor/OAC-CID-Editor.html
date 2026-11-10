@@ -297,6 +297,21 @@
     }
     .items-table td .btn-sm { padding: 3px 7px; font-size: 0.7rem; }
 
+    /* ── Power excursion panel ── */
+    .exc-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .exc-head label { margin:0; display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .exc-body[hidden] { display:none; }
+    .exc-plot { width:100%; height:200px; display:block; background:var(--ocp-white);
+                border:1px solid var(--ocp-border); border-radius:6px; margin-top:10px; }
+    .exc-plot .ax { stroke: var(--ocp-border); stroke-width:1; }
+    .exc-plot .gl { stroke: var(--ocp-border); stroke-width:1; stroke-dasharray:2 3; opacity:0.7; }
+    .exc-plot .env { fill:none; stroke: var(--ocp-muted); stroke-width:1.5; stroke-dasharray:5 3; }
+    .exc-plot .prof { fill:none; stroke: var(--green); stroke-width:2; }
+    .exc-plot .pt { fill: var(--green); }
+    .exc-plot .pt.bad { fill: var(--red); }
+    .exc-plot text { font-size:9px; fill: var(--ocp-muted); font-family:inherit; }
+    .exc-legend { font-size:0.68rem; color:var(--ocp-muted); margin-top:5px; line-height:1.5; }
+
     /* ── Visual pin map ── */
     .pin-map-wrap { margin-top: 14px; }
     .pin-map-toggle {
@@ -730,7 +745,7 @@
             <input type="text" id="f-schema-version" placeholder="0.9" oninput="updatePreview()" />
           </div>
           <div class="field">
-            <label>oac_spec_revision <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">OCP OAC Base Specification revision this adapter targets (e.g. &quot;0.7&quot;). Used by the BMC to verify compatibility.</span></span> <span class="req">*</span></label>
+            <label>oac_spec_revision <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">OCP OAC Base Specification revision this OAC targets (e.g. &quot;0.9&quot;). Used by the upstream management controller to verify compatibility.</span></span> <span class="req">*</span></label>
             <input type="text" id="f-oac-spec" placeholder="0.9" oninput="updatePreview()" />
           </div>
         </div>
@@ -774,11 +789,11 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label>opl_max_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Maximum adapter power draw at full performance (OPL-MAX). Required. Must be &ge; all other OPL values.</span></span> <span class="req">*</span></label>
+            <label>opl_max_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Maximum OAC power draw at full performance (OPL-MAX). Required. Must be &ge; all other OPL values.</span></span> <span class="req">*</span></label>
             <input type="number" id="f-opl-max" placeholder="e.g. 3000.0" step="0.1" oninput="updatePreview()" />
           </div>
           <div class="field">
-            <label>opl_emg_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Power in emergency/safe mode (OPL-EMG). Required. The BMC may command this level during a platform power emergency.</span></span> <span class="req">*</span></label>
+            <label>opl_emg_w <span class="tip-icon" style="margin-left:4px">?<span class="tip-bubble">Power in emergency/safe mode (OPL-EMG). Required. The upstream management controller may command this level during a platform power emergency.</span></span> <span class="req">*</span></label>
             <input type="number" id="f-opl-emg" placeholder="e.g. 300.0" step="0.1" oninput="updatePreview()" />
           </div>
         </div>
@@ -798,6 +813,38 @@
             <input type="number" id="f-opl-set-min" placeholder="" step="0.1" oninput="updatePreview()" />
             <div class="hint">Floor of the configurable OPL-SET range. The ceiling is always opl_max_w and is not declared separately.</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Power — excursion -->
+      <div class="form-card" id="sec-power-excursion">
+        <div class="form-card-title">Power &mdash; excursion <span class="opt-tag" style="text-transform:none;letter-spacing:0;">(optional)</span></div>
+        <div class="exc-head">
+          <label><input type="checkbox" id="f-exc-enable" onchange="excToggle()" style="width:auto;" /> Declare a power excursion profile</label>
+          <button class="btn btn-secondary btn-sm" id="exc-grid-btn" onclick="excLoadGrid()" title="Load the six recommended intervals of specification Table 7.3.2-2, each at the Base Specification Section 10.1.4 ceiling">Load recommended grid</button>
+        </div>
+        <div class="exc-body" id="exc-body" hidden>
+          <div class="hint" style="margin-bottom:8px;">
+            2 to 8 entries, <code>interval_us</code> strictly ascending. <code>ratio_max</code> is the
+            largest ratio of average power over an interval of that length to <code>opl_max_w</code>
+            &mdash; normalized to <code>opl_max_w</code> only, and in force at OPL-MAX and OPL-EFF
+            only. Omitting the whole array is valid and means <em>uncharacterized</em>; the controller
+            then budgets this OAC at the Section 10.1.4 ceiling. See specification Section 7.3.2.
+          </div>
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width:38%">interval_us</th>
+                <th style="width:26%">ratio_max</th>
+                <th style="width:26%">10.1.4 ceiling</th>
+                <th style="width:10%"></th>
+              </tr>
+            </thead>
+            <tbody id="exc-rows"></tbody>
+          </table>
+          <button class="btn btn-secondary btn-sm" id="exc-add-btn" onclick="excAdd()">+ Add point</button>
+          <svg class="exc-plot" id="exc-plot" viewBox="0 0 520 200" preserveAspectRatio="none" aria-label="Declared excursion profile plotted against the Base Specification Section 10.1.4 envelope"></svg>
+          <div class="exc-legend" id="exc-legend"></div>
         </div>
       </div>
 
@@ -930,6 +977,7 @@
     function init() {
       buildConnTabs();
       renderConnPanel(activeConn);
+      renderExc();
       updatePreview();
     }
 
@@ -1172,7 +1220,7 @@
           }));
 
         const row1 = el('div','field-row');
-        row1.appendChild(fieldSelect('hs-dir-'+id+'-'+gi, withTip('link_direction','Signal direction from the adapter\'s perspective. INBOUND = host→adapter (e.g. PCIe downstream). OUTBOUND = adapter→host (e.g. Ethernet TX). Some protocols use BI.'), grp.link_direction,
+        row1.appendChild(fieldSelect('hs-dir-'+id+'-'+gi, withTip('link_direction','Signal direction from the OAC\'s perspective. INBOUND = host→OAC (e.g. PCIe downstream). OUTBOUND = OAC→host (e.g. Ethernet TX). Some protocols use BI.'), grp.link_direction,
           ['',...LINK_DIRS], ['-- select --',...LINK_DIRS], true, v => { grp.link_direction = v; updatePreview(); }));
         grpCard.appendChild(row1);
 
@@ -1200,7 +1248,7 @@
           }
         }
         row2.appendChild(totalLanesField);
-        row2.appendChild(fieldNum('hs-min-'+id+'-'+gi, withTip('minimum_lanes','Optional vendor-imposed operational floor. The BMC should block slot energization if fewer lanes are electrically routed from the baseboard than this value. Leave blank if any lane count is acceptable.'), grp.minimum_lanes, 'optional', false,
+        row2.appendChild(fieldNum('hs-min-'+id+'-'+gi, withTip('minimum_lanes','Optional vendor-imposed operational floor. The upstream management controller should block slot energization if fewer lanes are electrically routed from the baseboard than this value. Leave blank if any lane count is acceptable.'), grp.minimum_lanes, 'optional', false,
           v => { grp.minimum_lanes = v; autoSyncLanes(grp, parseInt(grp.total_lanes)||0, id); updatePreview(); renderConnPanel(id); }, '1'));
         grpCard.appendChild(row2);
 
@@ -1682,7 +1730,7 @@
         card.appendChild(hdr);
 
         const r1 = el('div','field-row');
-        r1.appendChild(fieldTextInline(withTip('clock_id','Unique identifier for this reference clock within the connector (e.g. &quot;REFCLK0&quot;). Used by the BMC to map the clock to its physical pins.'), clk.clock_id||'', 'CLOCK0', v => { clk.clock_id=v; const _cl=document.getElementById('clk-lbl-'+id+'-'+i); if(_cl) _cl.textContent=v||`Clock ${i}`; updatePreview(); }));
+        r1.appendChild(fieldTextInline(withTip('clock_id','Unique identifier for this reference clock within the connector (e.g. &quot;REFCLK0&quot;). Used by the upstream management controller to map the clock to its physical pins.'), clk.clock_id||'', 'CLOCK0', v => { clk.clock_id=v; const _cl=document.getElementById('clk-lbl-'+id+'-'+i); if(_cl) _cl.textContent=v||`Clock ${i}`; updatePreview(); }));
         r1.appendChild(fieldSelectInline('clock_type', clk.clock_type, ['','REFCLK_DIFF','REFCLK_SINGLE'], ['-- select --','REFCLK_DIFF','REFCLK_SINGLE'],
           v => { clk.clock_type=v; updatePreview(); renderConnPanel(id); }));
         card.appendChild(r1);
@@ -1827,6 +1875,17 @@
         if (ored !== null) pwr.opl_red_w = ored;
         if (osmin !== null) pwr.opl_set_min_w = osmin;
         cid.power = { primary: pwr };
+        // power.excursion — Section 7.6 places it after primary. Partially-filled rows are
+        // dropped rather than emitted half-formed; the 2-entry floor is a validation concern,
+        // not a build-time one, so the array still appears when only one row is complete.
+        if (excEnabled) {
+          const exc = excState
+            .map(r => ({ interval_us: parseFloat(r.interval_us), ratio_max: parseFloat(r.ratio_max) }))
+            .filter(o => !isNaN(o.interval_us) && !isNaN(o.ratio_max))
+            .sort((a, b) => a.interval_us - b.interval_us)
+            .map(o => ({ interval_us: Math.round(o.interval_us), ratio_max: o.ratio_max }));
+          if (exc.length) cid.power.excursion = exc;
+        }
       }
 
       // connectors
@@ -1996,6 +2055,55 @@
       if (pwr.opl_set_max_w !== undefined)
         W('opl_set_max_w is no longer defined; the OPL-SET ceiling is opl_max_w');
 
+      // power.excursion — Section 7.3.2, checks of Table 9.3-1
+      const exc = (cid.power || {}).excursion;
+      if (exc !== undefined) {
+        if (!Array.isArray(exc)) {
+          E('power.excursion must be an array (Section 7.3.2)');
+        } else {
+          if (exc.length < 2 || exc.length > 8)
+            E('power.excursion must contain 2 to 8 entries; found ' + exc.length);
+          let prevT = null, prevR = null;
+          exc.forEach((o, i) => {
+            const tag = 'power.excursion[' + i + ']';
+            if (!o || typeof o !== 'object') { E(tag + ' must be an object'); return; }
+            const T = o.interval_us, r = o.ratio_max;
+            if (typeof T !== 'number' || !isFinite(T) || T <= 0 || Math.floor(T) !== T)
+              E(tag + '.interval_us must be a positive integer');
+            if (typeof r !== 'number' || !isFinite(r))
+              E(tag + '.ratio_max must be a number');
+            if (typeof T === 'number' && typeof r === 'number' && isFinite(T) && isFinite(r)) {
+              if (prevT !== null && T <= prevT)
+                E(tag + '.interval_us must be strictly greater than the preceding entry');
+              if (r < 1.0)
+                E(tag + '.ratio_max must be ≥ 1.0 — a ratio below 1 declares less than the sustained level');
+              const cap = excEnvelope(T);
+              if (r > cap + 1e-9)
+                E(tag + '.ratio_max ' + r + ' exceeds the Base Specification Section 10.1.4 envelope of '
+                  + cap.toFixed(4) + ' at T = ' + T + ' µs');
+              if (prevR !== null && r > prevR + 1e-9)
+                E(tag + '.ratio_max must be ≤ the preceding entry — a longer averaging interval cannot admit a larger ratio');
+              prevT = T; prevR = r;
+            }
+          });
+          // Implied current is reported, not judged: the connector's derated rating is a
+          // thermal figure and these are microsecond-scale averages. Section 9.3, check 6.
+          const volts = { '+12V': 12, '+50V': 50 }[pwr.input_voltage];
+          if (volts && pwr.opl_max_w && exc.length) {
+            const derate = { '100A': 80, '125A': 100 }[pwr.connector_type];
+            const peak = exc.reduce((m, o) => (typeof o.ratio_max === 'number' && o.ratio_max > m ? o.ratio_max : m), 0);
+            if (peak && derate) {
+              const amps = (peak * pwr.opl_max_w) / volts;
+              if (amps > derate)
+                W('peak declared excursion implies ' + amps.toFixed(1) + ' A at ' + pwr.input_voltage +
+                  ', above the ' + derate + ' A derated continuous rating of the ' + pwr.connector_type +
+                  ' connector. Reported, not judged — the derated rating is thermal and this is a ' +
+                  'microsecond-scale average (Section 9.3)');
+            }
+          }
+        }
+      }
+
       // Connectors
       const connectors = cid.connectors || [];
       const conn0 = connectors.find(c => c.id === 'CONN0');
@@ -2084,6 +2192,153 @@
         if (!sig.pin) E(sLabel + ': pin is not assigned');
         checkPin(sig.pin, sLabel);
       });
+    }
+
+    // ── Power excursion (Section 7.3.2) ───────────────────────────────────────
+    // Base Specification v0.9 Section 10.1.4, Table 29, is piecewise. The logarithmic
+    // branch is bounded on both sides; extrapolating it to 10 us admits a ratio of 3.50
+    // against a true ceiling of 3, and at 1,000,000 us it yields 1.0009 against 1.
+    function excEnvelope(T) {
+      if (!(T > 0)) return NaN;
+      if (T <= 100) return 3;
+      if (T >= 1000000) return 1;
+      return 4 - 0.2171 * Math.log(T);
+    }
+    // Recommended grid of Table 7.3.2-2, each at the envelope floored to 2 dp.
+    const EXC_GRID = [
+      { interval_us: 10,      ratio_max: 3.00 },
+      { interval_us: 100,     ratio_max: 3.00 },
+      { interval_us: 1000,    ratio_max: 2.50 },
+      { interval_us: 10000,   ratio_max: 2.00 },
+      { interval_us: 100000,  ratio_max: 1.50 },
+      { interval_us: 1000000, ratio_max: 1.00 }
+    ];
+    let excEnabled = false;
+    let excState = [];   // [{ interval_us: '<string>', ratio_max: '<string>' }]
+
+    function excToggle() {
+      excEnabled = !!document.getElementById('f-exc-enable').checked;
+      if (excEnabled && !excState.length) excState = EXC_GRID.map(g =>
+        ({ interval_us: String(g.interval_us), ratio_max: String(g.ratio_max.toFixed(2)) }));
+      renderExc(); updatePreview();
+    }
+    function excLoadGrid() {
+      excState = EXC_GRID.map(g =>
+        ({ interval_us: String(g.interval_us), ratio_max: String(g.ratio_max.toFixed(2)) }));
+      excEnabled = true;
+      const cb = document.getElementById('f-exc-enable'); if (cb) cb.checked = true;
+      renderExc(); updatePreview();
+    }
+    function excAdd() {
+      if (excState.length >= 8) return;
+      excState.push({ interval_us: '', ratio_max: '' });
+      renderExc(); updatePreview();
+    }
+    function excRm(i) { excState.splice(i, 1); renderExc(); updatePreview(); }
+    function excSet(i, field, val) {
+      if (!excState[i]) return;
+      excState[i][field] = val;
+      const cell = document.getElementById('exc-ceil-' + i);
+      if (cell) cell.innerHTML = excCeilCell(excState[i]);
+      drawExcPlot(); updatePreview();
+    }
+    function excCeilCell(row) {
+      const T = parseFloat(row.interval_us);
+      if (!(T > 0)) return '<span style="color:var(--ocp-muted)">&mdash;</span>';
+      const c = excEnvelope(T);
+      const r = parseFloat(row.ratio_max);
+      const over = !isNaN(r) && r > c + 1e-9;
+      return '<span style="color:' + (over ? 'var(--red)' : 'var(--ocp-muted)') + '">&le; ' +
+             c.toFixed(4) + '</span>';
+    }
+    function renderExc() {
+      const body = document.getElementById('exc-body');
+      const rows = document.getElementById('exc-rows');
+      if (!body || !rows) return;
+      body.hidden = !excEnabled;
+      rows.innerHTML = excState.map((row, i) =>
+        '<tr>' +
+          '<td><input type="number" step="1" min="1" value="' + (row.interval_us || '') +
+            '" placeholder="e.g. 1000" oninput="excSet(' + i + ',\'interval_us\',this.value)" /></td>' +
+          '<td><input type="number" step="0.01" min="1" value="' + (row.ratio_max || '') +
+            '" placeholder="e.g. 2.1" oninput="excSet(' + i + ',\'ratio_max\',this.value)" /></td>' +
+          '<td id="exc-ceil-' + i + '">' + excCeilCell(row) + '</td>' +
+          '<td><button class="btn btn-danger btn-sm" onclick="excRm(' + i + ')">&#10005;</button></td>' +
+        '</tr>').join('');
+      const addBtn = document.getElementById('exc-add-btn');
+      if (addBtn) addBtn.disabled = excState.length >= 8;
+      drawExcPlot();
+    }
+    function drawExcPlot() {
+      const svg = document.getElementById('exc-plot');
+      const legend = document.getElementById('exc-legend');
+      if (!svg) return;
+      const L = 34, R = 10, Tm = 12, B = 22, W = 520, H = 200;
+      const pw = W - L - R, ph = H - Tm - B;
+      const YMIN = 0.8, YMAX = 3.6, DEC = 7;          // x spans 1 us .. 10,000,000 us
+      const X = lx => L + (lx / DEC) * pw;
+      const Y = r  => Tm + ((YMAX - r) / (YMAX - YMIN)) * ph;
+      let g = '';
+      // y gridlines
+      [1, 2, 3].forEach(r => {
+        g += '<line class="gl" x1="' + L + '" y1="' + Y(r).toFixed(1) + '" x2="' + (L + pw) +
+             '" y2="' + Y(r).toFixed(1) + '"/>' +
+             '<text x="' + (L - 5) + '" y="' + (Y(r) + 3).toFixed(1) + '" text-anchor="end">' +
+             r.toFixed(1) + '</text>';
+      });
+      // x decade ticks
+      const LBL = ['1', '10', '100', '1k', '10k', '100k', '1M', '10M'];
+      for (let d = 0; d <= DEC; d++) {
+        g += '<line class="gl" x1="' + X(d).toFixed(1) + '" y1="' + Tm + '" x2="' + X(d).toFixed(1) +
+             '" y2="' + (Tm + ph) + '"/>' +
+             '<text x="' + X(d).toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle">' + LBL[d] +
+             '</text>';
+      }
+      g += '<line class="ax" x1="' + L + '" y1="' + (Tm + ph) + '" x2="' + (L + pw) + '" y2="' +
+           (Tm + ph) + '"/><line class="ax" x1="' + L + '" y1="' + Tm + '" x2="' + L + '" y2="' +
+           (Tm + ph) + '"/>';
+      // Axis labels sit inside the plot area: along the bottom the decade ticks already
+      // occupy the full width, and an end-anchored label there collides with "10M".
+      g += '<text x="' + (L - 5) + '" y="' + (Tm + 4) + '" text-anchor="end">R</text>' +
+           '<text x="' + (L + pw - 4) + '" y="' + (Tm + 11) + '" text-anchor="end">T (&#181;s)</text>';
+      // Section 10.1.4 envelope, sampled in log space
+      let env = [];
+      for (let k = 0; k <= 140; k++) {
+        const lx = (k / 140) * DEC;
+        env.push(X(lx).toFixed(1) + ',' + Y(excEnvelope(Math.pow(10, lx))).toFixed(1));
+      }
+      g += '<polyline class="env" points="' + env.join(' ') + '"/>';
+      // declared profile, drawn as the step the nearest-shorter rule actually implements
+      const pts = excState
+        .map(r => ({ T: parseFloat(r.interval_us), r: parseFloat(r.ratio_max) }))
+        .filter(o => o.T > 0 && !isNaN(o.r))
+        .sort((a, b) => a.T - b.T);
+      let bad = 0;
+      if (pts.length) {
+        let step = [];
+        pts.forEach((o, i) => {
+          const x = X(Math.log(o.T) / Math.LN10), y = Y(o.r);
+          if (i > 0) step.push(x.toFixed(1) + ',' + Y(pts[i - 1].r).toFixed(1));
+          step.push(x.toFixed(1) + ',' + y.toFixed(1));
+        });
+        step.push((L + pw).toFixed(1) + ',' + Y(pts[pts.length - 1].r).toFixed(1));
+        g += '<polyline class="prof" points="' + step.join(' ') + '"/>';
+        pts.forEach(o => {
+          const over = o.r > excEnvelope(o.T) + 1e-9 || o.r < 1;
+          if (over) bad++;
+          g += '<circle class="pt' + (over ? ' bad' : '') + '" cx="' +
+               X(Math.log(o.T) / Math.LN10).toFixed(1) + '" cy="' + Y(o.r).toFixed(1) + '" r="3"/>';
+        });
+      }
+      svg.innerHTML = g;
+      if (legend) legend.innerHTML =
+        '<span style="color:var(--ocp-muted)">&#9476;&#9476; Section 10.1.4 envelope</span> &nbsp; ' +
+        '<span style="color:var(--green)">&#9644; declared profile, drawn as the step the ' +
+        'nearest-shorter interpolation rule produces</span>' +
+        (bad ? ' &nbsp; <span style="color:var(--red)">&#9679; ' + bad +
+               ' point' + (bad > 1 ? 's' : '') + ' outside the permitted band</span>' : '') +
+        '<br/>Left of the first declared point the controller falls back to the envelope, not to the ' +
+        'first declared ratio. Right of the last point it holds the last ratio.';
     }
 
     function updatePreview() {
@@ -2587,6 +2842,15 @@
       setVal('f-opl-eff', pwr.opl_eff_w!=null?pwr.opl_eff_w:'');
       setVal('f-opl-red', pwr.opl_red_w!=null?pwr.opl_red_w:'');
       setVal('f-opl-set-min', pwr.opl_set_min_w!=null?pwr.opl_set_min_w:'');
+      const excIn = (cid.power || {}).excursion;
+      excState = Array.isArray(excIn)
+        ? excIn.filter(o => o && typeof o === 'object')
+               .map(o => ({ interval_us: o.interval_us != null ? String(o.interval_us) : '',
+                            ratio_max:   o.ratio_max   != null ? String(o.ratio_max)   : '' }))
+        : [];
+      excEnabled = excState.length > 0;
+      setVal('f-exc-enable', excEnabled);
+      renderExc();
 
       // connectors
       CONN_IDS.forEach(id => {
@@ -2668,7 +2932,7 @@
       const json = appMode === 'profile' ? buildProfileJSON() : buildJsonString();
       const fname = appMode === 'profile'
         ? `${v('pf-profile-id') || 'OAC-PROF'}-${Date.now()}.json`
-        : `OAC-CID-${v('f-schema-version') || '0.7'}-${Date.now()}.json`;
+        : `OAC-CID-${v('f-schema-version') || '0.9'}-${Date.now()}.json`;
       _downloadJSON(json, fname);
     }
 
@@ -2693,7 +2957,7 @@
       const minified = JSON.stringify(stripComments(obj)); // no indent = minified
       const base = appMode === 'profile'
         ? `${v('pf-profile-id') || 'OAC-PROF'}`
-        : `OAC-CID-${v('f-schema-version') || '0.7'}`;
+        : `OAC-CID-${v('f-schema-version') || '0.9'}`;
       _downloadJSON(minified, `${base}-minified-${Date.now()}.json`);
       showToast(`Saved minified JSON (${minified.length} bytes)`);
     }
@@ -2711,6 +2975,7 @@
       }
       ['f-schema-version','f-oac-spec','f-desc','f-voltage','f-conn-type',
        'f-opl-max','f-opl-emg','f-opl-eff','f-opl-red','f-opl-set-min','f-pct','f-iana-pen'].forEach(id => setVal(id,''));
+      excEnabled = false; excState = []; setVal('f-exc-enable', false); renderExc();
       CONN_IDS.forEach(id => {
         connState[id] = {
           populated: id==='CONN0', impedance_ohm:'', connector_profile:'', mpesti_capable:false,
@@ -2841,44 +3106,47 @@
     const HELP_REF_DATA = [
       // Metadata
       {f:'schema_version',    s:'Metadata',  t:'string',  r:true,  d:'JSON schema version this CID conforms to (e.g. "0.9").'},
-      {f:'oac_spec_revision', s:'Metadata',  t:'string',  r:true,  d:'OCP OAC Base Specification revision this adapter targets (e.g. "0.9").'},
-      {f:'description',       s:'Metadata',  t:'string',  r:false, d:'Human-readable adapter description for display and logging purposes.'},
-      {f:'iana_pen',          s:'Metadata',  t:'integer', r:false, d:'IANA Private Enterprise Number of the adapter vendor. Required for closed-deployment platform compatibility tokens.'},
-      {f:'platform_compat_token', s:'Metadata', t:'string', r:false, d:'Vendor-defined opaque string used in closed deployments to restrict adapter operation to specific platforms.'},
+      {f:'oac_spec_revision', s:'Metadata',  t:'string',  r:true,  d:'OCP OAC Base Specification revision this OAC targets (e.g. "0.9").'},
+      {f:'description',       s:'Metadata',  t:'string',  r:false, d:'Human-readable OAC description for display and logging purposes.'},
+      {f:'iana_pen',          s:'Metadata',  t:'integer', r:false, d:'IANA Private Enterprise Number of the OAC vendor. Required for closed-deployment platform compatibility tokens.'},
+      {f:'platform_compat_token', s:'Metadata', t:'string', r:false, d:'Vendor-defined opaque string used in closed deployments to restrict OAC operation to specific platforms.'},
       // Power
       {f:'input_voltage',     s:'Power',     t:'string',  r:true,  d:'Primary power rail voltage delivered by the baseboard. Allowed: "+12V" or "+50V".'},
       {f:'connector_type',    s:'Power',     t:'string',  r:true,  d:'Power connector variant per OAC Base Spec §9.3. "100A" (BK100, 80 A derated) or "125A" (BK125, 100 A derated, double-wide only).'},
-      {f:'opl_max_w',         s:'Power',     t:'number',  r:true,  d:'Maximum adapter power draw at full performance (OPL-MAX). Must be ≥ all other OPL values.'},
-      {f:'opl_emg_w',         s:'Power',     t:'number',  r:true,  d:'Power in emergency/safe mode (OPL-EMG). The BMC may fall back to this level during a power emergency.'},
+      {f:'opl_max_w',         s:'Power',     t:'number',  r:true,  d:'Maximum OAC power draw at full performance (OPL-MAX). Must be ≥ all other OPL values.'},
+      {f:'opl_emg_w',         s:'Power',     t:'number',  r:true,  d:'Power in emergency/safe mode (OPL-EMG). The upstream management controller may fall back to this level during a power emergency.'},
       {f:'opl_eff_w',         s:'Power',     t:'number',  r:false, d:'Efficient operating power level (OPL-EFF). Optional reduced-performance state.'},
       {f:'opl_red_w',         s:'Power',     t:'number',  r:false, d:'Reduced operating power level (OPL-RED). Optional further reduction state.'},
       {f:'opl_set_min_w',     s:'Power',     t:'number',  r:false, d:'Floor of the configurable OPL-SET range. The ceiling is always opl_max_w and is not declared separately. Presence of this field is what declares OPL-SET support.'},
+      {f:'excursion',         s:'Power',     t:'array',   r:false, d:'Declared power excursion profile: 2 to 8 {interval_us, ratio_max} entries in strictly ascending interval order. Optional. Absence means uncharacterized, not zero — the controller then budgets this OAC at the Base Specification Section 10.1.4 ceiling. Section 7.3.2.'},
+      {f:'interval_us',       s:'Power',     t:'integer', r:true,  d:'Averaging interval length T in microseconds, within a power.excursion entry. Must be a positive integer and strictly greater than the preceding entry.'},
+      {f:'ratio_max',         s:'Power',     t:'number',  r:true,  d:'Largest ratio of average power over an interval of interval_us to opl_max_w. Must be ≥ 1.0, must not exceed the Section 10.1.4 envelope at that interval (3 for T ≤ 100 µs, 4 − 0.2171·ln(T) between, 1 at or above 1,000,000 µs), and must not exceed the preceding entry. Normalized to opl_max_w only, and in force at OPL-MAX and OPL-EFF only.'},
       // Connector
       {f:'id',                s:'Connector', t:'string',  r:true,  d:'Connector identifier: "CONN0" through "CONN6".'},
-      {f:'populated',         s:'Connector', t:'boolean', r:true,  d:'true if this connector position is physically populated on the adapter.'},
+      {f:'populated',         s:'Connector', t:'boolean', r:true,  d:'true if this connector position is physically populated on the OAC.'},
       {f:'impedance_ohm',     s:'Connector', t:'integer', r:false, d:'High-speed signal trace impedance in ohms. "85 Ω (Black)" or "92 Ω (White)" per OAC Base Spec color coding.'},
       {f:'connector_profile', s:'Connector', t:'string',  r:false, d:'Reference to an OCP-ratified connector profile identifier (e.g. "OAC-PROF-CONN0-PCIeGen6-x16-IN-v1"). Mutually exclusive with explicit high_speed_lanes, clocking, and discrete_signals.'},
       {f:'mpesti_capable',    s:'Connector', t:'boolean', r:true,  d:'Required on CONN0, prohibited on CONN1–CONN6 and CABLE. true when CONN0 Pin A1 is overloaded to carry M-PESTI in addition to presence detect. Presence detect itself is fixed by the Base Specification and is never declared.'},
       // HS Lanes
       {f:'name',              s:'HS Lanes',  t:'string',  r:true,  d:'Required snake_case identifier for this protocol group (e.g. "pcie_primary", "eth_fabric"). Lowercase letters, digits, and underscores only. Must be unique within the connector\'s high_speed_lanes array.'},
       {f:'protocol',          s:'HS Lanes',  t:'string',  r:true,  d:'High-speed protocol carried by this lane group (e.g. "PCIe Gen6", "Ethernet 200G", "UALink 800G").'},
-      {f:'link_direction',    s:'HS Lanes',  t:'string',  r:true,  d:'Signal direction: "INBOUND" (host→adapter) or "OUTBOUND" (adapter→host).'},
+      {f:'link_direction',    s:'HS Lanes',  t:'string',  r:true,  d:'Signal direction: "INBOUND" (host→OAC) or "OUTBOUND" (OAC→host).'},
       {f:'total_lanes',       s:'HS Lanes',  t:'integer', r:true,  d:'Total number of high-speed lane positions in this protocol group (one-directional count). Max 16 per connector.'},
-      {f:'minimum_lanes',     s:'HS Lanes',  t:'integer', r:false, d:'Vendor-imposed operational floor. BMC should block slot energization if fewer lanes are electrically routed from the baseboard. When absent, any lane count is accepted.'},
+      {f:'minimum_lanes',     s:'HS Lanes',  t:'integer', r:false, d:'Vendor-imposed operational floor. The upstream management controller should block slot energization if fewer lanes are electrically routed from the baseboard. When absent, any lane count is accepted.'},
       // Clocking
       {f:'clock_id',          s:'Clocking',  t:'string',  r:true,  d:'Unique identifier for this reference clock within the connector (e.g. "REFCLK0").'},
       {f:'clock_type',        s:'Clocking',  t:'string',  r:true,  d:'"REFCLK_DIFF" (differential pair, uses pin_positive/pin_negative) or "REFCLK_SINGLE" (single-ended, uses pin).'},
       {f:'frequency_mhz',     s:'Clocking',  t:'number',  r:true,  d:'Nominal clock frequency in MHz (e.g. 100.0 for PCIe/UALink, 156.25 for Ethernet).'},
-      {f:'direction',         s:'Clocking',  t:'string',  r:true,  d:'"INPUT" = baseboard provides clock to adapter. "OUTPUT" = adapter sources the clock.'},
+      {f:'direction',         s:'Clocking',  t:'string',  r:true,  d:'"INPUT" = baseboard provides clock to OAC. "OUTPUT" = OAC sources the clock.'},
       {f:'ssc_supported',     s:'Clocking',  t:'boolean', r:true,  d:'true if this clock supports Spread Spectrum Clocking (SSC). Applies to both INPUT and OUTPUT clocks.'},
       {f:'associated_lanes',  s:'Clocking',  t:'array',   r:false, d:'Lane indices this clock serves. Empty array = not lane-specific (system reference).'},
       {f:'required',          s:'Clocking',  t:'boolean', r:true,  d:'true if this clock must be present and valid for the connector to operate.'},
       // Discrete Signals
       {f:'signal_name',       s:'Discrete',  t:'string',  r:true,  d:'Signal identifier. Vendor-defined signals must use the VENDOR_ prefix. Active-low signals must end with #.'},
-      {f:'direction',         s:'Discrete',  t:'string',  r:true,  d:'"INPUT" (baseboard→adapter) or "OUTPUT" (adapter→baseboard).'},
+      {f:'direction',         s:'Discrete',  t:'string',  r:true,  d:'"INPUT" (baseboard→OAC) or "OUTPUT" (OAC→baseboard).'},
       {f:'pullup_required',   s:'Discrete',  t:'boolean', r:false, d:'true if the baseboard must provide a pull-up resistor on this signal.'},
       {f:'pulldown_required', s:'Discrete',  t:'boolean', r:false, d:'true if the baseboard must provide a pull-down resistor on this signal.'},
-      {f:'required',          s:'Discrete',  t:'boolean', r:true,  d:'true if the baseboard must implement this signal for the adapter to operate correctly.'},
+      {f:'required',          s:'Discrete',  t:'boolean', r:true,  d:'true if the baseboard must implement this signal for the OAC to operate correctly.'},
       // Profile
       {f:'profile_id',        s:'Profile',   t:'string',  r:true,  d:'OCP-ratified profile identifier. Format: OAC-PROF-<CONN0|CONN>-<proto>-x<lanes>-<dir>-v<n>[-minified].'},
       {f:'profile_version',   s:'Profile',   t:'string',  r:true,  d:'Semantic version of this specific profile definition (e.g. "1.0"). Incremented when pin assignments change.'},
@@ -2949,8 +3217,8 @@
 
         <!-- Getting Started -->
         <div class="help-panel active" id="hp-gs">
-          <div class="help-step"><div class="help-step-num">1</div><div class="help-step-body"><h4>Choose a mode</h4><p>Use the <strong>CID</strong> / <strong>Connector Profile</strong> toggle in the header to select what you're authoring. A CID describes a complete adapter. A Connector Profile defines a reusable, OCP-ratified pinout for a single connector position.</p></div></div>
-          <div class="help-step"><div class="help-step-num">2</div><div class="help-step-body"><h4>Fill in Metadata &amp; Power</h4><p>In CID mode, start with the Metadata section (schema version, spec revision, adapter description), then complete the Power section (input voltage, connector type, and all required OPL fields).</p></div></div>
+          <div class="help-step"><div class="help-step-num">1</div><div class="help-step-body"><h4>Choose a mode</h4><p>Use the <strong>CID</strong> / <strong>Connector Profile</strong> toggle in the header to select what you're authoring. A CID describes a complete OAC. A Connector Profile defines a reusable, OCP-ratified pinout for a single connector position.</p></div></div>
+          <div class="help-step"><div class="help-step-num">2</div><div class="help-step-body"><h4>Fill in Metadata &amp; Power</h4><p>In CID mode, start with the Metadata section (schema version, spec revision, OAC description), then complete the Power section (input voltage, connector type, and all required OPL fields).</p></div></div>
           <div class="help-step"><div class="help-step-num">3</div><div class="help-step-body"><h4>Configure Connectors</h4><p>Use the left nav to jump to each connector (CONN0–CONN6). Mark a connector as Populated to unlock its signal sections. For each connector, either reference an OCP-ratified Connector Profile, or define High-Speed Lanes, Clocking, and Discrete Signals explicitly — not both.</p></div></div>
           <div class="help-step"><div class="help-step-num">4</div><div class="help-step-body"><h4>Assign Pins</h4><p>Expand the Visual Pin Map for each connector to assign physical pins to lane signals, clock signals, and discrete signals by clicking on pin cells. The map enforces position constraints automatically.</p></div></div>
           <div class="help-step"><div class="help-step-num">5</div><div class="help-step-body"><h4>Validate &amp; Export</h4><p>Watch the validation badge in the JSON Preview panel for errors and warnings. When the badge shows ✓ Valid, use <strong>Export JSON</strong> to save your CID as a formatted or minified JSON file ready for firmware integration.</p></div></div>
@@ -2980,8 +3248,8 @@
         <div class="help-panel" id="hp-about">
           <div class="help-about-row"><span>Tool</span><span class="help-about-val">OAC CID Editor</span></div>
           <div class="help-about-row"><span>Last Modified</span><span class="help-about-val" id="help-last-modified">—</span></div>
-          <div class="help-about-row"><span>CID Schema Version</span><span class="help-about-val">0.8</span></div>
-          <div class="help-about-row"><span>OCP OAC Base Spec Revision</span><span class="help-about-val">0.8</span></div>
+          <div class="help-about-row"><span>CID Schema Version</span><span class="help-about-val">0.9</span></div>
+          <div class="help-about-row"><span>OCP OAC Base Spec Revision</span><span class="help-about-val">0.9</span></div>
           <div class="help-about-row"><span>Repository</span><span class="help-about-val"><a href="https://github.com/ocp-oac/cid" target="_blank" style="color:var(--ocp-accent)">github.com/ocp-oac/cid</a></span></div>
           <div class="help-about-row"><span>Normative references</span><span class="help-about-val">DMTF DSP0220, DSP0257, DSP0242</span></div>
           <div style="margin-top:16px;font-size:0.74rem;color:var(--ocp-muted);line-height:1.6;">

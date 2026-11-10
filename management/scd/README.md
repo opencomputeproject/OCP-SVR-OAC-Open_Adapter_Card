@@ -10,10 +10,16 @@
 This directory contains the OAC Slot Configuration Data specification, JSON templates, paired reference examples, and a validation tool. SCD is the return path of the CID conversation: the OAC declares what it is, the platform tells it what to be.
 
 ```
-   OAC  ──── CID  (compatibility characteristics) ───────►  Upstream management controller
-   OAC  ──── SCDD (configurable fields and defaults) ────►  Upstream management controller
-   OAC  ◄─── SCDA (assigned field values) ──────────────────┘
+   OAC  ──── Metadata (which files exist, and how to open them) ──►  Upstream management controller
+   OAC  ──── CID  (compatibility characteristics) ────────────────►  Upstream management controller
+   OAC  ──── SCDD (configurable fields and defaults) ─────────────►  Upstream management controller
+   OAC  ◄─── SCDA (assigned field values) ───────────────────────────┘
 ```
+
+The Metadata file comes first and is not optional. It is the only file the controller locates by
+name; it maps the roles `cid`, `scdd`, and `scda` to the `FileIdentifier` values the controller
+then opens. A controller that cannot retrieve or validate it stops there — falling back to matching
+`FileName` is prohibited. See [`../metadata/`](../metadata/).
 
 The **SCD Definition (SCDD)** is a FRU file the OAC publishes: a template of every settable field, each with its type, bounds, response class, and a **mandatory default**. The **SCD Assignment (SCDA)** is a **sparse** PLDM file the controller writes back, keyed by field identifier, carrying only the fields it wants to change.
 
@@ -102,14 +108,15 @@ Five rules carry most of the weight:
 
 ## Quick Start
 
-1. Read the OAC's CID over PLDM for FRU Data. Decide whether to power it at all.
-2. Read the OAC's SCD Definition, also over PLDM for FRU Data, and resolve any `connector_profile` references in the CID.
-3. Copy `templates/OAC-SCDA-TEMPLATE.json` and compose an Assignment. Set only the fields you recognize and want to change; omit everything else, including `required` fields you have no opinion about.
-4. Echo the Definition's `definition_revision` in your Assignment metadata if you like. It is informational provenance; the OAC does not check it, and a cached Definition is instead discarded when `OAC_MC_RDY` deasserts.
-5. Delete every `$comment` key — ECMA-404 permits no comments, so the annotations are an authoring convenience only.
-6. Validate with `tools/validate-scd.py`.
-7. Minify. The transferred size limit is 64 KB for a Definition and 64 KB for an Assignment — the same figure, because an Assignment composed against a Definition cannot be larger than it.
-8. Transfer with `DfOpen`/`DfWrite`/`DfClose` while the OAC is in O3, before asserting `OAC_PWR_EN`.
+1. Read the OAC Metadata file and resolve the `cid`, `scdd`, and `scda` roles to their `FileIdentifier` values. Everything below depends on this step; nothing is found by name.
+2. Read the OAC's CID over PLDM for FRU Data. Decide whether to power it at all.
+3. Read the OAC's SCD Definition, also over PLDM for FRU Data, and resolve any `connector_profile` references in the CID.
+4. Copy `templates/OAC-SCDA-TEMPLATE.json` and compose an Assignment. Set only the fields you recognize and want to change; omit everything else, including `required` fields you have no opinion about.
+5. Echo the Definition's `definition_revision` in your Assignment metadata if you like. It is informational provenance; the OAC does not check it, and a cached Definition is instead discarded when `OAC_MC_RDY` deasserts.
+6. Delete every `$comment` key — ECMA-404 permits no comments, so the annotations are an authoring convenience only.
+7. Validate with `tools/validate-scd.py`.
+8. Minify. The transferred size limit is 64 KB for a Definition and 64 KB for an Assignment — the same figure, because an Assignment composed against a Definition cannot be larger than it.
+9. Transfer with `DfOpen`/`DfWrite`/`DfClose` while the OAC is in O3, before asserting `OAC_PWR_EN`.
 
 To author a Definition rather than an Assignment — that is, if you are building an OAC — start from `templates/OAC-SCDD-TEMPLATE.json` and read `templates/README.md`.
 

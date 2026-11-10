@@ -1,7 +1,7 @@
 {
   "oac_cid": {
     "metadata": {
-      "$comment": "schema_version tracks the CID JSON schema revision. oac_spec_revision tracks the OAC Base Specification revision this adapter was designed against.",
+      "$comment": "schema_version tracks the CID JSON schema revision. oac_spec_revision tracks the OAC Base Specification revision this OAC was designed against.",
       "schema_version": "0.9",
       "oac_spec_revision": "<spec_revision>",
       "description": "<Human-readable description of this OAC CID instance>",
@@ -20,11 +20,20 @@
         "opl_eff_w": 0.0,
         "opl_red_w": 0.0,
         "opl_set_min_w": 0.0
-      }
+      },
+      "$comment_excursion": "excursion: optional array, 2 to 8 entries, interval_us strictly ascending. Each entry declares the maximum ratio of average power over an interval of that length to opl_max_w. ratio_max is normalized to opl_max_w only -- it does not rescale at OPL-EFF, and the effective ratio is 1 at OPL-RED, OPL-EMG, and OPL-SET. Each ratio_max must be >= 1.0 and must not exceed the OCP OAC Base Spec v0.9 Section 10.1.4 envelope at that interval. That envelope is piecewise: R = 3 for T <= 100, R = 4 - 0.2171 * ln(T) for 100 < T < 1000000, R = 1 for T >= 1000000, and ratios must be monotonically non-increasing as interval_us rises. The intervals below are the recommended grid of spec Table 7.3.2-2; the ratios below are placeholders at the Section 10.1.4 ceiling and should be replaced with this OAC's characterized values. Delete the whole excursion array if this OAC is not characterized -- absence means uncharacterized, and the controller will budget at the Section 10.1.4 ceiling. See spec Section 7.3.2.",
+      "excursion": [
+        { "interval_us": 10, "ratio_max": 3.00 },
+        { "interval_us": 100, "ratio_max": 3.00 },
+        { "interval_us": 1000, "ratio_max": 2.50 },
+        { "interval_us": 10000, "ratio_max": 2.00 },
+        { "interval_us": 100000, "ratio_max": 1.50 },
+        { "interval_us": 1000000, "ratio_max": 1.00 }
+      ]
     },
     "connectors": [
       {
-        "$comment": "Populated connector template. 'id' must be unique and one of: CONN0-CONN6, CABLE. CONN0 must always appear first with populated=true. connector_profile is optional: when present, high_speed_lanes, clocking, and discrete_signals become optional -- any section explicitly declared overrides the profile for that section in full; any section omitted is inherited from the profile. Use an OCP-ratified profile identifier (prefix 'OAC-PROF-'). When connector_profile is set, high_speed_lanes, clocking, and discrete_signals must be omitted from this connector object -- they are defined entirely by the profile. Omit connector_profile entirely to define signals explicitly. mpesti_capable is required on CONN0 and must be omitted on CONN1-CONN6 and CABLE: it declares whether CONN0 Pin A1 is additionally overloaded with M-PESTI. Presence detection itself (the GND tie on Pin A1) is fixed by the OAC Base Specification and is never declared in the CID.",
+        "$comment": "Populated connector template. 'id' must be unique and one of: CONN0-CONN6, CABLE. CONN0 must always appear first with populated=true. connector_profile is optional. Use an OCP-ratified profile identifier (prefix 'OAC-PROF-'). When connector_profile is set, high_speed_lanes, clocking, and discrete_signals must be omitted from this connector object -- they are defined entirely by the profile. Omit connector_profile entirely to define signals explicitly. mpesti_capable is required on CONN0 and must be omitted on CONN1-CONN6 and CABLE: it declares whether CONN0 Pin A1 is additionally overloaded with M-PESTI. Presence detection itself (the GND tie on Pin A1) is fixed by the OAC Base Specification and is never declared in the CID.",
         "id": "<CONNx>",
         "populated": true,
         "impedance_ohm": 0,
@@ -79,7 +88,7 @@
         ]
       },
       {
-        "$comment": "Unpopulated connector stub. Use this pattern for any connector position that is physically absent on this adapter variant. Only 'id' and 'populated' are needed.",
+        "$comment": "Unpopulated connector stub. Use this pattern for any connector position that is physically absent on this OAC variant. Only 'id' and 'populated' are needed.",
         "id": "<CONNx>",
         "populated": false
       }

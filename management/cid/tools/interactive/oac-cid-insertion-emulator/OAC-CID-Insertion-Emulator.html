@@ -237,8 +237,8 @@ header p  { font-size: 0.73rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
   white-space: nowrap; font-weight: 600;
 }
 
-/* ── Adapter card ───────────────────────────────────────── */
-.adapter-card {
+/* ── OAC card ───────────────────────────────────────── */
+.OAC-card {
   position: absolute;
   bottom: 115px; left: 0;
   width: 325px; height: 148px;
@@ -247,8 +247,8 @@ header p  { font-size: 0.73rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
   will-change: bottom;
   z-index: 2;
 }
-.adapter-card.inserting { bottom: 90px; transition-duration: 0.65s; }
-.adapter-card.inserted  {
+.OAC-card.inserting { bottom: 90px; transition-duration: 0.65s; }
+.OAC-card.inserted  {
   bottom: 68px;
   transition: bottom 0.35s cubic-bezier(0.0, 0.0, 0.2, 1);
 }
@@ -480,7 +480,7 @@ header p  { font-size: 0.73rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
   <div class="ocp-logo">OCP</div>
   <div>
     <h1>OAC CID Insertion Emulator</h1>
-    <p>JSON CID v0.7 — Adapter compatibility check with O-state power sequencing</p>
+    <p>JSON CID v0.9 — OAC compatibility check with O-state power sequencing</p>
   </div>
 </header>
 
@@ -500,19 +500,19 @@ header p  { font-size: 0.73rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
     </div>
 
     <div class="panel-section">
-      <h3>Adapter JSON</h3>
+      <h3>OAC JSON</h3>
       <div class="schema-slot" id="ad-slot" onclick="document.getElementById('ad-file').click()">
-        <label>Load OAC Adapter CID (oac_cid)</label>
+        <label>Load OAC CID (oac_cid)</label>
         <div class="slot-name" id="ad-name">Click to load&hellip;</div>
         <div class="slot-meta" id="ad-meta">No file loaded</div>
-        <input type="file" id="ad-file" accept=".json" onchange="loadSchema('adapter', this)"/>
+        <input type="file" id="ad-file" accept=".json" onchange="loadSchema('OAC', this)"/>
       </div>
     </div>
 
     <div class="panel-section">
       <h3>Simulation</h3>
       <button class="btn btn-primary" id="insert-btn" onclick="startInsertion()" disabled>
-        Insert Adapter into Baseboard
+        Insert OAC into Baseboard
       </button>
       <button class="btn btn-secondary" onclick="resetSim()">Reset Simulation</button>
       <button class="btn btn-export" onclick="exportLog()">Export Event Log</button>
@@ -532,8 +532,8 @@ header p  { font-size: 0.73rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
       <div class="scene-title">Hardware Visualization</div>
       <div class="scene">
 
-        <!-- Adapter card -->
-        <div class="adapter-card" id="adapter-card">
+        <!-- OAC card -->
+        <div class="OAC-card" id="OAC-card">
           <div class="pcb">
             <div class="bracket"></div>
             <div class="card-leds">
@@ -588,7 +588,7 @@ header p  { font-size: 0.73rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
 // ─────────────────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────────────────
-let schemas    = { baseboard: null, adapter: null };
+let schemas    = { baseboard: null, OAC: null };
 let logEntries = [];
 let simRunning = false;
 let simStart   = null;
@@ -629,7 +629,7 @@ function loadSchema(role, input) {
 
 function updateSummary() {
   const lines = [];
-  for (const [role, label] of [['baseboard','Baseboard'],['adapter','Adapter']]) {
+  for (const [role, label] of [['baseboard','Baseboard'],['OAC','OAC']]) {
     if (!schemas[role]) continue;
     const r = getRoot(schemas[role]);
     const m = r.metadata || {};
@@ -652,7 +652,7 @@ function truncate(s, n) {
 }
 
 function checkReady() {
-  const ready = !!(schemas.baseboard && schemas.adapter);
+  const ready = !!(schemas.baseboard && schemas.OAC);
   document.getElementById('insert-btn').disabled = !ready || simRunning;
 }
 
@@ -687,8 +687,8 @@ function resetSim() {
   logEntries = [];
   document.getElementById('event-log').innerHTML = '';
   document.getElementById('log-count').textContent = '0 events';
-  const card = document.getElementById('adapter-card');
-  card.className = 'adapter-card';
+  const card = document.getElementById('OAC-card');
+  card.className = 'OAC-card';
   document.getElementById('status-banner').className = 'status-banner';
   document.getElementById('issues-list').className   = 'issues-list';
   document.getElementById('issues-items').innerHTML  = '';
@@ -769,19 +769,19 @@ async function startInsertion() {
   document.getElementById('insert-btn').disabled = true;
 
   const bs = getRoot(schemas.baseboard);
-  const ad = getRoot(schemas.adapter);
+  const ad = getRoot(schemas.OAC);
 
   // ── Phase 1: Physical insertion animation ──────────────
   log('PHYSICAL INSERTION SEQUENCE', 'section');
-  log('Adapter card moving toward baseboard OAC slot...', 'info');
-  const card = document.getElementById('adapter-card');
+  log('OAC card moving toward baseboard OAC slot...', 'info');
+  const card = document.getElementById('OAC-card');
   card.classList.add('inserting');
   await delay(700);
   log('Connector edge approaching OAC slot — seating...', 'info');
   card.classList.remove('inserting');
   card.classList.add('inserted');
   await delay(400);
-  log('Adapter card seated in OAC slot. Mechanical engagement complete.', 'success');
+  log('OAC card seated in OAC slot. Mechanical engagement complete.', 'success');
   await delay(300);
 
   // ── Phase 2: O-state power sequencing ─────────────────
@@ -795,14 +795,16 @@ async function startInsertion() {
   await delay(600);
   log('OAC_MC_RDY asserted — Operational State O3 reached.', 'success');
   await delay(300);
-  log('BMC retrieving JSON-encoded CID via PLDM (DSP0257)...', 'info');
+  log('Controller reading OAC Metadata file, resolving cid role to a FileIdentifier...', 'info');
+  await delay(400);
+  log('Controller retrieving JSON-encoded CID via PLDM (DSP0257)...', 'info');
   await delay(500);
   log('CID received. Beginning compliance evaluation.', 'info');
   await delay(200);
 
   // ── Phase 3: Compliance checks ────────────────────────
   log('', 'info');
-  log('COMPLIANCE EVALUATION (CID v0.7)', 'section');
+  log('COMPLIANCE EVALUATION (CID v0.9)', 'section');
   const results = await runComplianceChecks(bs, ad);
 
   // ── Phase 4: Verdict ──────────────────────────────────
@@ -819,31 +821,31 @@ async function startInsertion() {
   if (hasFail) {
     setLeds('red');
     log('RESULT: BLOCKED — Compatibility failure detected.', 'error');
-    log('OAC_PWR_EN remains de-asserted. Adapter will not power on.', 'error');
+    log('OAC_PWR_EN remains de-asserted. OAC will not power on.', 'error');
     log(`Summary: PASS=${nPass}  WARN=${nWarn}  FAIL=${nFail}`, 'error');
     showStatus('red',
-      'Adapter BLOCKED — Compatibility Failure',
-      'The upstream controller determined the baseboard cannot satisfy one or more hard requirements of this adapter CID. OAC_PWR_EN will remain de-asserted. Adapter will not receive primary power.',
+      'OAC BLOCKED — Compatibility Failure',
+      'The upstream controller determined the baseboard cannot satisfy one or more hard requirements of this OAC CID. OAC_PWR_EN will remain de-asserted. OAC will not receive primary power.',
       results);
   } else if (hasWarn) {
     setLeds('yellow');
     log('RESULT: DEGRADED — Minimum requirements met; full capability not verified.', 'warning');
     await delay(400);
-    log('Asserting OAC_PWR_EN (O3 -> O4 -> O5). Adapter powered in degraded mode.', 'warning');
+    log('Asserting OAC_PWR_EN (O3 -> O4 -> O5). OAC powered in degraded mode.', 'warning');
     log(`Summary: PASS=${nPass}  WARN=${nWarn}  FAIL=${nFail}`, 'warning');
     showStatus('yellow',
-      'Adapter ON — Degraded Mode',
-      'Minimum hard requirements are satisfied but one or more optional or informational checks could not be fully verified (e.g. reduced bandwidth, undeclared fields). OAC_PWR_EN has been asserted. Adapter is powered on with possible operational restrictions.',
+      'OAC ON — Degraded Mode',
+      'Minimum hard requirements are satisfied but one or more optional or informational checks could not be fully verified (e.g. reduced bandwidth, undeclared fields). OAC_PWR_EN has been asserted. OAC is powered on with possible operational restrictions.',
       results);
   } else {
     setLeds('green');
     log('RESULT: NORMAL — All checks passed. Full compatibility confirmed.', 'success');
     await delay(400);
-    log('Asserting OAC_PWR_EN (O3 -> O4 -> O5). Adapter at full capability.', 'success');
+    log('Asserting OAC_PWR_EN (O3 -> O4 -> O5). OAC at full capability.', 'success');
     log(`Summary: PASS=${nPass}  WARN=${nWarn}  FAIL=${nFail}`, 'success');
     showStatus('green',
-      'Adapter ON — Normal Operation',
-      'All compliance checks passed. OAC_PWR_EN has been asserted. Adapter is fully powered and operating at full capability.',
+      'OAC ON — Normal Operation',
+      'All compliance checks passed. OAC_PWR_EN has been asserted. OAC is fully powered and operating at full capability.',
       results);
   }
 
@@ -874,13 +876,13 @@ async function runComplianceChecks(bs, ad) {
   {
     const av = adPwr.input_voltage;
     const bv = bsPwr.input_voltage;
-    info(`Adapter: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
+    info(`OAC: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
     if (!av || !bv) {
       fail('input_voltage not declared in one or both schemas.');
     } else if (av === bv) {
       pass(`input_voltage match: ${av}`);
     } else {
-      fail(`input_voltage mismatch — adapter requires ${av}, baseboard provides ${bv}.`);
+      fail(`input_voltage mismatch — OAC requires ${av}, baseboard provides ${bv}.`);
     }
   }
 
@@ -890,15 +892,15 @@ async function runComplianceChecks(bs, ad) {
   {
     const av = adPwr.connector_type;
     const bv = bsPwr.connector_type;
-    info(`Adapter: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
+    info(`OAC: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
     if (!av) {
-      fail('Adapter does not declare connector_type.');
+      fail('OAC does not declare connector_type.');
     } else if (!bv) {
       warn('Baseboard does not declare connector_type — cannot verify connector compatibility.');
     } else if (av === '125A' && bv === '100A') {
-      fail(`Adapter requires 125A connector but baseboard slot only supports 100A.`);
+      fail(`OAC requires 125A connector but baseboard slot only supports 100A.`);
     } else {
-      pass(`Connector type compatible — baseboard ${bv} supports adapter ${av}.`);
+      pass(`Connector type compatible — baseboard ${bv} supports OAC ${av}.`);
     }
   }
 
@@ -908,15 +910,15 @@ async function runComplianceChecks(bs, ad) {
   {
     const av = adPwr.opl_max_w;
     const bv = bsPwr.opl_max_w;
-    info(`Adapter opl_max_w: ${av != null ? av + 'W' : '(not declared)'}  |  Baseboard opl_max_w: ${bv != null ? bv + 'W' : '(not declared)'}`);
+    info(`OAC opl_max_w: ${av != null ? av + 'W' : '(not declared)'}  |  Baseboard opl_max_w: ${bv != null ? bv + 'W' : '(not declared)'}`);
     if (av == null) {
-      fail('Adapter opl_max_w not declared — power budget cannot be evaluated.');
+      fail('OAC opl_max_w not declared — power budget cannot be evaluated.');
     } else if (bv == null) {
       warn('Baseboard opl_max_w not declared — cannot verify power budget. Proceeding with caution.');
     } else if (bv >= av) {
-      pass(`Baseboard power budget ${bv}W >= adapter opl_max_w ${av}W.`);
+      pass(`Baseboard power budget ${bv}W >= OAC opl_max_w ${av}W.`);
     } else {
-      fail(`Baseboard power budget ${bv}W < adapter opl_max_w ${av}W. Insufficient power.`);
+      fail(`Baseboard power budget ${bv}W < OAC opl_max_w ${av}W. Insufficient power.`);
     }
   }
 
@@ -925,17 +927,117 @@ async function runComplianceChecks(bs, ad) {
   log('CHECK 4 — OPL-EMG Declared (power.primary.opl_emg_w)', 'section');
   {
     const av = adPwr.opl_emg_w;
-    info(`Adapter opl_emg_w: ${av != null ? av + 'W' : '(not declared)'}`);
+    info(`OAC opl_emg_w: ${av != null ? av + 'W' : '(not declared)'}`);
     if (av == null) {
-      warn('Adapter opl_emg_w not declared — emergency power level unspecified. OAC_PWRBRK# behavior undefined.');
+      warn('OAC opl_emg_w not declared — emergency power level unspecified. OAC_PWRBRK# behavior undefined.');
     } else {
-      pass(`Adapter opl_emg_w declared: ${av}W.`);
+      pass(`OAC opl_emg_w declared: ${av}W.`);
     }
   }
 
-  // ── CHECK 5: Connector Impedance ──────────────────────
+  // ── CHECK 5: Declared Power Excursion Profile ──────────
   await delay(200);
-  log('CHECK 5 — Connector Impedance (connectors[].impedance_ohm)', 'section');
+  log('CHECK 5 — Declared Power Excursion Profile (power.excursion)', 'section');
+  {
+    // Base Specification v0.9 Section 10.1.4, Table 29, piecewise. The logarithmic branch
+    // is bounded at both ends; extrapolating it is wrong in the permissive direction at
+    // short intervals and in the restrictive direction at long ones.
+    const envelope = T => (T <= 100 ? 3 : (T >= 1000000 ? 1 : 4 - 0.2171 * Math.log(T)));
+    // Section 7.3.2 interpolation: nearest declared interval SHORTER than T; below the
+    // shortest declared point, fall back to the envelope; above the largest, hold it.
+    const ratioAt = (prof, T) => {
+      if (!prof || !prof.length) return envelope(T);
+      let r = null;
+      for (const e of prof) { if (e.interval_us <= T) r = e.ratio_max; else break; }
+      return r === null ? envelope(T) : r;
+    };
+    const fmtUs = T => Number(T).toLocaleString('en-US');
+
+    const adExc = (ad.power || {}).excursion;
+    const bsExc = (bs.power || {}).excursion;
+    const adMax = adPwr.opl_max_w, bsMax = bsPwr.opl_max_w;
+    let profileUsable = true;   // a malformed profile is not budgeted against — it is rejected
+
+    if (adExc === undefined) {
+      warn('OAC declares no power.excursion — uncharacterized, not zero. Budgeting it at the ' +
+           'Section 10.1.4 ceiling (3x up to 100us, falling to 1x at 1s).');
+    } else if (!Array.isArray(adExc)) {
+      fail('power.excursion is present but is not an array (Section 7.3.2). Malformed — slot shall not be energized.');
+      profileUsable = false;
+    } else {
+      // Intrinsic validity first. Table 9.3-1 rules 1-5 are all "slot shall not be energized".
+      const bad = [];
+      if (adExc.length < 2 || adExc.length > 8) bad.push('array has ' + adExc.length + ' entries; 2 to 8 required');
+      let pT = null, pR = null;
+      adExc.forEach((e, i) => {
+        const T = e && e.interval_us, r = e && e.ratio_max;
+        if (typeof T !== 'number' || !(T > 0) || Math.floor(T) !== T) { bad.push('[' + i + '] interval_us is not a positive integer'); return; }
+        if (typeof r !== 'number' || !isFinite(r)) { bad.push('[' + i + '] ratio_max is not a number'); return; }
+        if (pT !== null && T <= pT) bad.push('[' + i + '] interval_us ' + T + ' does not exceed the preceding ' + pT);
+        if (r < 1.0) bad.push('[' + i + '] ratio_max ' + r + ' is below 1.0');
+        const cap = envelope(T);
+        if (r > cap + 1e-9) bad.push('[' + i + '] ratio_max ' + r + ' exceeds the Section 10.1.4 envelope of ' + cap.toFixed(4) + ' at T = ' + fmtUs(T) + ' us');
+        if (pR !== null && r > pR + 1e-9) bad.push('[' + i + '] ratio_max ' + r + ' exceeds the preceding ' + pR + '; a longer interval cannot admit a larger ratio');
+        pT = T; pR = r;
+      });
+      info('OAC declares ' + adExc.length + ' point' + (adExc.length === 1 ? '' : 's') + ': ' +
+           adExc.map(e => fmtUs(e.interval_us) + ' us @ ' + e.ratio_max + 'x').join(',  '));
+      if (bad.length) {
+        bad.forEach(b => fail('power.excursion ' + b + '.'));
+        profileUsable = false;
+      } else {
+        pass('Declared excursion profile is internally consistent and within the Section 10.1.4 envelope.');
+      }
+    }
+
+    // Absolute-watt comparison. Ratios are normalized to each document's own opl_max_w, so
+    // comparing ratios directly would be meaningless between two documents with different
+    // maxima — the comparison has to be done in watts.
+    if (!profileUsable) {
+      info('Transient budget not evaluated — the declared profile is malformed, so there is nothing ' +
+           'well-formed to budget against. Fix the declaration and re-run.');
+    } else if (adMax == null) {
+      info('OAC opl_max_w not declared — excursion cannot be converted to watts.');
+    } else if (bsMax == null) {
+      warn('Baseboard opl_max_w not declared — cannot evaluate transient headroom at the slot.');
+    } else {
+      info('Baseboard transient capability: ' + (bsExc
+        ? 'declared, ' + bsExc.length + ' point' + (bsExc.length === 1 ? '' : 's')
+        : 'not declared — assuming the Section 10.1.4 envelope, which the slot must tolerate for any conformant OAC') + '.');
+      const grid = (Array.isArray(adExc) && adExc.length
+        ? adExc.map(e => e.interval_us)
+        : [10, 100, 1000, 10000, 100000, 1000000]).filter(T => typeof T === 'number' && T > 0);
+      let worst = null;
+      grid.forEach(T => {
+        const need = ratioAt(Array.isArray(adExc) ? adExc : null, T) * adMax;
+        const have = ratioAt(Array.isArray(bsExc) ? bsExc : null, T) * bsMax;
+        if (need > have + 1e-6 && (worst === null || need - have > worst.gap)) worst = { T, need, have, gap: need - have };
+      });
+      if (worst) {
+        fail('Transient budget exceeded at T = ' + fmtUs(worst.T) + ' us: OAC may draw ' +
+             worst.need.toFixed(0) + 'W averaged over that interval, slot supports ' +
+             worst.have.toFixed(0) + 'W. Short by ' + worst.gap.toFixed(0) + 'W.');
+      } else {
+        pass('Slot transient capability covers the OAC at every evaluated interval.');
+      }
+    }
+
+    // Implied current is reported, not judged (Section 9.3, check 6): the connector's derated
+    // rating is a thermal figure and these are microsecond-scale averages.
+    const volts = { '+12V': 12, '+50V': 50 }[adPwr.input_voltage];
+    const derate = { '100A': 80, '125A': 100 }[adPwr.connector_type];
+    if (volts && derate && adMax != null && Array.isArray(adExc) && adExc.length) {
+      const peak = adExc.reduce((m, e) => (typeof e.ratio_max === 'number' && e.ratio_max > m ? e.ratio_max : m), 0);
+      const amps = (peak * adMax) / volts;
+      info('Peak declared excursion implies ' + amps.toFixed(1) + 'A at ' + adPwr.input_voltage +
+           ' (connector derated continuous rating ' + derate + 'A). Reported, not judged — the ' +
+           'derated rating is thermal and this is a microsecond-scale average.');
+    }
+  }
+
+  // ── CHECK 6: Connector Impedance ──────────────────────
+  await delay(200);
+  log('CHECK 6 — Connector Impedance (connectors[].impedance_ohm)', 'section');
   {
     let anyCheck = false;
     for (const ac of adPop) {
@@ -947,22 +1049,22 @@ async function runComplianceChecks(bs, ad) {
       }
       const ai = ac.impedance_ohm;
       const bi = bc.impedance_ohm;
-      info(`${ac.id}: adapter=${ai != null ? ai + 'ohm' : '(none)'}  |  baseboard=${bi != null ? bi + 'ohm' : '(none)'}`);
+      info(`${ac.id}: OAC=${ai != null ? ai + 'ohm' : '(none)'}  |  baseboard=${bi != null ? bi + 'ohm' : '(none)'}`);
       anyCheck = true;
       if (ai == null || bi == null) {
         warn(`${ac.id}: impedance_ohm not fully declared — cannot verify trace matching.`);
       } else if (ai === bi) {
         pass(`${ac.id}: impedance match (${ai} ohm).`);
       } else {
-        fail(`${ac.id}: impedance mismatch — adapter ${ai} ohm != baseboard ${bi} ohm.`);
+        fail(`${ac.id}: impedance mismatch — OAC ${ai} ohm != baseboard ${bi} ohm.`);
       }
     }
     if (!anyCheck) info('No populated connectors to check.');
   }
 
-  // ── CHECK 6: High-Speed Lane Protocol, Role, Direction, Min Lanes ─
+  // ── CHECK 7: High-Speed Lane Protocol, Role, Direction, Min Lanes ─
   await delay(200);
-  log('CHECK 6 — High-Speed Lane Protocol, Role, Direction, Minimum Lanes', 'section');
+  log('CHECK 7 — High-Speed Lane Protocol, Role, Direction, Minimum Lanes', 'section');
   {
     let anyHS = false;
     for (const ac of adPop) {
@@ -972,7 +1074,7 @@ async function runComplianceChecks(bs, ad) {
       const bc  = bsCons.find(c => c.id === ac.id);
       const bHS = bc && bc.high_speed_lanes;
       if (!bHS) {
-        fail(`${ac.id}: adapter declares high_speed_lanes but baseboard has no matching definition.`);
+        fail(`${ac.id}: OAC declares high_speed_lanes but baseboard has no matching definition.`);
         continue;
       }
       for (const [field, av, bv] of [
@@ -980,13 +1082,13 @@ async function runComplianceChecks(bs, ad) {
         ['link_role',      aHS.link_role,       bHS.link_role],
         ['link_direction', aHS.link_direction,  bHS.link_direction],
       ]) {
-        info(`${ac.id}.${field}: adapter=${av || '—'}  |  baseboard=${bv || '—'}`);
+        info(`${ac.id}.${field}: OAC=${av || '—'}  |  baseboard=${bv || '—'}`);
         if (!av || !bv) {
           warn(`${ac.id}.${field}: not declared in one or both schemas.`);
         } else if (av === bv) {
           pass(`${ac.id}.${field}: match (${av}).`);
         } else {
-          fail(`${ac.id}.${field}: mismatch — adapter=${av}, baseboard=${bv}.`);
+          fail(`${ac.id}.${field}: mismatch — OAC=${av}, baseboard=${bv}.`);
         }
       }
       // minimum_lanes
@@ -994,23 +1096,23 @@ async function runComplianceChecks(bs, ad) {
       const bsTot = bHS.total_lanes   != null ? Number(bHS.total_lanes)   : NaN;
       const bsMin = bHS.minimum_lanes != null ? Number(bHS.minimum_lanes) : NaN;
       const bsAvail = !isNaN(bsTot) ? bsTot : bsMin;
-      info(`${ac.id}.minimum_lanes: adapter=${isNaN(adMin)?'—':adMin}  |  baseboard available=${isNaN(bsAvail)?'—':bsAvail}`);
+      info(`${ac.id}.minimum_lanes: OAC=${isNaN(adMin)?'—':adMin}  |  baseboard available=${isNaN(bsAvail)?'—':bsAvail}`);
       if (isNaN(adMin)) {
-        warn(`${ac.id}: adapter minimum_lanes not declared.`);
+        warn(`${ac.id}: OAC minimum_lanes not declared.`);
       } else if (isNaN(bsAvail)) {
         warn(`${ac.id}: baseboard lane count not declared — cannot verify minimum lanes.`);
       } else if (bsAvail >= adMin) {
-        pass(`${ac.id}: baseboard supports ${bsAvail} lanes >= adapter minimum ${adMin}.`);
+        pass(`${ac.id}: baseboard supports ${bsAvail} lanes >= OAC minimum ${adMin}.`);
       } else {
-        fail(`${ac.id}: baseboard supports only ${bsAvail} lanes < adapter minimum_lanes ${adMin}.`);
+        fail(`${ac.id}: baseboard supports only ${bsAvail} lanes < OAC minimum_lanes ${adMin}.`);
       }
     }
     if (!anyHS) info('No connectors with high_speed_lanes to check.');
   }
 
-  // ── CHECK 7: Lane Pin Assignments (required lanes) ─────
+  // ── CHECK 8: Lane Pin Assignments (required lanes) ─────
   await delay(200);
-  log('CHECK 7 — Lane Pin Assignments (required lanes)', 'section');
+  log('CHECK 8 — Lane Pin Assignments (required lanes)', 'section');
   {
     let anyLane = false;
     for (const ac of adPop) {
@@ -1028,7 +1130,7 @@ async function runComplianceChecks(bs, ad) {
           fail(`${ac.id} lane[${al.lane_index}/${al.direction}]: required lane missing from baseboard.`);
           lFail++;
         } else if (bl.pin_positive !== al.pin_positive || bl.pin_negative !== al.pin_negative) {
-          fail(`${ac.id} lane[${al.lane_index}/${al.direction}]: pin mismatch — adapter=(${al.pin_positive},${al.pin_negative}) baseboard=(${bl.pin_positive},${bl.pin_negative}).`);
+          fail(`${ac.id} lane[${al.lane_index}/${al.direction}]: pin mismatch — OAC=(${al.pin_positive},${al.pin_negative}) baseboard=(${bl.pin_positive},${bl.pin_negative}).`);
           lFail++;
         }
       }
@@ -1038,15 +1140,15 @@ async function runComplianceChecks(bs, ad) {
       const bTot  = bc && bc.high_speed_lanes && bc.high_speed_lanes.total_lanes != null
                     ? Number(bc.high_speed_lanes.total_lanes) : NaN;
       if (!isNaN(adTot) && !isNaN(bTot) && bTot < adTot) {
-        warn(`${ac.id}: baseboard total_lanes (${bTot}) < adapter total_lanes (${adTot}) — reduced bandwidth.`);
+        warn(`${ac.id}: baseboard total_lanes (${bTot}) < OAC total_lanes (${adTot}) — reduced bandwidth.`);
       }
     }
     if (!anyLane) info('No connectors with required lane assignments to verify.');
   }
 
-  // ── CHECK 8: Reference Clocking ─────────────────────────
+  // ── CHECK 9: Reference Clocking ─────────────────────────
   await delay(200);
-  log('CHECK 8 — Reference Clocking (required clocks)', 'section');
+  log('CHECK 9 — Reference Clocking (required clocks)', 'section');
   {
     let anyClk = false;
     for (const ac of adPop) {
@@ -1068,13 +1170,13 @@ async function runComplianceChecks(bs, ad) {
         let ok = true;
         for (const field of ['clock_type','frequency_mhz','direction']) {
           if (ak[field] !== undefined && bk[field] !== undefined && ak[field] !== bk[field]) {
-            fail(`${ac.id}.${ak.clock_id}.${field}: mismatch — adapter=${ak[field]}, baseboard=${bk[field]}.`);
+            fail(`${ac.id}.${ak.clock_id}.${field}: mismatch — OAC=${ak[field]}, baseboard=${bk[field]}.`);
             ok = false;
           }
         }
         for (const pin of ['pin_positive','pin_negative']) {
           if (ak[pin] && bk[pin] && ak[pin] !== bk[pin]) {
-            fail(`${ac.id}.${ak.clock_id}.${pin}: mismatch — adapter=${ak[pin]}, baseboard=${bk[pin]}.`);
+            fail(`${ac.id}.${ak.clock_id}.${pin}: mismatch — OAC=${ak[pin]}, baseboard=${bk[pin]}.`);
             ok = false;
           }
         }
@@ -1084,9 +1186,9 @@ async function runComplianceChecks(bs, ad) {
     if (!anyClk) info('No connectors with required reference clocks to verify.');
   }
 
-  // ── CHECK 9: Required Discrete Signals ──────────────────
+  // ── CHECK 10: Required Discrete Signals ──────────────────
   await delay(200);
-  log('CHECK 9 — Required Discrete Signals (discrete_signals[required=true])', 'section');
+  log('CHECK 10 — Required Discrete Signals (discrete_signals[required=true])', 'section');
   {
     let anySig = false;
     for (const ac of adPop) {
@@ -1102,28 +1204,28 @@ async function runComplianceChecks(bs, ad) {
           continue;
         }
         if (as.pin && bs2.pin && as.pin !== bs2.pin) {
-          fail(`${ac.id}.${as.signal_name}: pin mismatch — adapter=${as.pin}, baseboard=${bs2.pin}.`);
+          fail(`${ac.id}.${as.signal_name}: pin mismatch — OAC=${as.pin}, baseboard=${bs2.pin}.`);
         } else {
           pass(`${ac.id}.${as.signal_name}: signal present and pin verified.`);
         }
       }
     }
-    if (!anySig) info('No required discrete signals declared by adapter.');
+    if (!anySig) info('No required discrete signals declared by OAC.');
   }
 
-  // ── CHECK 10: OAC Spec Revision ─────────────────────────
+  // ── CHECK 11: OAC Spec Revision ─────────────────────────
   await delay(200);
-  log('CHECK 10 — OAC Spec Revision (metadata.oac_spec_revision)', 'section');
+  log('CHECK 11 — OAC Spec Revision (metadata.oac_spec_revision)', 'section');
   {
     const av = (ad.metadata || {}).oac_spec_revision;
     const bv = (bs.metadata || {}).oac_spec_revision;
-    info(`Adapter: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
+    info(`OAC: ${av || '(not declared)'}  |  Baseboard: ${bv || '(not declared)'}`);
     if (!av || !bv) {
       warn('oac_spec_revision not declared in one or both schemas — revision compatibility unverified.');
     } else if (av === bv) {
       pass(`Spec revision match: ${av}.`);
     } else {
-      warn(`Spec revision differs — adapter targets ${av}, baseboard targets ${bv}. Verify backward compatibility.`);
+      warn(`Spec revision differs — OAC targets ${av}, baseboard targets ${bv}. Verify backward compatibility.`);
     }
   }
 

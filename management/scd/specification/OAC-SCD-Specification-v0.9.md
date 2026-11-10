@@ -98,6 +98,7 @@ The following documents are normative references for this specification. For dat
 | DSP0257 | DMTF, "PLDM for FRU Data Specification," Version 2.0 |
 | ECMA-404 | ECMA International, "JSON Data Interchange Syntax," 2nd Edition |
 | OAC-CID-SPEC | OCP, "OAC Connector Interface Definition (CID) Specification," Version 0.9 |
+| OAC-METADATA-SPEC | OCP, "OAC Metadata Specification," Version 0.9 |
 | OCP OAC | OCP, "Open Adapter Card Base Specification," Version 0.9 |
 
 > NOTE: DSP0242 is cited undated. Section 8.2 depends on the file write direction of that specification, and an implementer should work from the latest published edition.
@@ -282,15 +283,23 @@ The OAC shall publish the Definition in minified format JSON. An upstream manage
 
 The SCD Definition shall be represented in the OAC's PDR repository by a File Descriptor PDR as defined in DSP0248, with `EntityType` set to Device File and `FileClassification` set to `FRUDataFile`. The file so described is a FRU Data File per DSP0257 and is retrieved as required by Section 6.1.
 
-The OAC shall set the `FileName` field of that File Descriptor PDR, which is a `strASCII` string, to:
+The Definition is located through the OAC Metadata file. An OAC that implements Slot Configuration Data shall declare the Definition under the `scdd` role of its metadata file, and an upstream management controller shall resolve that role to obtain the Definition's `FileIdentifier`. The metadata file and its own discovery are defined in OAC-METADATA-SPEC.
+
+An OAC shall declare the `scdd` and `scda` roles together or declare neither. An OAC that implements no Slot Configuration Data declares neither, and a controller that finds neither proceeds to energization on the CID alone. This is a conformant outcome and not a degraded one. It also replaces an inference a controller previously had to make: under the earlier model, an OAC with no Definition was indistinguishable from an OAC that had failed to publish one, because both presented the controller with no matching record. The metadata file makes the absence explicit.
+
+A controller shall not locate either SCD file by matching a `FileName` against the OAC's File Descriptor PDRs, and shall not fall back to doing so when metadata retrieval fails.
+
+The OAC shall nevertheless set the `FileName` field of the Definition's File Descriptor PDR, which is a `strASCII` string, to:
 
 ```
 OAC_SCDD.json
 ```
 
-An upstream management controller shall use that name to distinguish the Definition from every other FRU Data File the OAC publishes, the CID among them, and shall not rely on PDR ordering to make that distinction.
+This value is fixed, and an OAC shall not assign it to any other file. It is no longer the discovery mechanism; it is retained so that the Definition remains identifiable in a PDR repository dump, in a firmware image, and to diagnostic tooling. The metadata file's `file_name` member for the `scdd` role shall carry this same string.
 
-`FileName` is how the Definition is *recognised*; it is not how it is *opened*. The same File Descriptor PDR carries a `FileIdentifier`, a `uint16` that DSP0248 defines as unique relative to the PLDM Terminus ID, and DSP0242 requires that value, rather than the name string, as the parameter to `DfOpen`, `DfGetFileAttribute`, and `DfSetFileAttribute`. An upstream management controller shall therefore match on `FileName` to find the record and then use the `FileIdentifier` from that same record to open the file. The OAC assigns the `FileIdentifier`; this specification fixes no value for it, and a controller shall not assume one.
+`FileName` *names* the Definition; it is not how the Definition is *opened*. The same File Descriptor PDR carries a `FileIdentifier`, a `uint16` that DSP0248 defines as unique relative to the PLDM Terminus ID, and DSP0242 requires that value, rather than the name string, as the parameter to `DfOpen`, `DfGetFileAttribute`, and `DfSetFileAttribute`. The metadata file carries both values for each SCD file so that a controller obtains the identifier directly and performs no name matching of its own. The OAC assigns the `FileIdentifier`; this specification fixes no value for it, and a controller shall not assume one.
+
+A `FileIdentifier` advertised under the `scdd` or `scda` role for which no File Descriptor PDR exists is a malformed metadata document, not a missing SCD file, and is handled per OAC-METADATA-SPEC Section 8.3. The slot is not energized.
 
 The OAC shall set the `FileCapabilities` bitfield16 so that no write and no modification of the Definition is permitted: `FcWritesPermitted` and `ExWriteOpen` shall both be zero. The OAC shall set `FileMaximumSize` no greater than the Definition size limit of Section 13.1.
 
@@ -531,13 +540,15 @@ The SCD Assignment shall not be stored in non-volatile memory. The Assignment as
 
 The SCD Assignment shall be represented in the OAC's PDR repository by a File Descriptor PDR as defined in DSP0248, with `EntityType` set to Device File and `FileClassification` set to `OtherFile`. The Assignment is not FRU data and shall not be classified as such.
 
+The Assignment is located through the OAC Metadata file, as the Definition is. An OAC that implements Slot Configuration Data shall declare the Assignment under the `scda` role of its metadata file, and an upstream management controller shall resolve that role to obtain the `FileIdentifier` it will open for write. The two roles are declared together or not at all, per Section 6.3.
+
 The OAC shall set the `FileName` field of that File Descriptor PDR, which is a `strASCII` string, to:
 
 ```
 OAC_SCDA.json
 ```
 
-An upstream management controller shall use that name to locate the file it is to write, and shall not rely on PDR ordering to locate it. As with the Definition, the name identifies the record and the `FileIdentifier` carried in that same record is the parameter used to open it, per Section 6.3.
+This value is fixed, and an OAC shall not assign it to any other file. As with the Definition, the name is descriptive rather than the discovery mechanism, and the metadata file's `file_name` member for the `scda` role shall carry this same string. A controller shall not locate the Assignment by matching the name, and shall not rely on PDR ordering to locate it; it opens the file with the `FileIdentifier` the metadata advertised, per Section 6.3.
 
 The OAC shall set the `FileCapabilities` bitfield16 so that writing and modification of the Assignment are permitted. `FcWritesPermitted` shall be one, which DSP0248 defines as writing or modifying the file being permitted by the File Client. `ExWriteOpen` shall be one, which is what admits an exclusive open for write. `FileModify` shall be one, indicating that updates are random rather than append-only, because Section 11.6.2 provides for an Assignment to be written again at offset zero on re-negotiation rather than appended to the previous one. `DataType` shall be zero, declaring a regular file rather than a streaming FIFO, and `Read Pushed` shall be one; that combination of three bits is what obliges the OAC to support the write command of Section 8.2, and an OAC that advertised anything less would not be obliged to accept the transfer at all. `ExReadOpen` shall be zero, since the OAC is not required to serve the Assignment back. Advertised capability describes what the transfer mechanism permits and does not oblige the OAC to retain or serve back an Assignment it has accepted; the preceding paragraph governs. The OAC shall set `FileMaximumSize` no greater than the Assignment size limit of Section 13.2, and shall reject an Assignment exceeding it with code `0x0E` per Section 11.5.
 
@@ -577,7 +588,7 @@ The Assignment shall be transferred using the DSP0242 command sequence below.
 
 | Step | Command | Description |
 |------|---------|-------------|
-| 1 | `DfOpen` | Opens the SCD Assignment file for write and holds it exclusively, by setting the write-access and `DfOpenExclusive` bits of `DfOpenAttribute` to one. The file is located by matching the `FileName` `OAC_SCDA.json` per Section 8.1 and opened using the `FileIdentifier` carried in that same File Descriptor PDR. Returns a `FileDescriptor` identifying the session. |
+| 1 | `DfOpen` | Opens the SCD Assignment file for write and holds it exclusively, by setting the write-access and `DfOpenExclusive` bits of `DfOpenAttribute` to one. The file is opened using the `FileIdentifier` the OAC Metadata file advertises under the `scda` role, per Section 8.1. Returns a `FileDescriptor` identifying the session. |
 | 2 | `DfWrite` | Transfers the Assignment payload against the open `FileDescriptor`, pushed to the OAC by the upstream management controller. One command transfers one section; an Assignment larger than a negotiated section is transferred by several, written sequentially from offset zero. |
 | 3 | `DfClose` | Signals end of transfer, with the `ZeroLength` option set to zero, which obliges the OAC to flush pending updates and invalidate the `FileDescriptor`. The OAC shall not begin validation of the Assignment before `DfClose` is received. |
 
@@ -769,10 +780,11 @@ Each declared mode's segments shall sum to the bound CID group's `total_lanes`. 
 
 ### 11.1 Sequence in Operational State O3
 
-The following sequence shall be followed. Steps 1 through 6 occur entirely within O3.
+The following sequence shall be followed. Steps 0 through 6 occur entirely within O3.
 
-1. The upstream management controller retrieves the **CID** and determines electrical and mechanical compatibility, including whether the platform can supply the OAC's `opl_emg_w`. **Failure here terminates the sequence**; the Definition is never retrieved and the OAC is not powered.
-2. The controller retrieves the **SCD Definition** and resolves each `cid_binding` against the CID it has just evaluated, per Section 11.2.
+0. The upstream management controller retrieves and validates the **OAC Metadata file** per OAC-METADATA-SPEC Section 8, and resolves the roles it will need. **Failure here terminates the sequence**; nothing else is retrieved and the OAC is not powered. If the metadata file declares neither the `scdd` nor the `scda` role, the OAC implements no Slot Configuration Data: the controller performs step 1 and then proceeds directly to step 6.
+1. The upstream management controller retrieves the **CID**, using the `FileIdentifier` the `cid` role advertised, and determines electrical and mechanical compatibility, including whether the platform can supply the OAC's `opl_emg_w`. **Failure here terminates the sequence**; the Definition is never retrieved and the OAC is not powered.
+2. The controller retrieves the **SCD Definition**, using the `FileIdentifier` the `scdd` role advertised, and resolves each `cid_binding` against the CID it has just evaluated, per Section 11.2.
 3. The controller composes the **SCD Assignment**, echoing `definition_revision` from the Definition.
 4. The controller writes the Assignment using the `DfOpen` / `DfWrite` / `DfClose` sequence of Section 8.2.
 5. The OAC validates the Assignment per Section 11.3 and accepts or rejects it **atomically**.
@@ -1054,6 +1066,8 @@ In practice a typical Assignment is a few hundred bytes, and neither limit is a 
 | Store the Definition in persistent, non-volatile storage | Recommended | 6.1 |
 | Return identical Definition content for as long as its management controller remains ready | Mandatory | 6.1, 6.4 |
 | Describe the Definition with a File Descriptor PDR carrying `EntityType` Device File, `FileClassification` `FRUDataFile`, and `FileName` `OAC_SCDD.json` | Mandatory | 6.3 |
+| Declare the Definition and the Assignment under the `scdd` and `scda` roles of the OAC Metadata file, or declare neither role | Mandatory | 6.3, 8.1 |
+| Assign the `FileName` values `OAC_SCDD.json` and `OAC_SCDA.json` to no other file, and carry them as the `file_name` of the corresponding metadata role | Mandatory | 6.3, 8.1 |
 | Provide a Device File State sensor PDR for the Definition | Mandatory (DSP0242, Fixed Length File) | 6.3 |
 | Provide a File Size Monitoring sensor PDR for the Definition | Mandatory (this specification; DSP0242 recommends) | 6.3 |
 | Associate every SCD sensor PDR with its file by `EntityType`, `EntityInstanceNumber`, and `ContainerID` | Mandatory | 6.3, 8.1 |
@@ -1115,8 +1129,10 @@ In practice a typical Assignment is a few hundred bytes, and neither limit is a 
 | Retrieve and evaluate the CID before retrieving the Definition | Mandatory | 11.1 |
 | Terminate the sequence without powering the OAC if CID evaluation fails | Mandatory | 11.1 |
 | Retrieve the SCD Definition via DSP0257 | Mandatory | 6.1 |
-| Locate each SCD file by its `FileName`, not by PDR order | Mandatory | 6.3, 8.1 |
-| Open each SCD file using the `FileIdentifier` from its File Descriptor PDR, not the name string | Mandatory | 6.3, 8.1 |
+| Locate each SCD file by resolving the `scdd` and `scda` roles of the OAC Metadata file, not by matching `FileName` and not by PDR order | Mandatory | 6.3, 8.1 |
+| Open each SCD file using the `FileIdentifier` the metadata file advertises, not the name string | Mandatory | 6.3, 8.1 |
+| Proceed to energization on the CID alone when the metadata file declares neither SCD role | Mandatory | 6.3 |
+| Refrain from falling back to a `FileName` match when metadata retrieval fails | Mandatory | 6.3 |
 | Read the Definition size from its File Size Monitoring Sensor rather than assuming it | Mandatory | 6.3 |
 | Parse minified format JSON | Mandatory | 6.2 |
 | Tolerate expanded format JSON | Recommended | 6.2 |
@@ -1375,8 +1391,8 @@ This annex collects the PLDM field values this specification constrains. It list
 |-------|-------|------|
 | `EntityType` | 9 (Device File) | |
 | `FileClassification` | `FRUDataFile` | The file content is FRU data per DSP0257. |
-| `FileName` | `OAC_SCDD.json` (`strASCII`) | The discriminator a controller matches on. Not PDR order. |
-| `FileIdentifier` | Implementation-chosen `uint16` | What `DfOpen` takes. A controller matches `FileName`, then opens with this. |
+| `FileName` | `OAC_SCDD.json` (`strASCII`) | Fixed, and assigned to no other file. Descriptive rather than the discovery mechanism; the metadata file's `scdd` role carries this same string. |
+| `FileIdentifier` | Implementation-chosen `uint16` | What `DfOpen` takes. A controller obtains this value from the metadata file's `scdd` role, not by matching `FileName`. |
 | `FileCapabilities` | `FcWritesPermitted` = 0, `ExWriteOpen` = 0, `DataType` = 0 | Wrap-versus-truncate behaviour is moot for a file the controller cannot write. `DataType` = 0 declares a regular file rather than a streaming FIFO. Bits not listed are not constrained here; see the note at the end of this annex. |
 | `FileMaximumSize` | The exact transferred size of the Definition, not greater than the Section 13.1 limit | For a fixed-length file DSP0242 equates file size to this field, so it is exact rather than an upper bound. |
 | `SuperiorDirectoryFileIdentifier` | `0xFFFF` | The SCD files are a flat set; no directory is required. |
@@ -1413,7 +1429,7 @@ This annex collects the PLDM field values this specification constrains. It list
 
 | Field | Value |
 |-------|-------|
-| Identified by | `FileName` `OAC_SCDA.json`; opened by the `FileIdentifier` in the same PDR |
+| Identified by | The `scda` role of the OAC Metadata file; opened by the `FileIdentifier` that role advertises. The PDR's `FileName` is `OAC_SCDA.json` and is descriptive. |
 | Direction of use | Written by the upstream management controller; not read back |
 | File characteristic | Regular File, per DSP0242 |
 | Transfer commands | `DfOpen` (write access, `DfOpenExclusive` = *Exclusive*), one or more `DfWrite`, `DfClose` (`ZeroLength` = 0) |
@@ -1426,8 +1442,8 @@ This annex collects the PLDM field values this specification constrains. It list
 |-------|-------|------|
 | `EntityType` | 9 (Device File) | |
 | `FileClassification` | `OtherFile` | The Assignment is not FRU data. |
-| `FileName` | `OAC_SCDA.json` (`strASCII`) | The name a controller matches on to locate the file it writes. Not PDR order. |
-| `FileIdentifier` | Implementation-chosen `uint16`, distinct from the Definition's | What `DfOpen` takes. |
+| `FileName` | `OAC_SCDA.json` (`strASCII`) | Fixed, and assigned to no other file. Descriptive; the metadata file's `scda` role carries this same string. |
+| `FileIdentifier` | Implementation-chosen `uint16`, distinct from the Definition's | What `DfOpen` takes. Obtained from the metadata file's `scda` role. |
 | `FileCapabilities` | `FcWritesPermitted` = 1, `ExWriteOpen` = 1, `ExReadOpen` = 0, `FileModify` = 1, `DataType` = 0, `Read Pushed` = 1 | Names are the DSP0248 ones. `DataType` = 0 with `Read Pushed` = 1 and `ExWriteOpen` = 1 is the combination that obliges the OAC to support `DfWrite`. `FileModify` = 1 because a re-negotiated Assignment is written at offset zero rather than appended. Describes what the transfer mechanism permits; it does not oblige the OAC to serve an accepted Assignment back; see Section 8.1. Bits not listed are not constrained here; see the note at the end of this annex. |
 | `FileMaximumSize` | Not greater than the Section 13.2 limit | A genuine upper bound here, unlike the Definition's: a sparse Assignment varies in length. |
 | `SuperiorDirectoryFileIdentifier` | `0xFFFF` | Flat set, as for the Definition. |

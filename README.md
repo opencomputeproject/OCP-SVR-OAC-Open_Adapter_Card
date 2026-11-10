@@ -25,7 +25,7 @@ BK125 connector variant. A baseboard therefore cannot discover an OAC by energiz
 what happens. It has to find out what the card is, and decide whether it can host it, while the card
 is still running on auxiliary power alone.
 
-That constraint is what the two companion specifications in this repository exist to satisfy.
+That constraint is what the companion specifications in this repository exist to satisfy.
 
 ---
 
@@ -37,7 +37,8 @@ That constraint is what the two companion specifications in this repository exis
 ├── base_specification_artifacts/    ← Diagrams and models referenced by the Base Specification
 │   ├── sequencing_uml/              ← PlantUML operational-state sequence diagrams
 │   └── timing_json/                 ← WaveDrom timing diagrams
-└── management/                      ← The two companion management specifications
+└── management/                      ← The companion management specifications
+    ├── metadata/                    ← OAC Metadata file — the index read first
     ├── cid/                         ← Connector Interface Definition
     └── scd/                         ← Slot Configuration Data
 ```
@@ -46,20 +47,25 @@ Every directory carries its own `README.md` describing its contents.
 
 ---
 
-## The Two Management Artifacts
+## The Management Artifacts
 
-Both are JSON documents exchanged over MCTP/PLDM in Operational State **O3 (Management
+All are JSON documents exchanged over MCTP/PLDM in Operational State **O3 (Management
 Initialized)** — after auxiliary power is good, but before `OAC_PWR_EN` is asserted.
 
-| | [CID](management/cid/) | [SCD](management/scd/) |
-|---|---|---|
-| Question answered | May this OAC be powered at all? | Now that it may be, how shall it be configured? |
-| Direction | OAC → upstream management controller | Definition: OAC → controller · Assignment: controller → OAC |
-| Nature | **Compatibility** declaration | **Configuration** exchange |
-| Replaces | Guesswork about an unenumerated card | Hardware strapping |
-| Carries | Connector population, pin maps, protocol groups, clocking, power envelopes and OPLs | Slot identity, link subdivision selection, platform power budget, vendor fields |
+| | [Metadata](management/metadata/) | [CID](management/cid/) | [SCD](management/scd/) |
+|---|---|---|---|
+| Question answered | Which files does this OAC publish, and under which identifiers? | May this OAC be powered at all? | Now that it may be, how shall it be configured? |
+| Direction | OAC → upstream management controller | OAC → upstream management controller | Definition: OAC → controller · Assignment: controller → OAC |
+| Nature | **Index** | **Compatibility** declaration | **Configuration** exchange |
+| Replaces | Three hard-coded `FileName` strings | Guesswork about an unenumerated card | Hardware strapping |
+| Carries | A role-to-`FileIdentifier` map, plus the `FileName` each identifier should carry | Connector population, pin maps, protocol groups, clocking, power envelopes and OPLs | Slot identity, link subdivision selection, platform power budget, vendor fields |
 
-The division between them is a single question:
+The metadata file is read first, and it is the only one found by name. The CID and the SCD files are
+opened by the `FileIdentifier` the metadata advertises, not by matching their `FileName` — the names
+remain fixed, but they are descriptive now rather than the discovery mechanism. The hard-coded string
+does not disappear; it reduces from three to one, and `OAC_METADATA.json` is that one.
+
+The division between the CID and the SCD is a single question:
 
 > **Does the platform need this to decide whether to power the OAC at all?**
 > **Yes → CID. No → SCD.**
@@ -74,17 +80,19 @@ power decision.
   1.  OAC seated, OAC_PRSNT# asserted                              O0 → O1
   2.  +12V_AUX good                                                O1 → O2
   3.  MCTP session established over CONN0 USB 2.0                  O2 → O3
-  4.  Controller reads the CID            (PLDM for FRU Data)        │
-  5.  Controller decides: may this card be powered?                  │ O3
-  6.  Controller reads the SCD Definition (PLDM for FRU Data)        │
-  7.  Controller writes the SCD Assignment (PLDM for File Transfer)  │
-  8.  OAC validates and accepts                                      ▼
-  9.  OAC_PWR_EN asserted, primary power up, configuration latches  O3 → O4
- 10.  Reset released                                                O4 → O5
+  4.  Controller reads the Metadata file  (PLDM for FRU Data)        │
+  5.  Controller reads the CID            (PLDM for FRU Data)        │
+  6.  Controller decides: may this card be powered?                  │ O3
+  7.  Controller reads the SCD Definition (PLDM for FRU Data)        │
+  8.  Controller writes the SCD Assignment (PLDM for File Transfer)  │
+  9.  OAC validates and accepts                                      ▼
+ 10.  OAC_PWR_EN asserted, primary power up, configuration latches  O3 → O4
+ 11.  Reset released                                                O4 → O5
 ```
 
-Steps 4 through 8 all happen on auxiliary power. If step 5 fails, the sequence stops there and the
-busbar is never energized.
+Steps 4 through 9 all happen on auxiliary power. If step 4 fails, the controller does not fall back
+to locating files by name — it stops, and the busbar is never energized. If step 6 fails, the
+sequence stops there for the same reason.
 
 ---
 
@@ -95,7 +103,7 @@ busbar is never energized.
 | O0 | Unpowered | No power of any kind |
 | O1 | Presence Detected | `OAC_PRSNT[0:6]#` asserted by seating |
 | O2 | Auxiliary Power Good | +12V_AUX present |
-| O3 | Management Initialized | MCTP/PLDM available; CID and SCD exchanged here |
+| O3 | Management Initialized | MCTP/PLDM available; Metadata, CID, and SCD exchanged here |
 | O4 | Primary Power Good (Held in Reset) | Busbar energized; configuration latched |
 | O5 | Operational | Normal operation |
 | O6 | Power Constrained | Operating at a reduced Operational Power Level |
@@ -126,11 +134,11 @@ ever narrow the envelope the CID declared — a configuration document never rai
 
 | If you are… | Start at |
 |---|---|
-| An OAC vendor authoring a card's management data | [management/cid/](management/cid/) then [management/scd/templates/](management/scd/templates/) |
-| A baseboard or BMC implementer | [management/cid/specification/](management/cid/specification/) and [management/scd/specification/](management/scd/specification/) |
+| An OAC vendor authoring a card's management data | [management/cid/](management/cid/), then [management/scd/templates/](management/scd/templates/), then [management/metadata/templates/](management/metadata/templates/) |
+| A baseboard or BMC implementer | [management/metadata/specification/](management/metadata/specification/) first, then [management/cid/specification/](management/cid/specification/) and [management/scd/specification/](management/scd/specification/) |
 | Looking for a worked end-to-end example | [management/scd/examples/](management/scd/examples/) — matched CID + Definition + Assignment triples |
 | Authoring a CID interactively | [management/cid/tools/interactive/](management/cid/tools/interactive/) — self-contained browser tools |
-| Validating documents you have written | [management/scd/tools/](management/scd/tools/) — `validate-scd.py` |
+| Validating documents you have written | [management/scd/tools/](management/scd/tools/) — `validate-scd.py` · [management/metadata/tools/](management/metadata/tools/) — `validate-metadata.py` |
 | Looking for the state and timing diagrams | [base_specification_artifacts/](base_specification_artifacts/) |
 
 ---

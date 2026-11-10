@@ -8,7 +8,11 @@ schema version 0.9.
 
 | File | Description |
 |------|-------------|
-| [OAC-CID-TEMPLATE.json](OAC-CID-TEMPLATE.json) | Annotated template. Carries both a profile-referencing connector and an explicitly-declared connector so that either approach can be used as the starting point |
+| [OAC-CID-TEMPLATE.json](OAC-CID-TEMPLATE.json) | Annotated template. Carries both a profile-referencing connector and an explicitly-declared connector so that either approach can be used as the starting point, and a `power.excursion` array pre-filled at the Base Specification ceiling |
+
+Annotations are carried in `$comment` keys. They are not part of the schema — a CID reader ignores
+them, under the unrecognized-key rule of specification Section 7.1, which applies at every nesting
+level. Deleting them before publishing is optional but reduces the transferred payload.
 
 ## Usage
 
@@ -20,10 +24,14 @@ schema version 0.9.
    `high_speed_lanes` / `clocking` / `discrete_signals` block — never both on the same connector.
    Different connectors in one CID may use different approaches.
 4. Delete connector objects for positions your card does not populate. CONN0 is always present.
-5. Delete optional fields that do not apply.
-6. Validate that the JSON is well-formed per ECMA-404. Comments are not permitted — a `//` or
+5. Replace the `power.excursion` ratios with your OAC's characterized values, or delete the whole
+   array. The values shipped in the template are the Base Specification Section 10.1.4 ceiling, which
+   is what the controller assumes anyway when the array is absent — leaving them in place declares
+   nothing the platform did not already have to budget for.
+6. Delete optional fields that do not apply.
+7. Validate that the JSON is well-formed per ECMA-404. Comments are not permitted — a `//` or
    `/* */` sequence outside a string literal makes the document malformed.
-7. Publish as UTF-8 with no byte order mark. Expanded and minified are both valid; minifying first is recommended for production, to reduce the transferred payload.
+8. Publish as UTF-8 with no byte order mark. Expanded and minified are both valid; minifying first is recommended for production, to reduce the transferred payload.
 
 The [CID Editor](../../tools/interactive/oac-cid-editor/) does all of this interactively, with a
 visual pin map and live JSON preview, and is usually faster than editing the template by hand.
@@ -39,5 +47,12 @@ visual pin map and live JSON preview, and is usually faster than editing the tem
 - **No more than 8 protocol groups** on any connector.
 - **Power envelopes belong here, not in the SCD.** `OPL-MAX ≥ OPL-EFF ≥ OPL-RED ≥ OPL-EMG`.
   `opl_max_w` and `opl_emg_w` are required; the rest are optional.
+- **`power.excursion` ratios are normalized to `opl_max_w` only.** They do not rescale when the slot
+  runs at OPL-EFF, and the declared profile does not apply at all at OPL-RED, OPL-EMG, or OPL-SET,
+  where the effective ratio is 1. A card that needs transient headroom below OPL-EFF has to raise
+  `opl_emg_w` or `opl_red_w` instead — there is no field that grants it.
+- **An excursion ratio that implies a current above the connector's derated continuous rating is not
+  an error.** The derated rating is thermal; the declared figure is a microsecond-scale average. The
+  validator reports the implied current and does not judge it.
 - Use **IANA PEN 32473** in any example or test document. It is the number IANA reserves for
   documentation. Substitute your own Private Enterprise Number in a real CID.

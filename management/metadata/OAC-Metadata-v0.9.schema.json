@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/opencomputeproject/OCP-SVR-OAC-Open_Adapter_Card/main/management/metadata/OAC-Metadata-v0.9.schema.json",
+  "title": "OAC Metadata",
+  "description": "The OAC Metadata file. Enumerates the management files an OAC exposes, each with the FileIdentifier and FileName carried in its DSP0248 File Descriptor PDR. An upstream management controller reads this file first, in Operational State O3, and uses it to locate the CID, the SCD Definition, and the SCD Assignment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["oac_metadata"],
+  "properties": {
+    "$comment": {
+      "type": "string",
+      "description": "Authoring aid. Permitted anywhere in this document and shall be ignored by an upstream management controller. A production metadata file is minified and would not normally carry one."
+    },
+    "oac_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "files"],
+      "properties": {
+        "$comment": { "type": "string" },
+        "schema_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "Revision of the OAC Metadata schema this document conforms to, as major.minor. Both components may carry multiple digits. A controller matches on the major component and ignores file roles it does not recognize; see Section 5 of the OAC Metadata Specification."
+        },
+        "files": {
+          "type": "object",
+          "description": "The management files this OAC exposes, keyed by role. OCP-defined roles are cid, scdd, and scda. A vendor adds a file under pen.<IANA PEN>.<name>; an upstream management controller shall ignore any role it does not recognize.",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(\\$comment|cid|scdd|scda|pen\\.[0-9]+\\.[a-z0-9_]+)$"
+          },
+          "properties": {
+            "$comment": { "type": "string" }
+          },
+          "additionalProperties": { "$ref": "#/$defs/fileDescriptor" },
+          "required": ["cid"],
+          "dependentRequired": {
+            "scdd": ["scda"],
+            "scda": ["scdd"]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "fileDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_identifier", "file_name"],
+      "properties": {
+        "$comment": { "type": "string" },
+        "file_identifier": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "The FileIdentifier field of this file's DSP0248 File Descriptor PDR. A uint16, unique relative to the PLDM Terminus ID, and the parameter DSP0242 requires for DfOpen. The OAC assigns this value; a controller shall not assume one."
+        },
+        "file_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The FileName field of this file's DSP0248 File Descriptor PDR, as a strASCII string. For the OCP-defined roles this is OAC_CID.json, OAC_SCDD.json, and OAC_SCDA.json respectively."
+        }
+      }
+    }
+  }
+}

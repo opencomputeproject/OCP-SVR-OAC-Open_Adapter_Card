@@ -50,8 +50,15 @@ retrieved over MCTP on the OAC Management USB 2.0 interface (CONN0, columns 10�
 
 It is described in the OAC's PDR repository by a **File Descriptor PDR per DSP0248**, with
 `EntityType` set to Device File and `FileClassification` set to `FRUDataFile`. `FileName` is
-`OAC_CID.json`. The controller matches on that name to find the record, then opens the file using
-the `FileIdentifier` from the same record — the name finds it, the identifier opens it.
+`OAC_CID.json`, fixed, and assigned to no other file.
+
+**The controller does not find the CID by matching that name.** It retrieves the
+[OAC Metadata file](../metadata/) first, resolves its `cid` role to a `FileIdentifier`, and opens
+that identifier. `FileName` *names* the CID — it keeps the file identifiable in a PDR repository
+dump, in a firmware image, and to diagnostic tooling, and it is what the metadata advertises
+alongside the identifier so the two can be checked against each other. It is not how the CID is
+opened. A controller whose metadata retrieval fails shall not fall back to name matching; doing so
+would energize a slot on data obtained by a path the OAC never advertised.
 
 The CID is **read-only**. `FcWritesPermitted` and `ExWriteOpen` are both zero, and an OAC shall not
 accept a write to it.
@@ -103,7 +110,7 @@ A CID is a JSON object with the root key `"oac_cid"` and three mandatory section
 {
   "oac_cid": {
     "metadata":   { "schema_version": "0.9", "oac_spec_revision": "0.9" },
-    "power":      { "primary": { ... } },
+    "power":      { "primary": { ... }, "excursion": [ ... ] },
     "connectors": [ ... ]
   }
 }
@@ -112,7 +119,7 @@ A CID is a JSON object with the root key `"oac_cid"` and three mandatory section
 | Section | Required | Contents |
 |---------|----------|----------|
 | `metadata` | Yes | `schema_version` and `oac_spec_revision`, both required; optional `description`, `iana_pen`, `platform_token` |
-| `power` | Yes | `primary` object: input voltage, connector variant, and the Operational Power Level wattages |
+| `power` | Yes | `primary` object (required): input voltage, connector variant, and the Operational Power Level wattages. `excursion` array (optional): the declared transient power profile |
 | `connectors` | Yes | One object per populated connector position: pin map, protocol groups, clocking, discrete signals, and — on CONN0 — the `mpesti_capable` declaration |
 
 ### Connectors
@@ -156,6 +163,34 @@ document never raises a hardware limit. Where `opl_set_min_w` is declared, the c
 OPL-SET range runs from it up to `opl_max_w` — there is no separately declared ceiling, because
 a settable level above the OAC's maximum validated operating point would not be a valid
 operating point. The presence of `opl_set_min_w` is what declares OPL-SET support.
+
+### Power excursion
+
+`power.excursion` is optional, and is an array of 2 to 8 `{ interval_us, ratio_max }` entries in
+strictly ascending interval order. Each entry states the largest ratio of average power to
+`opl_max_w` the OAC reaches over an averaging interval of that length.
+
+Base Specification Section 10.1.4 already defines a ceiling for every OAC. It is piecewise — 3 for
+T ≤ 100 µs, `4 − 0.2171 × ln(T)` for 100 < T < 1,000,000 µs, and 1 for T ≥ 1,000,000 µs — and a
+validator that extrapolates the logarithm past either end gets the wrong answer. But that ceiling
+describes the worst card the specification permits, not this one. A platform budgeting every slot
+against it over-provisions every slot. The array is how a card says where it actually sits, and
+because every declared ratio is checked against the envelope, the declaration is enforceable rather
+than advisory.
+
+Three things about it are counter-intuitive enough to be worth stating here:
+
+- `ratio_max` is normalized to `opl_max_w` **only**. The profile does not rescale at OPL-EFF, so
+  running at a lower sustained level does not buy a larger absolute excursion.
+- The profile applies at OPL-MAX and OPL-EFF only. At OPL-RED, OPL-EMG, and OPL-SET the effective
+  ratio is 1 regardless of what the file says — those levels exist because the platform is
+  constrained, and an allowance there would defeat them.
+- Interpolation is **nearest shorter declared interval**, not linear. The rule rounds toward the
+  larger ratio in every direction, which is the conservative direction for a power budget.
+
+**Absent is not zero.** An OAC that declares no `excursion` has not claimed it makes no excursions;
+it has declined to characterize them, and the controller budgets it at the Section 10.1.4 ceiling.
+See Section 7.3.2 of the specification.
 
 ---
 
@@ -202,6 +237,9 @@ In [`examples/v0.9/`](examples/v0.9/):
 |------|-------|-------------|
 | `OAC-CID-0.9-2500W-PCIe-x16-(Example_using_connector_profile).json` | +50V, 125A, 2500 W OPL-MAX | Double-wide offset. CONN0 declared entirely by profile reference — the shortest conformant CID |
 | `OAC-CID-0.9-SW-2500W-16L_PCIe-96L_Ethernet(Example_mixed_definition).json` | +50V, 100A, 2500 W OPL-MAX | Single-wide. CONN0 with an explicit pin map, plus six Ethernet connectors by profile reference. Shows the two approaches mixed in one document |
+| `OAC-CID-0.9-ExampleA-Excursion-4800W.json` | +50V, 125A, 4800 W OPL-MAX | Declares a transient profile materially better than the Section 10.1.4 ceiling — the case `power.excursion` was added for |
+| `OAC-CID-0.9-ExampleB-Excursion-600W.json` | +12V, 100A, 600 W OPL-MAX | Declares the full 3× short-interval allowance. The case the validation rules have to keep legal |
+| `OAC-CID-0.9-ExampleC-Excursion-3000W.json` | +50V, 100A, 3000 W OPL-MAX | Two connectors, 2.80× at 10 µs. The implied current exceeds the BK100 derated continuous rating, which is reported and not judged |
 
 For worked end-to-end examples that pair a CID with its SCD Definition and Assignment, see
 [`../scd/examples/`](../scd/examples/) — three matched triples, which is the only place all three
@@ -261,6 +299,13 @@ to `CABLE` and to per-position segments such as `OAC-PROF-CONN6-…`), and the s
 field required on CONN0 and prohibited elsewhere. Section numbering is unchanged by that
 revision. See [CHANGELOG.md](CHANGELOG.md).
 
+A third in-place revision followed on **2026-11-09**, again without a version bump. File discovery
+moved to the new [OAC Metadata file](../metadata/), lifting the WORK IN PROGRESS annotation Section
+6.3 had carried since first publication; the ignore-unrecognized-keys rule of Section 7.1 was
+extended to every level of nesting; and the optional `power.excursion` array was added as new
+Section 7.3.2, with validation checks in Table 9.3-1 and conditional conformance rows in Sections
+10.1 and 10.2. Section numbering is unchanged. See [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## Known Issues
@@ -269,15 +314,15 @@ Open items against the shipped v0.9 content, recorded so they are not rediscover
 
 | Issue | Location |
 |-------|----------|
-| Both reference examples omit `schema_version` and `oac_spec_revision`, which Table 7.2-1 marks **Required**. Their `metadata` objects carry only `description` | `examples/v0.9/*.json` |
-| Both example descriptions read "645W OPL-EMG" while the declared `opl_emg_w` is 625 | `examples/v0.9/*.json` |
+| The two original reference examples omit `schema_version` and `oac_spec_revision`, which Table 7.2-1 marks **Required**. Their `metadata` objects carry only `description`. The three excursion examples are not affected | `examples/v0.9/OAC-CID-0.9-2500W-…` and `…-SW-2500W-…` |
+| The same two example descriptions read "645W OPL-EMG" while the declared `opl_emg_w` is 625 | `examples/v0.9/OAC-CID-0.9-2500W-…` and `…-SW-2500W-…` |
 | Section 7.4.3 justifies the eight-protocol-group limit by "the uint32 SCD effecter encoding … one 4-bit nibble per protocol group" — a rationale inherited from a superseded SCD draft that no longer describes how SCD works. The limit itself is correct; only the justification is stale | `specification/`, Section 7.4.3 |
 | The three interactive HTML tools still say "adapter" where the specification now says "the OAC", and the compliance logic diagram labels the validation clause 8.3, which the 2026-10-08 revision renumbered to 9.3. The tool READMEs record this; the tools themselves have not been regenerated | `tools/interactive/` |
 
-Two mechanisms are additionally annotated **WORK IN PROGRESS** inside the specification itself and
-are expected to change before v0.9 is published as final — Section 6.3 in its entirety, and the
-Section 8.5 profile applicability cases. See
-[specification/README.md](specification/README.md#open-items).
+One mechanism is still annotated **WORK IN PROGRESS** inside the specification itself and is
+expected to change before v0.9 is published as final: the Section 8.5 profile applicability cases.
+Section 6.3's annotation was lifted in the 2026-11-09 revision when file discovery moved to the
+OAC Metadata file. See [specification/README.md](specification/README.md#open-items).
 
 Resolved in the 2026-10-08 revision and recorded here so they are not re-reported: the Section 2
 reference list (MessagePack and RFC 1952 removed, DSP0236/DSP0248/DSP0249 added, DSP0242 cited

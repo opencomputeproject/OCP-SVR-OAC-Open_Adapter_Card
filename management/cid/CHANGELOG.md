@@ -4,6 +4,76 @@ All notable changes to the OAC Connector Interface Definition (CID) specificatio
 
 ---
 
+## [0.9] — 2026-11-09 — Workstream review revision 3
+
+Third in-place revision of the v0.9 document. The version identifier is unchanged, by workstream decision: every change below is additive or confined to discovery, and a reader holding the CID, SCD, and Metadata documents should not have to reconcile three revision numbers to know the set is consistent.
+
+Three changes to the specification, plus the tooling that implements them. The first resolves the open item that Section 6.3 had carried since the first publication of this document. The second and third implement the power excursion proposal — the nesting clarification is listed separately because it stands on its own, but it is the prerequisite the proposal identified as the one item that had to be settled before the field could be adopted safely.
+
+### Changed — file discovery now goes through the OAC Metadata file
+
+**Breaking for upstream management controllers.** A controller that locates the CID by matching the `FileName` `OAC_CID.json` against the OAC's File Descriptor PDRs will not work against an OAC built to this revision. OAC implementations are affected only by the addition of the metadata file itself; no field on the CID's own File Descriptor PDR changes value.
+
+- **Section 6.3 is rewritten, and its WORK IN PROGRESS annotation is lifted.** The annotation had flagged the hard-coded `FileName` and the match-on-name-then-open-by-identifier sequence as under review, and named the metadata-file alternative as the thing being considered. The workstream has adopted that alternative. Discovery now proceeds from the OAC Metadata file, defined in the new [OAC-METADATA-SPEC](../metadata/specification/); the CID is declared under its `cid` role, and a controller resolves that role to obtain the `FileIdentifier` it opens.
+
+- **`FileName` remains `OAC_CID.json` and remains fixed.** This is worth stating plainly because it reads as a contradiction. The name is no longer the discovery mechanism — it is descriptive, retained so the CID stays identifiable in a PDR repository dump, in a firmware image, and to diagnostic tooling, and so that the `file_name` the metadata advertises can be checked against the record it describes. An OAC shall assign the name to no other file.
+
+- **Fallback is prohibited, not merely discouraged.** A controller whose metadata retrieval fails shall not drop back to matching `OAC_CID.json`. That shim is the obvious compatibility move and it is exactly the wrong one: it energizes a slot on data obtained by a path the OAC never advertised, which is the failure the whole management model exists to prevent.
+
+- **Section 9.2 step 3 is rewritten** to retrieve and validate the metadata file and resolve the `cid` role, and the step list now states what changed and why rather than leaving an implementer to infer it from a diff. The failure paragraph is extended to cover metadata retrieval failure and the dangling-identifier case — a `FileIdentifier` advertised under `cid` for which no File Descriptor PDR exists is a *malformed metadata document*, not a missing CID, because the card said the file was there and it was not.
+
+- **Table 10.1-1 gains two OAC rows** — declare the CID under the `cid` role, and assign `OAC_CID.json` to no other file. **Table 10.2-1's locate-by-FileName row is replaced** by a resolve-the-`cid`-role row, and a second row is added prohibiting the fallback.
+
+- **Annex B's scoping NOTE is removed.** It existed only to mark the annex's values provisional to the extent Section 6.3 was provisional. Section 6.3 is settled, so the note has nothing left to scope. Table B-2's `FileName` and `FileIdentifier` rows are reworded: the name is no longer "the discriminator an upstream management controller matches on."
+
+- **Section 2 adds OAC-METADATA-SPEC** to the normative references.
+
+### Changed — unrecognized keys are ignored at every level of nesting
+
+**Section 7.1.** The rule previously read, in a single sentence shared with the vendor-prefix requirement, that "the upstream management controller shall ignore unrecognized keys" — stated among the rules governing top-level keys within `"oac_cid"`, and so readable as scoped to that level alone.
+
+It is now stated separately and explicitly for any level of nesting, with the reason given: scoped to the top level, the rule leaves undefined the behavior of a controller that meets an unfamiliar member inside `"power"`, inside a connector object, or inside anything nested within them — which is exactly where this specification's own extensions arrive, the `power.excursion` array below being the immediate case. A paragraph is added clarifying that ignoring a key means proceeding as though it were absent, and does not license treating the containing object as malformed or skipping validation of the keys that *are* recognized.
+
+This is a clarification rather than a new requirement, but it is a load-bearing one: a controller that rejected an unfamiliar nested key would be conformant under the old wording's narrowest reading, and would fail against every CID carrying an extension.
+
+### Added — `power.excursion`, an optional declared power excursion profile
+
+Adopted from proposal `2026-11-power-excursion`. **Additive and backward compatible in both directions.** A controller that does not implement the field ignores it under the nesting rule above and budgets as it does today; an OAC that does not declare it is budgeted against the Base Specification ceiling, which is today's behavior.
+
+- **Section 7.3 is amended.** `"power"` now has two members: the mandatory `"primary"` and the optional `"excursion"`. The division is stated as sustained versus transient, and the absence of `"excursion"` is given its meaning explicitly — an OAC that omits it has not claimed it makes no excursions, it has declined to characterize them.
+
+- **New Section 7.3.2 defines the field.** A bare array of 2 to 8 `{ interval_us, ratio_max }` entries in strictly ascending interval order. The shape is a bare array rather than an object because the quantity being declared is one curve, and an enclosing object would exist to hold a single key.
+
+- **`ratio_max` is normalized to `opl_max_w` and to nothing else.** Two consequences are stated in the specification because neither is what a reader expects: the profile does not rescale at OPL-EFF, so a lower sustained level does not buy a larger absolute excursion; and the profile applies only at OPL-MAX and OPL-EFF, with an effective ratio of 1 at OPL-RED, OPL-EMG, and OPL-SET. An excursion allowance at a level entered specifically to relieve a platform constraint would defeat the level. No `reference_level` field and no absolute peak wattage field are defined — both would be derivable from `opl_max_w`, and a derivable field is a field that can disagree with its source.
+
+- **Table 7.3.2-2 recommends a canonical interval grid** of 10, 100, 1,000, 10,000, 100,000, and 1,000,000 microseconds, so that profiles from different vendors compare without interpolation. The ceilings tabulated beside it are the Base Specification Section 10.1.4 envelope rounded *down* to two decimal places — `4 − 0.2171 × ln(1000)` is 2.5003, not 2.5000 — and the specification directs validators to evaluate the envelope rather than consult the table, because a conformant declaration may sit in the gap. The envelope is stated piecewise, which Table 29 of the Base Specification makes explicit and which the logarithmic form alone does not: it is 3 for T ≤ 100 µs and 1 for T ≥ 1,000,000 µs, and the logarithm applies strictly between them. A validator that extrapolates the logarithm to 10 µs admits a ratio of 3.50 against a true ceiling of 3.
+
+- **Interpolation is nearest-shorter-interval, not linear.** For an undeclared interval T the controller uses the `ratio_max` of the nearest declared interval shorter than T; below the shortest declared point it uses the Section 10.1.4 envelope; above the longest it uses the longest point's ratio. The rule rounds toward the larger ratio in every direction, which is the conservative direction for a power budget. Linear interpolation would hand the controller a smaller number than the OAC actually guaranteed, about a gap the OAC guaranteed nothing across.
+
+- **Section 9.3 gains check 12 and new Table 9.3-1**, carrying six checks: ascending intervals, `ratio_max` within the Section 10.1.4 envelope, monotonically non-increasing ratios, `ratio_max` ≥ 1.0, 2-to-8 entry count, and the implied peak current. The envelope check is the one that makes the field enforceable rather than advisory; without it a declaration constrains nothing.
+
+- **The implied-current check is reported, not judged.** `ratio_max × opl_max_w ÷ input_voltage` is computed and logged but no threshold is applied, because the Base Specification states rated and derated *continuous* current for BK100 and BK125 and continuous current is a thermal figure. It is not comparable to a 10 microsecond transient, and no pulse rating exists to compare against. The question of whether the connectors carry an I²t limit or a current-versus-duration curve is open with the connector and mechanical subgroup; if one arrives, this check can be promoted from informational to normative without any change to the field.
+
+- **Tables 10.1-1 and 10.2-1 gain conditional conformance rows.** Five OAC rows, all classified *Mandatory (if power.excursion present)* except the declaration itself, which is Optional. Five controller rows, including the obligation to budget against the Section 10.1.4 envelope when the field is absent and the prohibition on linear interpolation. The controller table also gains the nesting rule from the previous section, which had been stated in Section 7.1 without a conformance row.
+
+- **Annex A.1 now declares an excursion profile**, and the accompanying discussion works the arithmetic through: at `opl_max_w` of 3,000 W the 2.8 ratio at 10 microseconds implies 168 A at the +50V input, against 180 A had the OAC declared nothing. The example is annotated this way because the implied current is above the BK125 derated continuous rating and a reader meeting that for the first time will reasonably suspect a validation failure. Sections 5 and 7.6 are updated in step: the overview lists excursion behavior among the declared categories, and the ordering conventions fix `primary` before `excursion` and `interval_us` before `ratio_max`.
+
+**Not in this revision.** The proposal's companion SCD field, `ocp.excursion_ratio_max`, which would let a platform clamp a declared profile from the Assignment side, is not adopted here. The CID half stands alone: it improves the platform's budget whether or not the clamp exists.
+
+### Changed — tooling
+
+All three interactive tools are updated in the same pass, per this project's rule that a field is not adopted until the tooling that produces and consumes it agrees with the specification.
+
+- **CID Editor.** A new Power Excursion card, off by default. The recommended grid of Table 7.3.2-2 loads in one click, or intervals can be entered by hand; each row displays the Section 10.1.4 ceiling beside the declared ratio, and a plot draws the declared profile against the envelope. The profile is drawn as a **step function**, because the nearest-shorter-interval rule is literally a step — a connected line would show the reader an interpolation the specification does not permit. All six checks of Table 9.3-1 run live, and the implied-current figure is emitted as an informational warning rather than an error.
+
+- **Insertion Emulator.** A new check 5, evaluating the declared profile against the slot's transient capability. The comparison is made in **absolute watts**, not ratio against ratio: each document's ratios are normalized to its own `opl_max_w`, so comparing them directly is meaningless when the two OPL-MAX values differ. A baseboard that declares no profile is assumed to support the full Section 10.1.4 envelope, since the Base Specification requires it to tolerate any conformant OAC. A malformed OAC profile is rejected rather than budgeted against — the log states that the transient budget was not evaluated instead of reporting a PASS it did not earn. The remaining checks renumber from 5–10 to 6–11.
+
+- **Compliance Logic diagram.** A new check 6 card, and the flow now starts from the OAC Metadata file rather than from an already-retrieved CID. Three pre-existing defects are fixed while the file was open: the verdict condition read "checks 1–11" against a 12-check diagram and now reads 1–13; the high-speed lane check compared `link_role`, which was removed from the v0.9 schema in revision 2; and the profile resolution check described a profile as a set of defaults that could be partially overridden, which Section 8.2 prohibits. The caveat note in its README, recording that the diagram had not been regenerated since the Section 8.3 to 9.3 renumbering, is retired because the diagram now has been.
+
+- **Version strings.** Stale `0.7` and `0.8` strings surviving in the Editor's About panel and export-filename fallbacks and in the Insertion Emulator's subtitle and log banner are corrected to `0.9`. These were cosmetic — the field sets and rules were already v0.9 — but they were the kind of cosmetic error that gets quoted back as fact.
+
+---
+
 ## [0.9] — 2026-10-09 — Workstream review revision 2
 
 Second in-place revision of the v0.9 document, applying three decisions taken in the OCP OAC
