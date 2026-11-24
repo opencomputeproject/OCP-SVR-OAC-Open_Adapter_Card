@@ -5,7 +5,7 @@
 | File | Description |
 |------|-------------|
 | [validate-metadata.py](validate-metadata.py) | Validates an OAC Metadata document against the schema and the specification's semantic rules |
-| [test-validate-metadata.py](test-validate-metadata.py) | Self-test for the validator — 28 cases, positive and negative |
+| [test-validate-metadata.py](test-validate-metadata.py) | Self-test for the validator — 34 cases, positive and negative |
 
 ## Requirements
 
@@ -51,7 +51,9 @@ Exit status is 0 when every case behaves as expected, 1 otherwise.
 
 ## Why there is a semantic layer
 
-JSON Schema expresses the structure of the document: the root key, the required members, the integer bounds, the role-name pattern, and the `dependentRequired` pairing of `scdd` and `scda`. Five rules in the specification are not structural and are implemented in `semantic_errors()`.
+JSON Schema expresses the structure of the document: the root key, the required members, the integer bounds, the two `major.minor` patterns, the role-name pattern, and the `dependentRequired` pairing of `scdd` and `scda`. Five rules in the specification are not structural and are implemented in `semantic_errors()`.
+
+`oac_spec_revision` is deliberately **not** among them. Section 8.2 check 4 is presence and syntax only, which the schema already expresses, so the semantic layer has nothing to add. The cross-document check a reader might expect — that this value agrees with the CID's `metadata.oac_spec_revision` — is not implemented here and is not a rule this tool can enforce: it validates a single metadata document and has no access to the CID. Specification Section 5.3 names the CID as governing where the two disagree, so there is a defined outcome without a check.
 
 **`file_identifier` uniqueness across roles** is the one the artifact exists to enforce. DSP0248 defines `FileIdentifier` as unique relative to the PLDM Terminus ID, so two roles carrying the same value describe the same file and at most one can be right. JSON Schema has no vocabulary for "these sibling values must differ" — `uniqueItems` applies to arrays, and `files` is an object. The failure mode is what makes it worth a dedicated check: a controller handed a duplicate performs a successful `DfOpen`, a successful read, and a successful parse, and then acts on the contents of the wrong file. Nothing in the PLDM transport reports anything.
 
@@ -75,10 +77,12 @@ Two halves, on the model of the SCD's `test-validate-scd.py`.
 
 **The negative half** mutates a published example in memory, one defect at a time, and asserts a rejection comes back. This is the load-bearing half; a validator that accepts everything passes the positive half perfectly.
 
-Two cases are named in the source because they carry more than their own weight.
+Three cases are named in the source because they carry more than their own weight.
 
 `DUPLICATE_IDENTIFIER` is the defect described above — the one no schema keyword catches and no transport reports.
 
 `MULTI_DIGIT_VERSION_OK` exists because the source package this artifact derives from shipped an example with `schema_version` `"11.31"`, purely to exercise the multi-digit pattern. That belongs in a test and not in reference material a vendor might copy, so the published examples all read `0.9` and the pattern is exercised here instead.
+
+`SPEC_REVISION_INDEPENDENT` guards a rule that is easy to get wrong in the tightening direction. `schema_version` and `oac_spec_revision` read `0.9` in every document in this tree, which makes it look as though one could be derived from the other or checked against it. They are properties of different things — the document and the card — and Specification Section 5.3 says they move independently. The case asserts that a document whose two revisions differ is accepted, so the first time either specification moves without the other, this tool does not reject a conformant card.
 
 The positive half also asserts that `$comment` is accepted at all four levels of the document and that two vendor roles may share one PEN namespace. Both are permitted by the specification and both are the kind of permission that gets closed off by accident when a schema is tightened.

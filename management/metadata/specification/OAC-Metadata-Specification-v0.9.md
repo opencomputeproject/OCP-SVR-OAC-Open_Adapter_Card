@@ -24,6 +24,7 @@ This document is a Draft specification. Contents are subject to revision by the 
 5. Metadata Overview
    - 5.1 Purpose
    - 5.2 Schema Version and Compatibility
+   - 5.3 Base Specification Revision
 6. Metadata as a FRU File
    - 6.1 General
    - 6.2 Encoding
@@ -130,7 +131,7 @@ The following documents are normative references for this specification. For dat
 
 ### 5.1 Purpose
 
-The OAC Metadata file carries one thing: a mapping from file role to the pair of values needed to open that file. It carries no connector data, no power data, and no configuration data, and an implementation shall not place such data in it. Its sole function is indirection, and the value of that indirection is extensibility — a management file role can be added to the OAC model without reserving a new `FileName` in a specification and without a controller needing to know the name in advance.
+The OAC Metadata file carries a mapping from file role to the pair of values needed to open that file, and two revision declarations that let a controller judge what it is holding before it opens anything. It carries no connector data, no power data, and no configuration data, and an implementation shall not place such data in it. Its sole function is indirection, and the value of that indirection is extensibility — a management file role can be added to the OAC model without reserving a new `FileName` in a specification and without a controller needing to know the name in advance.
 
 A controller that does not recognize a role ignores it. This is what permits the set of roles to grow: an OAC publishing a role from a later revision of this specification, or a vendor-defined role under Section 7.5, remains fully usable by a controller that understands only `cid`, `scdd`, and `scda`.
 
@@ -145,6 +146,16 @@ An upstream management controller shall accept a metadata document whose `major`
 This rule deliberately differs from the SCD, where `SCHEMA_VERSIONS` is the exact set `{"0.9"}` and any other value is answered `UNSUPPORTED_SCHEMA_VERSION`. The difference is intentional and follows from what each document is. The SCD Definition describes a configuration contract whose field semantics a controller must understand exactly or not at all; a partially understood Definition could produce a configuration both sides believe is valid and that is not. The metadata file describes only where files are. A role a controller does not recognize is a file it will not open, which is the same outcome as the role not being present, and is safe. Minor-version tolerance here costs nothing and is the mechanism by which the extensibility described in Section 5.1 is actually realized.
 
 An implementation shall not infer from this rule that minor revisions may change the meaning of an existing field. A minor revision may add roles and may add optional members; it shall not alter the semantics of `cid`, `scdd`, `scda`, `file_identifier`, or `file_name`.
+
+### 5.3 Base Specification Revision
+
+The `oac_spec_revision` field declares the revision of the OCP Open Adapter Card Base Specification the OAC was designed against, as `major.minor`. It is the same field, carrying the same value, that the OAC declares in the CID at `metadata.oac_spec_revision` and in the SCD Definition at the same path.
+
+`schema_version` and `oac_spec_revision` are different things and are not interchangeable. `schema_version` is a property of the *document* — which revision of this specification its structure conforms to. `oac_spec_revision` is a property of the *card* — which revision of the Base Specification its pinout, power behavior, and operational state machine were designed to. The two move independently: a revision of this specification that adds a file role implies nothing about the Base Specification, and a Base Specification revision that changes a power envelope implies nothing about this document's structure. An implementation shall not derive either value from the other, and a reader shall not assume they match because they happen to read alike in this revision.
+
+An OAC shall declare the same `oac_spec_revision` in the metadata file as it declares in its CID. The two are statements about one card, and a card that makes two different statements about which specification it was built to has published a defect. Where a controller does compare them and finds them in disagreement, the CID governs. The CID is the document the energization decision is made on, and the metadata file is a pointer document that carries no connector or power data against which its claim could be checked.
+
+An upstream management controller shall not withhold energization on the basis of `oac_spec_revision` alone, and shall not reject a metadata document because the value is a revision the controller does not implement. The purpose of the field here is to let a controller learn the card's design generation from the first file it reads, before it has opened anything else — useful for logging, inventory, and for selecting among retrieval behaviors. The compatibility decision itself is made on the CID, per OAC-CID-SPEC Section 9, and this specification adds no energization criterion.
 
 ---
 
@@ -200,9 +211,11 @@ An OAC shall associate a Device File State Sensor with the metadata file, on DSP
 
 ### 7.1 General
 
-The OAC Metadata file is a single JSON object. The root key of the JSON document shall be `"oac_metadata"`. The value associated with `"oac_metadata"` shall be a JSON object containing two members: `"schema_version"` and `"files"`.
+The OAC Metadata file is a single JSON object. The root key of the JSON document shall be `"oac_metadata"`. The value associated with `"oac_metadata"` shall be a JSON object containing three members: `"schema_version"`, `"oac_spec_revision"`, and `"files"`.
 
 The root key alone identifies the document. This specification defines no separate file-type member, and an implementation shall not add one. A document carrying both a root key and a redundant type declaration admits the case in which the two disagree, and this specification would then have to arbitrate between them.
+
+`oac_spec_revision` is a declared exception to that reasoning rather than a contradiction of it. It does restate a value the CID also carries, and the two can therefore disagree — so Section 5.3 arbitrates the disagreement explicitly, naming the CID as governing. The field is kept despite the redundancy because the metadata file is read first, and a controller that must open the CID before it can learn the card's design generation cannot use that generation to decide how to read anything. A file-type member buys no equivalent ordering advantage, which is why it is prohibited and this is not.
 
 A `"$comment"` member of type string is permitted within any object defined by this specification, including the root object. It is an authoring aid. An upstream management controller shall ignore it. A production metadata file is minified and would not normally carry one.
 
@@ -215,6 +228,7 @@ An upstream management controller shall ignore unrecognized keys wherever they a
 | Field | Type | Required | Constraints | Description |
 |-------|------|----------|-------------|-------------|
 | `schema_version` | string | Required | Pattern `^[0-9]+\.[0-9]+$` | Revision of this specification the document conforms to, as `major.minor`. See Section 5.2. |
+| `oac_spec_revision` | string | Required | Pattern `^[0-9]+\.[0-9]+$` | OAC Base Specification revision the OAC was designed against. The same value the OAC declares in its CID. See Section 5.3. |
 | `files` | object | Required | At least one member; see Section 7.3 | The management files this OAC exposes, keyed by role. |
 
 ### 7.3 files Object
@@ -306,15 +320,18 @@ An upstream management controller shall verify the following before using the co
 1. The document is syntactically valid JSON per ECMA-404 and is encoded in UTF-8 with no byte order mark.
 2. The root key is `oac_metadata`.
 3. `schema_version` is present, matches the pattern `^[0-9]+\.[0-9]+$`, and declares a `major` component the controller implements, per Section 5.2.
-4. `files` is present and declares the `cid` role.
-5. `scdd` and `scda` are either both present or both absent.
-6. Every declared role carries both `file_identifier` and `file_name`.
-7. Every `file_identifier` is in the range 0 to 65535 inclusive.
-8. No two roles share a `file_identifier`.
-9. No two roles share a `file_name`.
-10. No role carries the reserved `file_name` `OAC_METADATA.json`.
-11. For the roles `cid`, `scdd`, and `scda`, `file_name` matches Table 7.4-2.
-12. Every vendor-defined role key matches the form of Section 7.5.
+4. `oac_spec_revision` is present and matches the pattern `^[0-9]+\.[0-9]+$`.
+5. `files` is present and declares the `cid` role.
+6. `scdd` and `scda` are either both present or both absent.
+7. Every declared role carries both `file_identifier` and `file_name`.
+8. Every `file_identifier` is in the range 0 to 65535 inclusive.
+9. No two roles share a `file_identifier`.
+10. No two roles share a `file_name`.
+11. No role carries the reserved `file_name` `OAC_METADATA.json`.
+12. For the roles `cid`, `scdd`, and `scda`, `file_name` matches Table 7.4-2.
+13. Every vendor-defined role key matches the form of Section 7.5.
+
+Check 4 is a presence and syntax check only. A controller shall not extend it into a comparison against a list of revisions it implements, and shall not fail a document whose `oac_spec_revision` it does not recognize; per Section 5.3 the compatibility decision is made on the CID.
 
 A controller shall additionally verify, as it resolves each role, that a File Descriptor PDR exists carrying the `file_identifier` the metadata declared. A role naming an identifier the PDR repository does not contain is a malformed document, not a missing file.
 
@@ -346,7 +363,8 @@ An upstream management controller shall not fall back to matching a `FileName` o
 | Set `SuperiorDirectoryFileIdentifier` to `0xFFFF`, absent a directory | Mandatory | 6.3 |
 | Associate a Device File State Sensor on DSP0249 State Set 68 with the metadata file | Mandatory | 6.3 |
 | Use `oac_metadata` as the root key | Mandatory | 7.1 |
-| Declare `schema_version` and `files` | Mandatory | 7.2 |
+| Declare `schema_version`, `oac_spec_revision`, and `files` | Mandatory | 7.2 |
+| Declare the same `oac_spec_revision` in the metadata file as in the CID | Mandatory | 5.3 |
 | Declare the `cid` role | Mandatory | 7.3 |
 | Declare `scdd` and `scda` together or declare neither | Mandatory | 7.3 |
 | Use the `file_name` values of Table 7.4-2 for the OCP-defined roles | Mandatory | 7.4 |
@@ -367,6 +385,8 @@ An upstream management controller shall not fall back to matching a `FileName` o
 | Resolve the CID and SCD files through the metadata file rather than by assuming a `FileName` | Mandatory | 8.1 |
 | Accept a document whose `schema_version` major component the controller implements | Mandatory | 5.2 |
 | Reject a document whose `schema_version` major component the controller does not implement | Mandatory | 5.2 |
+| Refrain from withholding `OAC_PWR_EN` on the basis of `oac_spec_revision` alone | Mandatory | 5.3 |
+| Treat the CID's `oac_spec_revision` as governing where the two documents disagree | Mandatory | 5.3 |
 | Ignore unrecognized file roles | Mandatory | 5.1, 7.5 |
 | Ignore unrecognized keys at any level of nesting | Mandatory | 7.1 |
 | Ignore `$comment` members | Mandatory | 7.1 |
@@ -397,6 +417,7 @@ A template for authoring is provided at `../templates/OAC-METADATA-TEMPLATE.json
 {
   "oac_metadata": {
     "schema_version": "0.9",
+    "oac_spec_revision": "0.9",
     "files": {
       "cid":  { "file_identifier": 1608, "file_name": "OAC_CID.json"  },
       "scdd": { "file_identifier": 1601, "file_name": "OAC_SCDD.json" },

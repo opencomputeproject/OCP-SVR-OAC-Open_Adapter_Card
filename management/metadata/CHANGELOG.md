@@ -16,7 +16,17 @@ First publication of the OAC Metadata file. The version identifier matches the C
 
 ### Added
 
-- **The OAC Metadata file.** A JSON document with the root key `oac_metadata`, published as a FRU Data File and retrieved over DSP0257, carrying a `schema_version` and a `files` object. Each member of `files` maps a role to the `file_identifier` and `file_name` of that file's DSP0248 File Descriptor PDR. The document carries nothing else, and Specification Section 5.1 states that an implementation shall not place connector, power, or configuration data in it.
+- **The OAC Metadata file.** A JSON document with the root key `oac_metadata`, published as a FRU Data File and retrieved over DSP0257, carrying a `schema_version`, an `oac_spec_revision`, and a `files` object. Each member of `files` maps a role to the `file_identifier` and `file_name` of that file's DSP0248 File Descriptor PDR. The document carries nothing else, and Specification Section 5.1 states that an implementation shall not place connector, power, or configuration data in it.
+
+- **`oac_spec_revision`** (Specification Section 5.3), the OAC Base Specification revision the OAC was designed against, carried as a required `major.minor` string alongside `schema_version`. It is the same field, with the same value, that the OAC already declares in its CID and SCD Definition, so the three management documents now agree on how they name the revision of the card they describe.
+
+  Two points are recorded here because they are the ones an implementer will get wrong. **`schema_version` and `oac_spec_revision` are not the same value under two names.** One is a property of the document and one is a property of the card, and they read alike in this revision only because both specifications currently sit at 0.9; the self-test carries a `SPEC_REVISION_INDEPENDENT` case asserting that a document in which they differ is accepted, so that the first revision to move one without the other does not meet a tool that has quietly tied them together.
+
+  **The field restates a value the CID also carries, and Section 5.3 arbitrates the disagreement rather than leaving it open: the CID governs.** Specification Section 7.1 prohibits a redundant file-type member on precisely the grounds that two declarations can disagree, so the exception is stated explicitly and justified — the metadata file is read first, and a controller that must open the CID before it can learn the card's design generation cannot use that generation to decide how to read anything. A file-type member buys no equivalent ordering advantage.
+
+  The field gates nothing. Section 8.2 check 4 is presence and syntax only, a controller shall not withhold `OAC_PWR_EN` on the strength of this value, and it shall not reject a metadata document because the revision named is one it does not implement. Compatibility is decided on the CID, per OAC-CID-SPEC Section 9, and this specification still adds no energization criterion.
+
+  **Breaking against the schema as first pushed.** `oac_spec_revision` is required, so a metadata document written against the schema at commit `2bc9b78` and carrying only `schema_version` and `files` is rejected by the schema in this tree. No implementation is known to have been built against that schema, which is why this is folded into the initial-publication entry rather than recorded as a revision of published material; an implementer who did start from it needs to add one line.
 
 - **The reserved `FileName` `OAC_METADATA.json`** (Specification Section 6.3). This is the bootstrap, and it is worth being plain that the metadata file does not eliminate the hard-coded name — it reduces the count from three reserved strings to one. That one is now the only reserved file name in the OAC management model, and an OAC shall not assign it to any other file.
 
@@ -36,7 +46,7 @@ First publication of the OAC Metadata file. The version identifier matches the C
 
 - **`tools/validate-metadata.py`**, schema validation plus the semantic layer. Four of its rules cannot be expressed in JSON Schema and are the reason the layer exists: `file_identifier` uniqueness, `file_name` uniqueness, the prohibition on `OAC_METADATA.json` appearing as an entry, and the fixed names of Table 7.4-2. The first of these is the one that matters. DSP0248 defines `FileIdentifier` as unique relative to the PLDM Terminus ID, so two roles sharing a value describe the same file; a controller handed such a document opens a file successfully, parses it successfully, and acts on the wrong content, with no error raised anywhere in the transport.
 
-- **`tools/test-validate-metadata.py`**, 28 cases across a positive and a negative half, modelled on the SCD self-test. The positive half asserts the published examples and the template are accepted, on the principle that a validator rejecting its own reference material is wrong about the specification rather than about the material.
+- **`tools/test-validate-metadata.py`**, 34 cases across a positive and a negative half, modelled on the SCD self-test. The positive half asserts the published examples and the template are accepted, on the principle that a validator rejecting its own reference material is wrong about the specification rather than about the material.
 
 ### Notes for implementers
 

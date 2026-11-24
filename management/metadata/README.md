@@ -19,12 +19,13 @@ This directory contains the OAC Metadata specification, its JSON Schema, an anno
    OAC  ◄─── SCDA (assigned field values) ──────────────────┘
 ```
 
-The file carries one thing: a mapping from file role to the `FileIdentifier` and `FileName` of the DSP0248 File Descriptor PDR that describes that file. It carries no connector data, no power data, and no configuration data.
+The file carries a mapping from file role to the `FileIdentifier` and `FileName` of the DSP0248 File Descriptor PDR that describes that file, plus two revision declarations. It carries no connector data, no power data, and no configuration data.
 
 ```json
 {
   "oac_metadata": {
     "schema_version": "0.9",
+    "oac_spec_revision": "0.9",
     "files": {
       "cid":  { "file_identifier": 1608, "file_name": "OAC_CID.json"  },
       "scdd": { "file_identifier": 1601, "file_name": "OAC_SCDD.json" },
@@ -110,6 +111,16 @@ This follows the SCD's namespacing convention rather than the CID's `vendor_<nam
 `schema_version` is `major.minor`, both components permitting multiple digits. A controller accepts a document whose **major** component it implements and ignores roles it does not recognize; it rejects a document whose major component it does not implement.
 
 This is deliberately looser than the SCD, where `SCHEMA_VERSIONS` is the exact set `{"0.9"}`. The reason is what each document is. A partially understood SCD Definition can produce a configuration both sides believe is valid and that is not. A role a controller does not recognize is simply a file it will not open — indistinguishable from the role being absent, and safe. Minor-version tolerance costs nothing here and is the mechanism by which the extensibility is actually realized.
+
+### Two revisions, not one
+
+`schema_version` and `oac_spec_revision` are both `major.minor` strings, both required, and both read `0.9` everywhere in this tree — which is exactly why the distinction is worth stating before someone writes code that conflates them.
+
+`schema_version` is a property of the **document**: which revision of the OAC Metadata specification its structure conforms to. `oac_spec_revision` is a property of the **card**: which revision of the OAC Base Specification its pinout, power behavior, and operational state machine were designed to. The two move independently, and the validator has a test case asserting a document in which they differ is accepted.
+
+`oac_spec_revision` is the same field, carrying the same value, that the OAC declares in its CID and SCD Definition. Carrying it here as well means a controller learns the card's design generation from the first file it reads, before it has opened anything else. The redundancy is deliberate and the disagreement case is arbitrated rather than left open: **where the metadata file and the CID disagree, the CID governs** (Specification Section 5.3), because the CID is the document the energization decision is made on.
+
+A controller does **not** withhold power on the strength of this field. It is not an energization criterion, and a controller shall not reject a metadata document because `oac_spec_revision` names a revision it does not implement — compatibility is decided on the CID.
 
 ---
 

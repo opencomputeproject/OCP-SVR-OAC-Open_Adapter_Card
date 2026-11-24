@@ -1,6 +1,7 @@
 {
   "oac_metadata": {
     "schema_version": "0.9",
+    "oac_spec_revision": "0.9",
     "files": {
       "cid": {
         "file_identifier": 1608,

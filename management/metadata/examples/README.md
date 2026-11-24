@@ -18,6 +18,7 @@ Three reference documents, each validating cleanly against [`../OAC-Metadata-v0.
 {
   "oac_metadata": {
     "schema_version": "0.9",
+    "oac_spec_revision": "0.9",
     "files": {
       "cid":  { "file_identifier": 1608, "file_name": "OAC_CID.json"  },
       "scdd": { "file_identifier": 1601, "file_name": "OAC_SCDD.json" },
@@ -28,6 +29,8 @@ Three reference documents, each validating cleanly against [`../OAC-Metadata-v0.
 ```
 
 What a fully featured OAC publishes, and the shape most implementations will carry. There is no metadata entry for the metadata file itself; it is located by the reserved `FileName` `OAC_METADATA.json`, and an entry describing it would describe a file that is already open.
+
+The two revisions both read `0.9` here, and that coincidence is the one thing in this example most likely to mislead. `schema_version` says which revision of the metadata specification this *document* conforms to; `oac_spec_revision` says which revision of the OAC Base Specification the *card* was designed against, and is the same value the card's CID carries. They are equal in every document in this repository only because both specifications currently sit at 0.9. Specification Section 5.3 states they move independently, and the self-test has a `SPEC_REVISION_INDEPENDENT` case asserting a document in which they differ is accepted.
 
 The identifiers are not consecutive and not ordered, which is deliberate. They are drawn from an OAC's own PDR repository alongside whatever other device files it publishes, and nothing in the model gives the three management files adjacent numbering. A controller that assumes `cid + 1` is the Definition will work against an example and fail against a card.
 
@@ -66,6 +69,7 @@ A controller that has never heard of `pen.32473.telemetry_map` ignores it and pr
 {
   "oac_metadata": {
     "schema_version": "0.9",
+    "oac_spec_revision": "0.9",
     "files": {
       "cid": { "file_identifier": 1608, "file_name": "OAC_CID.json" }
     }
@@ -83,10 +87,12 @@ A controller finding neither role proceeds to energization on the CID alone. Tha
 
 ## What the examples cannot show
 
-The structural rules are all visible above. Two requirements are not, because they concern the card rather than the document.
+The structural rules are all visible above. Three requirements are not, because they concern the card rather than the document.
 
 **Every `file_identifier` must correspond to a File Descriptor PDR that actually exists.** Specification Section 8.2 requires the controller to verify this as it resolves each role, and classifies a dangling identifier as a *malformed metadata document* rather than a missing file — the card said the file was there, and it was not. No amount of validating this JSON detects it.
 
 **Every `file_name` must match the `FileName` in that same PDR.** The validator checks the three OCP-defined roles against Table 7.4-2, which catches a typo in the document. It cannot catch a PDR that disagrees with a document that is correct.
 
-Both are checked on hardware, or against a staged firmware image with `--resolve`.
+**`oac_spec_revision` must match the value the card declares in its CID.** The metadata validator checks the field's presence and syntax, which is all Specification Section 8.2 asks of it, and it never opens the CID. A card declaring `0.9` here and `0.8` there produces two documents that each validate cleanly and that cannot both be true. Section 5.3 names the CID as governing so a controller meeting the pair has a defined answer, but the disagreement is a defect in the card and should be caught before it ships.
+
+All three are checked on hardware, or against a staged firmware image with `--resolve`.

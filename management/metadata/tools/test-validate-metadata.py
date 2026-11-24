@@ -9,7 +9,7 @@ material. The negative half mutates those examples in memory, one defect at a
 time, and asserts a rejection comes back. The negative half is the load-bearing
 one, because a validator that accepts everything is worth nothing.
 
-Two cases deserve naming.
+Three cases deserve naming.
 
 DUPLICATE_IDENTIFIER is the defect this artifact exists to prevent. The whole
 point of the metadata file is that a controller opens a file by the identifier
@@ -21,6 +21,12 @@ MULTI_DIGIT_VERSION_OK is here because the source package shipped an example
 with schema_version "11.31" purely to exercise the multi-digit pattern. That
 belongs in a test, not in reference material a vendor might copy, so the
 pattern is exercised here and the published examples all read 0.9.
+
+SPEC_REVISION_INDEPENDENT guards against a tempting wrong rule. schema_version
+and oac_spec_revision both read 0.9 in every published document, which invites
+a tool to treat one as derivable from the other. They are properties of
+different things -- the document and the card -- and Specification Section 5.3
+says so. The case asserts a document whose two revisions differ is accepted.
 
 Usage:
     python3 tools/test-validate-metadata.py
@@ -104,6 +110,7 @@ def run_positive(rep):
     print("\n-- positive: published material is accepted --")
     rep.expect_valid("schema is itself valid Draft 2020-12",
                      {"oac_metadata": {"schema_version": "0.9",
+                                       "oac_spec_revision": "0.9",
                                        "files": {"cid": {"file_identifier": 1,
                                                          "file_name": "OAC_CID.json"}}}})
     for name in examples():
@@ -125,6 +132,19 @@ def run_positive(rep):
     doc["oac_metadata"]["files"]["pen.32473.second_file"] = {
         "file_identifier": 1713, "file_name": "VENDOR_SECOND.json"}
     rep.expect_valid("two vendor roles under one PEN", doc)
+
+    # Specification Section 5.3. The two revisions are properties of different
+    # things -- the document and the card -- and nothing requires them to agree.
+    # A tool that quietly tied them together would reject a conformant card the
+    # first time either specification moved without the other.
+    doc = load(os.path.join(EX, "OAC-METADATA-0.9-ExampleA-Minimal.json"))
+    doc["oac_metadata"]["oac_spec_revision"] = "1.0"
+    rep.expect_valid(
+        "SPEC_REVISION_INDEPENDENT -- oac_spec_revision need not track schema_version", doc)
+
+    doc = load(os.path.join(EX, "OAC-METADATA-0.9-ExampleA-Minimal.json"))
+    doc["oac_metadata"]["oac_spec_revision"] = "12.40"
+    rep.expect_valid("multi-digit oac_spec_revision", doc)
 
 
 def run_negative(rep):
@@ -194,6 +214,22 @@ def run_negative(rep):
     doc = copy.deepcopy(base)
     del doc["oac_metadata"]["schema_version"]
     rep.expect_invalid("metadata with no schema_version", doc)
+
+    doc = copy.deepcopy(base)
+    del doc["oac_metadata"]["oac_spec_revision"]
+    rep.expect_invalid("metadata with no oac_spec_revision", doc)
+
+    doc = copy.deepcopy(base)
+    doc["oac_metadata"]["oac_spec_revision"] = "0.9.1"
+    rep.expect_invalid("three-component oac_spec_revision", doc)
+
+    doc = copy.deepcopy(base)
+    doc["oac_metadata"]["oac_spec_revision"] = "v0.9"
+    rep.expect_invalid("oac_spec_revision carrying a leading v", doc)
+
+    doc = copy.deepcopy(base)
+    doc["oac_metadata"]["oac_spec_revision"] = 0.9
+    rep.expect_invalid("oac_spec_revision as a number rather than a string", doc)
 
     doc = copy.deepcopy(base)
     doc["oac_metadata"]["files"]["cid"]["role"] = "primary"

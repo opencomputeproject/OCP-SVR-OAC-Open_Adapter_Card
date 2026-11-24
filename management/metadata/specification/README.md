@@ -21,7 +21,7 @@ The metadata file is the entry point to the OAC management model — the first f
 | 1 | Scope, and what the metadata file replaces |
 | 2 | Normative references |
 | 3–4 | Terms, symbols, abbreviations |
-| 5 | Purpose, and schema version compatibility |
+| 5 | Purpose, schema version compatibility, and the Base Specification revision the card declares |
 | 6 | The metadata file as a FRU file — encoding, classification, and the reserved `OAC_METADATA.json` |
 | 7 | JSON document structure — the `oac_metadata` object, the `files` object, the file descriptor object, and vendor roles |
 | 8 | Retrieval sequence, validation requirements, failure handling |
@@ -38,6 +38,8 @@ The metadata file is the entry point to the OAC management model — the first f
 **Section 7.4 and Table 7.4-2 — why the names are still fixed.** The three OCP-defined roles still carry fixed `file_name` values, which looks like the exercise undoing itself. It is not. Those names were the discovery mechanism and are now merely descriptive, retained so the files stay identifiable in a PDR dump and to diagnostic tooling. A vendor-defined role carries no such constraint.
 
 **Section 5.2 — why version handling is looser than the SCD's.** The SCD accepts exactly `0.9` and nothing else. Metadata accepts any document whose major component the controller implements. The asymmetry is deliberate: an unrecognized SCD field can produce a configuration both sides believe is valid and that is not, whereas an unrecognized file role is a file the controller does not open — the same outcome as the role being absent.
+
+**Section 5.3 — `schema_version` is not `oac_spec_revision`.** Both are `major.minor` strings, both are required, and both read `0.9` in every document in this tree, which is a standing invitation to treat one as derivable from the other. One describes the document, the other describes the card. They move independently, an OAC declares the same `oac_spec_revision` here as in its CID, and where the two documents disagree the CID governs — the metadata file carries no connector or power data against which its claim could be checked. The field gates nothing: a controller does not withhold `OAC_PWR_EN` on it, and does not reject a document because the revision is one it does not implement.
 
 **Section 8.3 — why there is no fallback.** A controller whose metadata retrieval fails shall not drop back to matching `OAC_CID.json`. That shim is the obvious compatibility move and it is exactly wrong: it energizes a slot on data obtained by a path the OAC never advertised.
 

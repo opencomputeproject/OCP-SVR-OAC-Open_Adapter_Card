@@ -218,6 +218,13 @@ configuration. Each exists because removing it breaks that case.
   file is the one document a controller must be able to read before it knows anything else about the
   card, so it is the one place where refusing to proceed on a minor version difference would cost
   more than it protects.
+- **All three OAC-authored documents declare `oac_spec_revision`, and the CID governs.** The
+  metadata file, the CID, and the SCD Definition each name the OAC Base Specification revision the
+  card was designed against, so a controller learns it from the first file it opens rather than the
+  second. The field is deliberately redundant and the redundancy is arbitrated: where the metadata
+  file and the CID disagree, the CID wins, because it is the document the energization decision is
+  made on. Note that the metadata file's `schema_version` is a different thing — a property of the
+  document, not of the card — and the two need not match.
 - **Metadata vendor roles use `pen.<IANA PEN>.<name>`,** the SCD's namespacing convention rather than
   the CID's `vendor_<name>_` prefix. A role names a file in a shared namespace, which is the problem
   `pen.` was introduced to solve.

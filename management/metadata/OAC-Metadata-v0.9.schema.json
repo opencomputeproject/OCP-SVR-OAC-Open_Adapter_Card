@@ -14,13 +14,18 @@
     "oac_metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "files"],
+      "required": ["schema_version", "oac_spec_revision", "files"],
       "properties": {
         "$comment": { "type": "string" },
         "schema_version": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+$",
-          "description": "Revision of the OAC Metadata schema this document conforms to, as major.minor. Both components may carry multiple digits. A controller matches on the major component and ignores file roles it does not recognize; see Section 5 of the OAC Metadata Specification."
+          "description": "Revision of the OAC Metadata schema this document conforms to, as major.minor. Both components may carry multiple digits. A controller matches on the major component and ignores file roles it does not recognize; see Section 5.2 of the OAC Metadata Specification."
+        },
+        "oac_spec_revision": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "OAC Base Specification revision the OAC was designed against, as major.minor. The same value the OAC declares in the CID's metadata.oac_spec_revision and the SCD Definition's. This is not the revision of the metadata schema -- that is schema_version, and the two may legitimately differ. A controller shall not withhold energization on the basis of this value alone; see Section 5.3 of the OAC Metadata Specification."
         },
         "files": {
           "type": "object",
